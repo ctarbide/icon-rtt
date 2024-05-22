@@ -34,11 +34,12 @@
 #define PpBegdef   1018   /* #begdef */
 #define PpEnddef   1019   /* #enddef */
 #define PpNull     1020   /* # */
-#define PpKeep     1021   /* directive specific to an application, pass along */
-#define PpSkip     1022   /* directive specific to an application discard */
+#define PpKeep     1021   /* #passthru */
+#define PpSkip     1022   /* not used? deprecated? TODO: remove */
+#define PpOutput   1023   /* decide output file name */
 #define Invalid    9999   /* marker */
 
-extern char *progname; /* name of this program: for error messages */
+extern char *g_progname; /* name of this program: for error messages */
 extern int line_cntrl; /* flag: are line directives needed in the output */
 
 /*
@@ -59,6 +60,8 @@ extern struct token *one_tok;  /* token "1" */
 extern int *first_char;        /* first character in tokenizing buffer */
 extern int *next_char;         /* next character in tokenizing buffer */
 extern int *last_char;         /* last character in tokenizing buffer */
+
+extern int g_tk_flg;
 
 /*
  * Entry in array of preprocessor directive names.
@@ -198,5 +201,4 @@ struct src {
 
 extern struct src dummy;       /* base of stack */
 
-extern struct src *src_stack;  /* source stack */
-
+extern struct src *g_src_stack;  /* source stack */

@@ -1,9 +1,11 @@
+
 #include "rtt.h"
 
 /*
  * prototypes for static functions.
  */
 static void add_tdef (char *name);
+int               yyparse   (void);
 
 /*
  * refpath is used to locate the standard include files for the Icon
@@ -11,7 +13,7 @@ static void add_tdef (char *name);
  *  the string that was patched in is used for refpath.
  */
 char *refpath;
-char patchpath[MaxPath+18] = "%PatchStringHere->";
+char patchpath[18 + MaxPath] = "%PatchStringHere->";
 
 static char *ostr = "+ECPD:I:U:d:cir:st:x";
 
@@ -24,8 +26,8 @@ static char *options =
  *  interpreted as relative to where rtt.exe is or where rtt.exe is
  *  invoked.
  */
-    char *grttin_path = "../h/grttin.h";
-    char *rt_path = "../h/rt.h";
+char *grttin_path = "../h/grttin.h";
+char *rt_path = "../h/rt.h";
 
 /*
  *  Note: rtt presently does not process system include files. If this
@@ -34,21 +36,18 @@ static char *options =
  *   stand-alone preprocessor for examples of what's needed.
  */
 
-char *progname = "rtt";
+char *g_progname = "rtt";
 char *compiler_def;
-FILE *out_file;
+FILE *g_out_file;
 char *inclname;
 int def_fnd;
 char *largeints = "LargeInts";
 
 int iconx_flg = 0;
-int enable_out = 0;
 
 static char *curlst_nm = "rttcur.lst";
 static FILE *curlst;
 static char *cur_src;
-
-extern int line_cntrl;
 
 /*
  * tdefnm is used to construct a list of identifiers that
@@ -65,15 +64,10 @@ static char *opt_lst;
 static char **opt_args;
 static char *in_header;
 static struct tdefnm *tdefnm_lst = NULL;
-
-/*
- * getopt() variables
- */
-extern int optind;		/* index into parent argv vector */
-extern int optopt;		/* character checked for validity */
-extern char *optarg;		/* argument associated with option */
-
-int main(int argc, char **argv)
+
+int main(argc, argv)
+int argc;
+char **argv;
    {
    int c;
    int nopts;
@@ -85,7 +79,7 @@ int main(int argc, char **argv)
     *  rtt executable.
     */
    if ((int)strlen(patchpath) > 18)
-      refpath = patchpath+18;
+      refpath = patchpath + 18;
    else
       refpath = relfile(argv[0], "/../");
 
@@ -118,50 +112,50 @@ int main(int argc, char **argv)
     */
    while ((c = getopt(argc, argv, ostr)) != EOF)
       switch (c) {
-         case 'E': /* run preprocessor only */
-            pp_only = 1;
-            if (whsp_image == NoSpelling)
-               whsp_image = NoComment;
-            break;
-         case 'C':  /* retain spelling of white space, only effective with -E */
-            whsp_image = FullImage;
-            break;
-          case 'P': /* do not produce #line directives in output */
-            line_cntrl = 0;
-            break;
-          case 'd': /* -d name: name of data base */
-            dbname = optarg;
-            break;
-         case 'r':  /* -r path: location of include files */
-            refpath = optarg;
-            break;
-         case 't':  /* -t ident : treat ident as a typedef name */
-            add_tdef(optarg);
-            break;
-         case 'x':  /* produce code for interpreter rather than compiler */
-            iconx_flg = 1;
-            break;
+	 case 'E': /* run preprocessor only */
+	    pp_only = 1;
+	    if (whsp_image == NoSpelling)
+	       whsp_image = NoComment;
+	    break;
+	 case 'C':  /* retain spelling of white space, only effective with -E */
+	    whsp_image = FullImage;
+	    break;
+	  case 'P': /* do not produce #line directives in output */
+	    line_cntrl = 0;
+	    break;
+	  case 'd': /* -d name: name of data base */
+	    dbname = optarg;
+	    break;
+	 case 'r':  /* -r path: location of include files */
+	    refpath = optarg;
+	    break;
+	 case 't':  /* -t ident : treat ident as a typedef name */
+	    add_tdef(optarg);
+	    break;
+	 case 'x':  /* produce code for interpreter rather than compiler */
+	    iconx_flg = 1;
+	    break;
 
-         case 'D':  /* define preprocessor symbol */
-         case 'I':  /* path to search for preprocessor includes */
-         case 'U':  /* undefine preprocessor symbol */
-            /*
-             * Save these options for the preprocessor initialization routine.
-             */
-            opt_lst[nopts] = c;
-            opt_args[nopts] = optarg;
-            ++nopts;
-            break;
-         default:
-            show_usage();
-         }
+	 case 'D':  /* define preprocessor symbol */
+	 case 'I':  /* path to search for preprocessor includes */
+	 case 'U':  /* undefine preprocessor symbol */
+	    /*
+	     * Save these options for the preprocessor initialization routine.
+	     */
+	    opt_lst[nopts] = c;
+	    opt_args[nopts] = optarg;
+	    ++nopts;
+	    break;
+	 default:
+	    show_usage();
+	 }
 
    #ifdef Rttx
       if (!iconx_flg) {
-         fprintf(stdout,
-            "rtt was compiled to only support the intepreter, use -x\n");
-         exit(EXIT_FAILURE);
-         }
+	 fprintf(stdout,
+	    "rtt was compiled to only support the intepreter, use -x\n");
+	 exit(EXIT_FAILURE);
+	 }
    #endif				/* Rttx */
 
    if (iconx_flg)
@@ -181,7 +175,7 @@ int main(int argc, char **argv)
     * At least one file name must be given on the command line.
     */
    if (optind == argc)
-     show_usage();
+      show_usage();
 
    /*
     * When creating the compiler run-time system, rtt outputs a list
@@ -191,7 +185,7 @@ int main(int argc, char **argv)
    if (!iconx_flg) {
       curlst = fopen(curlst_nm, "w");
       if (curlst == NULL)
-         err2("cannot open ", curlst_nm);
+	 err2("cannot open ", curlst_nm);
       }
 
    /*
@@ -201,9 +195,9 @@ int main(int argc, char **argv)
    if (!pp_only) {
       fp = fparse(dbname);
       if (*fp->ext == '\0')
-         dbname = salloc(makename(buf, SourceDir, dbname, DBSuffix));
+	 dbname = salloc(makename(buf, sizeof(buf), SourceDir, dbname, DBSuffix));
       else if (!smatch(fp->ext, DBSuffix))
-         err2("bad data base name:", dbname);
+	 err2("bad data base name:", dbname);
       loaddb(dbname);
       }
 
@@ -224,26 +218,30 @@ int main(int argc, char **argv)
        *   produced in all runs of rtt that created the data base.
        */
       if (!(pp_only || iconx_flg)) {
-         if (fclose(curlst) != 0)
-            err2("cannot close ", curlst_nm);
-         dumpdb(dbname);
-         full_lst("rttfull.lst");
-         }
+	 if (fclose(curlst) != 0)
+	    err2("cannot close ", curlst_nm);
+	 dumpdb(dbname);
+	 full_lst("rttfull.lst");
+	 }
    #endif				/* Rttx */
 
    return EXIT_SUCCESS;
    }
-
+
 /*
  * trans - translate a source file.
  */
-void trans(char *src_file)
+void trans(src_file)
+char *src_file;
    {
-   char *cname;
    char buf[MaxPath];		/* file name construction buffer */
-   char *buf_ptr;
    struct fileparts *fp;
    struct tdefnm *td;
+
+   if (g_out_file == NULL) {
+      if ((g_out_file = fopen("/dev/null", "w")) == NULL)
+	 err1("cannot open output file /dev/null");
+      }
 
    cur_src = src_file;
 
@@ -251,7 +249,6 @@ void trans(char *src_file)
     * Read standard header file for preprocessor directives and
     * typedefs, but don't write anything to output.
     */
-   enable_out = 0;
    init_preproc(in_header, opt_lst, opt_args);
    str_src("<rtt initialization>", compiler_def, (int)strlen(compiler_def));
    init_sym();
@@ -259,21 +256,19 @@ void trans(char *src_file)
       sym_add(TypeDefName, td->name, OtherDcl, 1);
    init_lex();
    yyparse();
-   enable_out = 1;
 
    /*
     * Make sure we have a .r file or standard input.
     */
    if (strcmp(cur_src, "-") == 0) {
       source("-"); /* tell preprocessor to read standard input */
-      cname = salloc(makename(buf, TargetDir, "stdin", CSuffix));
       }
    else {
       fp = fparse(cur_src);
       if (*fp->ext == '\0')
-         cur_src = salloc(makename(buf, SourceDir, cur_src, RttSuffix));
+	 cur_src = salloc(makename(buf, sizeof(buf), SourceDir, cur_src, RttSuffix));
       else if (!smatch(fp->ext, RttSuffix))
-         err2("unknown file suffix ", cur_src);
+	 err2("unknown file suffix ", cur_src);
       cur_src = spec_str(cur_src);
 
       /*
@@ -281,17 +276,8 @@ void trans(char *src_file)
        *  files produced from this input file.
        */
       if (!iconx_flg)
-         clr_dpnd(cur_src);
+	 clr_dpnd(cur_src);
       source(cur_src);  /* tell preprocessor to read source file */
-
-      /*
-       * For the interpreter prepend "x" to the file name for the .c file.
-       */
-      buf_ptr = buf;
-      if (iconx_flg)
-         *buf_ptr++ = 'x';
-      makename(buf_ptr, TargetDir, cur_src, CSuffix);
-      cname = salloc(buf);
       }
 
    if (pp_only)
@@ -303,29 +289,18 @@ void trans(char *src_file)
        *  if anything interesting is put in the file.
        */
       def_fnd = 0;
-      if ((out_file = fopen(cname, "w")) == NULL)
-         err2("cannot open output file ", cname);
-      else
-         addrmlst(cname, out_file);
-      prologue(); /* output standard comments and preprocessor directives */
       yyparse();  /* translate the input */
-      fprintf(out_file, "\n");
-      if (fclose(out_file) != 0)
-         err2("cannot close ", cname);
-
-      /*
-       * For the Compiler, note the name of the "primary" output file
-       *  in the data base and list of created files.
-       */
-      if (!iconx_flg)
-         put_c_fl(cname, def_fnd);
+      prt_str("", 0); /* ensure last LF */
+      if (fclose(g_out_file) != 0)
+	 err1("cannot close output file");
       }
    }
-
+
 /*
  * add_tdef - add identifier to list of typedef names.
  */
-static void add_tdef(char *name)
+static void add_tdef(name)
+char *name;
    {
    struct tdefnm *td;
 
@@ -334,12 +309,14 @@ static void add_tdef(char *name)
    td->next = tdefnm_lst;
    tdefnm_lst = td;
    }
-
+
 /*
  * Add name of file to the output list, and if it contains "interesting"
  *  code, add it to the dependency list in the data base.
  */
-void put_c_fl(char *fname, int keep)
+void put_c_fl(fname, keep)
+char *fname;
+int keep;
    {
    struct fileparts *fp;
 
@@ -348,20 +325,21 @@ void put_c_fl(char *fname, int keep)
    if (keep)
       add_dpnd(src_lkup(cur_src), fname);
    }
-
+
 /*
  * Print an error message if called incorrectly.
  */
 void show_usage()
    {
-   fprintf(stderr, "usage: %s %s\n", progname, options);
+   fprintf(stderr, "usage: %s %s\n", g_progname, options);
    exit(EXIT_FAILURE);
    }
-
+
 /*
  * yyerror - error routine called by yacc.
  */
-void yyerror(char *s)
+void yyerror(s)
+char *s;
    {
    struct token *t;
 

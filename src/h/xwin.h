@@ -135,13 +135,12 @@
  * "get" means remove them from the Icon list and put them on the ghost queue
  */
 #define EVQUEGET(w,d) { \
-   int i;\
-   wsp ws = (w)->window; \
-   if (!c_get((struct b_list *)BlkLoc(ws->listp),&d)) fatalerr(0,NULL); \
+   wsp __tmp__ws = (w)->window; \
+   if (!c_get((struct b_list *)BlkLoc(__tmp__ws->listp),&d)) fatalerr(0,NULL); \
    if (Qual(d)) {\
-      ws->eventQueue[ws->eQfront++] = *StrLoc(d); \
-      if (ws->eQfront >= EQUEUELEN) ws->eQfront = 0; \
-      ws->eQback = ws->eQfront; \
+      __tmp__ws->eventQueue[__tmp__ws->eQfront++] = *StrLoc(d); \
+      if (__tmp__ws->eQfront >= EQUEUELEN) __tmp__ws->eQfront = 0; \
+      __tmp__ws->eQback = __tmp__ws->eQfront; \
       } \
    }
 #define EVQUEEMPTY(w) (BlkLoc((w)->window->listp)->list.size == 0)

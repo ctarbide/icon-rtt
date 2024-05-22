@@ -13,11 +13,11 @@ static int            eq_id_lst   (struct id_lst *lst1, struct id_lst *lst2);
 static int            eq_tok_lst  (struct tok_lst *lst1, struct tok_lst *lst2);
 static int            parm_indx   (char *id, struct macro *m);
 static void            cpy_str     (char *ldelim, char *image,
-                                        char *rdelim, struct str_buf *sbuf);
+					char *rdelim, struct str_buf *sbuf);
 static struct token      *stringize   (struct token *trigger,
-                                        struct mac_expand *me);
+					struct mac_expand *me);
 static struct paste_lsts *paste_parse (struct token *t,
-                                        struct mac_expand *me);
+					struct mac_expand *me);
 static int               *cpy_image   (struct token *t, int *s);
 
 #define MacTblSz 149
@@ -42,7 +42,8 @@ static char *defined = "defined";
  *  macro table. If the macro is not in the table, the pointer at the
  *  location is NULL.
  */
-static struct macro **m_find(char *mname)
+static struct macro **m_find(mname)
+char *mname;
    {
    struct macro **mpp;
 
@@ -56,7 +57,9 @@ static struct macro **m_find(char *mname)
  * eq_id_lst - check to see if two identifier lists contain the same identifiers
  *  in the same order.
  */
-static int eq_id_lst(struct id_lst *lst1, struct id_lst *lst2)
+static int eq_id_lst(lst1, lst2)
+struct id_lst *lst1;
+struct id_lst *lst2;
    {
    if (lst1 == lst2)
       return 1;
@@ -66,12 +69,14 @@ static int eq_id_lst(struct id_lst *lst1, struct id_lst *lst2)
       return 0;
    return eq_id_lst(lst1->next, lst2->next);
    }
-
+
 /*
  * eq_tok_lst - check to see if 2 token lists contain the same tokens
  *  in the same order. All white space tokens are considered equal.
  */
-static int eq_tok_lst(struct tok_lst *lst1, struct tok_lst *lst2)
+static int eq_tok_lst(lst1, lst2)
+struct tok_lst *lst1;
+struct tok_lst *lst2;
    {
    if (lst1 == lst2)
       return 1;
@@ -80,7 +85,7 @@ static int eq_tok_lst(struct tok_lst *lst1, struct tok_lst *lst2)
    if (lst1->t->tok_id != lst2->t->tok_id)
       return 0;
    if (lst1->t->tok_id != WhiteSpace && lst1->t->tok_id != PpDirEnd &&
-        lst1->t->image != lst2->t->image)
+	lst1->t->image != lst2->t->image)
       return 0;
    return eq_tok_lst(lst1->next, lst2->next);
    }
@@ -116,7 +121,7 @@ void init_macro()
        * Free macro definitions from the file processed.
        */
       for (i = 0; i < MacTblSz; ++i)
-         free_m_lst(m_table[i]);
+	 free_m_lst(m_table[i]);
       }
 
    for (i = 0; i < MacTblSz; ++i)
@@ -174,12 +179,12 @@ void init_macro()
 /*
  * m_install - install a macro.
  */
-void m_install(
-   struct token *mname,	/* name of macro */
-   int category,		/* # parms, or NoArgs if it is object-like macro */
-   int multi_line,		/* flag indicating if this is a multi-line macro */
-   struct id_lst *prmlst,	/* parameter list */
-   struct tok_lst *body)	/* replacement list */
+void m_install(mname, category, multi_line, prmlst, body)
+struct token *mname;	/* name of macro */
+int multi_line;		/* flag indicating if this is a multi-line macro */
+int category;		/* # parms, or NoArgs if it is object-like macro */
+struct id_lst *prmlst;	/* parameter list */
+struct tok_lst *body;	/* replacement list */
    {
    struct macro **mpp;
    char *s;
@@ -193,16 +198,16 @@ void m_install(
     */
    if (mname->image == rcrs_mac) {
       if (body == NULL || body->t->tok_id != PpNumber || body->next != NULL)
-         errt1(mname, "__RCRS__ must be a decimal integer");
+	 errt1(mname, "__RCRS__ must be a decimal integer");
       if (category != NoArgs)
-         errt1(mname, "__RSCS__ may have no arguments");
+	 errt1(mname, "__RSCS__ may have no arguments");
       max_recurse = 0;
       for (s = body->t->image; *s != '\0'; ++s) {
-         if (*s >= '0' && *s <= '9')
-            max_recurse = max_recurse * 10 + (*s - '0');
-         else
-            errt1(mname, "__RCRS__ must be a decimal integer");
-         }
+	 if (*s >= '0' && *s <= '9')
+	    max_recurse = max_recurse * 10 + (*s - '0');
+	 else
+	    errt1(mname, "__RCRS__ must be a decimal integer");
+	 }
       }
 
    mpp = m_find(mname->image);
@@ -214,8 +219,8 @@ void m_install(
        *  white space) to this definition.
        */
       if (!((*mpp)->category == category && eq_id_lst((*mpp)->prmlst, prmlst) &&
-           eq_tok_lst((*mpp)->body, body)))
-         errt2(mname, "invalid redefinition of macro ", mname->image);
+	   eq_tok_lst((*mpp)->body, body)))
+	 errt2(mname, "invalid redefinition of macro ", mname->image);
       free_id_lst(prmlst);
       free_t_lst(body);
       }
@@ -224,7 +229,8 @@ void m_install(
 /*
  * m_delete - delete a macro.
  */
-void m_delete(struct token *mname)
+void m_delete(mname)
+struct token *mname;
    {
    struct macro **mpp, *mp;
 
@@ -246,7 +252,7 @@ void m_delete(struct token *mname)
    if (*mpp != NULL) {
       mp = *mpp;
       if (mp->category == FixedMac || mp->category == SpecMac)
-         errt2(mname, mname->image, " may not be the subject of #undef");
+	 errt2(mname, mname->image, " may not be the subject of #undef");
       *mpp = mp->next;
       free_m(mp);
       }
@@ -257,7 +263,8 @@ void m_delete(struct token *mname)
  *  return NULL, if it is not. This routine sets the definition for macros
  *  whose definitions various from place to place.
  */
-struct macro *m_lookup(struct token *id)
+struct macro *m_lookup(id)
+struct token *id;
    {
    struct macro *m;
    static char buf[20];
@@ -265,13 +272,13 @@ struct macro *m_lookup(struct token *id)
    m = *m_find(id->image);
    if (m != NULL && m->category == SpecMac) {
       if (m->mname == line_mac) {  /* __LINE___ */
-         sprintf(buf, "%d", id->line);
-         m->body = new_t_lst(new_token(PpNumber, buf, id->fname,
-            id->line));
-         }
+	 sprintf(buf, "%d", id->line);
+	 m->body = new_t_lst(new_token(PpNumber, buf, id->fname,
+	    id->line));
+	 }
       else if (m->mname == file_mac) /* __FILE__ */
-         m->body = new_t_lst(new_token(StrLit, id->fname, id->fname,
-            id->line));
+	 m->body = new_t_lst(new_token(StrLit, id->fname, id->fname,
+	    id->line));
       }
    return m;
    }
@@ -279,31 +286,36 @@ struct macro *m_lookup(struct token *id)
 /*
  * parm_indx - see if a name is a paramter to the given macro.
  */
-static int parm_indx(char *id, struct macro *m)
+static int parm_indx(id, m)
+char *id;
+struct macro *m;
    {
    struct id_lst *idlst;
    int i;
 
    for (i = 0, idlst = m->prmlst; i < m->category; i++, idlst = idlst->next)
       if (id == idlst->id)
-         return i;
+	 return i;
    return -1;
    }
 
 /*
  * cpy_str - copy a string into a string buffer, adding delimiters.
  */
-static void cpy_str(char *ldelim, char *image, char *rdelim,
-   struct str_buf *sbuf)
+static void cpy_str(ldelim, image, rdelim, sbuf)
+char *ldelim;
+char *image;
+char *rdelim;
+struct str_buf *sbuf;
    {
-   register char *s;
+   char *s;
 
    for (s = ldelim; *s != '\0'; ++s)
       AppChar(*sbuf, *s);
 
    for (s = image; *s != '\0'; ++s) {
       if (*s == '\\' || *s == '"')
-         AppChar(*sbuf, '\\');
+	 AppChar(*sbuf, '\\');
       AppChar(*sbuf, *s);
       }
 
@@ -314,9 +326,11 @@ static void cpy_str(char *ldelim, char *image, char *rdelim,
 /*
  * stringize - create a stringized version of a token.
  */
-static struct token *stringize(struct token *trigger, struct mac_expand *me)
+static struct token *stringize(trigger, me)
+struct token *trigger;
+struct mac_expand *me;
    {
-   register struct token *t;
+   struct token *t;
    struct tok_lst *arg;
    struct str_buf *sbuf;
    char *s;
@@ -347,18 +361,18 @@ static struct token *stringize(struct token *trigger, struct mac_expand *me)
    while (arg != NULL) {
       t = arg->t;
       if (t->tok_id == WhiteSpace)
-         AppChar(*sbuf, ' ');
+	 AppChar(*sbuf, ' ');
       else if (t->tok_id == StrLit)
-         cpy_str("\\\"", t->image, "\\\"", sbuf);
+	 cpy_str("\\\"", t->image, "\\\"", sbuf);
       else if (t->tok_id == LStrLit)
-         cpy_str("L\\\"", t->image, "\\\"", sbuf);
+	 cpy_str("L\\\"", t->image, "\\\"", sbuf);
       else if (t->tok_id == CharConst)
-         cpy_str("'", t->image, "'", sbuf);
+	 cpy_str("'", t->image, "'", sbuf);
       else if (t->tok_id == LCharConst)
-         cpy_str("L'", t->image, "'", sbuf);
+	 cpy_str("L'", t->image, "'", sbuf);
       else
-         for (s = t->image; *s != '\0'; ++s)
-            AppChar(*sbuf, *s);
+	 for (s = t->image; *s != '\0'; ++s)
+	    AppChar(*sbuf, *s);
       arg = arg->next;
       }
 
@@ -379,7 +393,9 @@ static struct token *stringize(struct token *trigger, struct mac_expand *me)
  *  is needed for each operand). Any needed stringizing is done as the list
  *  is created.
  */
-static struct paste_lsts *paste_parse(struct token *t, struct mac_expand *me)
+static struct paste_lsts *paste_parse(t, me)
+struct token *t;
+struct mac_expand *me;
    {
    struct token *t1;
    struct token *trigger = NULL;
@@ -397,7 +413,7 @@ static struct paste_lsts *paste_parse(struct token *t, struct mac_expand *me)
       trigger = copy_t(me->rest_bdy->t);
       me->rest_bdy = me->rest_bdy->next;
       if (me->rest_bdy == NULL)
-         errt1(t, "the ## operator must not appear at the end of a macro");
+	 errt1(t, "the ## operator must not appear at the end of a macro");
       t1 = me->rest_bdy->t;
       me->rest_bdy = me->rest_bdy->next;
 
@@ -405,9 +421,9 @@ static struct paste_lsts *paste_parse(struct token *t, struct mac_expand *me)
        * See if the operand is a stringizing operation.
        */
       if (t1->tok_id == '#')
-         t1 = stringize(t1, me);
+	 t1 = stringize(t1, me);
       else
-         t1 = copy_t(t1);
+	 t1 = copy_t(t1);
       plst = paste_parse(t1, me); /* get any further token pasting */
       }
 
@@ -436,27 +452,29 @@ static struct paste_lsts *paste_parse(struct token *t, struct mac_expand *me)
 
 /*
  * cpy_image - copy the image of a token into a character buffer adding
- *  delimiters if it is a string or character literal.  s can contain EOF.
+ *  delimiters if it is a string or character literal.
  */
-static int *cpy_image(struct token *t, int *s)
+static int *cpy_image(t, s)
+struct token *t;
+int *s;          /* the string buffer can contain EOF */
    {
-   register char *s1;
+   char *s1;
 
    switch (t->tok_id) {
       case StrLit:
-         *s++ = '"';
-         break;
+	 *s++ = '"';
+	 break;
       case LStrLit:
-         *s++ = 'L';
-         *s++ = '"';
-         break;
+	 *s++ = 'L';
+	 *s++ = '"';
+	 break;
       case CharConst:
-         *s++ = '\'';
-         break;
+	 *s++ = '\'';
+	 break;
       case LCharConst:
-         *s++ = 'L';
-         *s++ = '\'';
-         break;
+	 *s++ = 'L';
+	 *s++ = '\'';
+	 break;
       }
 
    s1 = t->image;
@@ -466,12 +484,12 @@ static int *cpy_image(struct token *t, int *s)
    switch (t->tok_id) {
       case StrLit:
       case LStrLit:
-         *s++ = '"';
-         break;
+	 *s++ = '"';
+	 break;
       case CharConst:
       case LCharConst:
-         *s++ = '\'';
-         break;
+	 *s++ = '\'';
+	 break;
       }
 
    return s;
@@ -491,7 +509,7 @@ struct token *paste()
    int i;
    int *s;
 
-   plst = src_stack->u.plsts;
+   plst = g_src_stack->u.plsts;
 
    /*
     * If the next token of the current list is not the one to be pasted,
@@ -509,8 +527,8 @@ struct token *paste()
     */
    trigger = plst->trigger;
    plst = plst->next;
-   free_plsts(src_stack->u.plsts);
-   src_stack->u.plsts = plst;
+   free_plsts(g_src_stack->u.plsts);
+   g_src_stack->u.plsts = plst;
    if (plst == NULL) {
       pop_src();
       return t;
@@ -549,7 +567,7 @@ struct token *paste()
 struct token *mac_tok()
    {
    struct mac_expand *me;
-   register struct token *t, *t1;
+   struct token *t, *t1;
    struct paste_lsts *plst;
    union src_ref ref;
    int line_check;
@@ -557,7 +575,7 @@ struct token *mac_tok()
    int line;
    char *fname;
 
-   me = src_stack->u.me; /* macro, current position, and arguments */
+   me = g_src_stack->u.me; /* macro, current position, and arguments */
 
    /*
     * Get the next token from the macro body.
@@ -583,23 +601,23 @@ struct token *mac_tok()
        *  the source stack.
        */
       if (t->flag & LineChk) {
-         line_check = 1;
-         line = t->line;
-         fname = t->fname;
-         }
+	 line_check = 1;
+	 line = t->line;
+	 fname = t->fname;
+	 }
       else
-         line_check = 0;
+	 line_check = 0;
       plst = paste_parse(t, me);
       if (plst != NULL) {
-         ref.plsts = plst;
-         push_src(PasteLsts, &ref);
-         }
+	 ref.plsts = plst;
+	 push_src(PasteLsts, &ref);
+	 }
       t1 = next_tok();
       if (line_check && !(t1->flag & LineChk)) {
-         t1->flag |= LineChk;
-         t1->line = line;
-         t1->fname = fname;
-         }
+	 t1->flag |= LineChk;
+	 t1->line = line;
+	 t1->fname = fname;
+	 }
       return t1;
       }
    else if (t->tok_id == Identifier &&
@@ -611,27 +629,27 @@ struct token *mac_tok()
       ref.tlst = me->exp_args[indx];
       push_src(TokLst, &ref);
       if (t->flag & LineChk) {
-         line = t->line;
-         fname = t->fname;
-         t1 = next_tok();
-         if (!(t1->flag & LineChk)) {
-            /*
-             * The parameter name token is significant with respect to
-             *  outputting #line directives but the first argument token
-             *  is not. Pretend the argument has the same line number as the
-             *  parameter name.
-             */
-            t1->flag |= LineChk;
-            t1->line = line;
-            t1->fname = fname;
-            }
-         free_t(t);
-         return t1;
-         }
+	 line = t->line;
+	 fname = t->fname;
+	 t1 = next_tok();
+	 if (!(t1->flag & LineChk)) {
+	    /*
+	     * The parameter name token is significant with respect to
+	     *  outputting #line directives but the first argument token
+	     *  is not. Pretend the argument has the same line number as the
+	     *  parameter name.
+	     */
+	    t1->flag |= LineChk;
+	    t1->line = line;
+	    t1->fname = fname;
+	    }
+	 free_t(t);
+	 return t1;
+	 }
       else {
-         free_t(t);
-         return next_tok();
-         }
+	 free_t(t);
+	 return next_tok();
+	 }
       }
    else {
       /*

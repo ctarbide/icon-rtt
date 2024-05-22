@@ -24,6 +24,7 @@ struct descrip {		/* descriptor */
       char *sptr;		/*   pointer to character string */
       union block *bptr;	/*   pointer to a block */
       dptr descptr;		/*   pointer to a descriptor */
+      int(*fptr)();
       } vword;
    };
 
@@ -171,12 +172,17 @@ struct b_tvtbl {		/* table element trapped variable block */
    struct descrip tref;		/*   entry value */
    };
 
+/* private data follows this structure, as in
+struct example {
+    struct b_external header;
+    word data[LEN];
+} example;
+*/
 struct b_external {		/* external block */
    word title;			/*   T_External */
    word blksize;		/*   size of block */
    word id;			/*   identification number */
    struct b_extlfuns *funcs;	/*   dispatch table; distinguishes extl types */
-   word data[];			/*   actual external data */
    };
 
 struct astkblk {		  /* co-expression activator-stack block */

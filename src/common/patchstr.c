@@ -39,7 +39,9 @@ int nchanged = 0;		/* number of strings changed */
 /*
  * main program
  */
-int main(int argc, char *argv[])
+int main (argc, argv)
+int argc;
+char *argv[];
    {
    char *fname, *newstr;
 
@@ -60,7 +62,8 @@ int main(int argc, char *argv[])
 /*
  * report (filename) -- report existing string values in a file
  */
-void report(char *fname)
+void report (fname)
+char *fname;
    {
    FILE *f;
    long posn;
@@ -91,7 +94,8 @@ void report(char *fname)
 /*
  * patchstr (filename, newstring) -- patch a file
  */
-void patchstr(char *fname, char *newstr)
+void patchstr (fname, newstr)
+char *fname, *newstr;
    {
    FILE *f;
    long posn;
@@ -139,7 +143,8 @@ void patchstr(char *fname, char *newstr)
  *
  *  Return 1 if successful, 0 if not.
  */
-int findpattern(FILE *f)
+int findpattern(f)
+FILE *f;
    {
    int c;
    char *p;
@@ -168,7 +173,9 @@ int findpattern(FILE *f)
  *  unterminated string.  The file will need to be repositioned after calling
  *  this function.
  */
-int oldval(FILE *f, char buf[MAXLEN+2])
+int oldval(f, buf)
+FILE *f;
+char buf[MAXLEN+2];
    {
    int n;
    char *e, *p;

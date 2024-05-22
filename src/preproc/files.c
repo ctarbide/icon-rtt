@@ -10,12 +10,14 @@
 static void file_src (char *fname, FILE *f);
 
 static char **incl_search; /* standard locations to search for header files */
-
+
 /*
  * file_src - set up the structures for a characters source from a file,
  *  putting the source on the top of the stack.
  */
-static void file_src(char *fname, FILE *f)
+static void file_src(fname, f)
+char *fname;
+FILE *f;
    {
    union src_ref ref;
 
@@ -29,7 +31,8 @@ static void file_src(char *fname, FILE *f)
  * source - Open the file named fname or use stdin if fname is "-". fname
  *  is the first file from which to read input (that is, the outermost file).
  */
-void source(char *fname)
+void source(fname)
+char *fname;
    {
    FILE *f;
 
@@ -37,7 +40,7 @@ void source(char *fname)
       file_src("<stdin>", stdin);
    else {
       if ((f = fopen(fname, "r")) == NULL)
-         err2("cannot open ", fname);
+	 err2("cannot open ", fname);
       file_src(fname, f);
       }
    }
@@ -45,11 +48,14 @@ void source(char *fname)
 /*
  * include - open the file named fname and make it the current input file.
  */
-void include(struct token *trigger, char *fname, int system)
+void include(trigger, fname, system)
+struct token *trigger;
+char *fname;
+int system;
    {
    struct str_buf *sbuf;
    char *s;
-   char *path;
+   char *path = NULL;
    char *end_prfx;
    struct src *sp;
    struct char_src *cs;
@@ -63,49 +69,49 @@ void include(struct token *trigger, char *fname, int system)
       sbuf = get_sbuf();
       f = NULL;
       if (!system) {
-         /*
-          * This is not a system include file, so search the locations
-          *  of the "ancestor files".
-          */
-         sp = src_stack;
-         while (f == NULL && sp != NULL) {
-            if (sp->flag == CharSrc) {
-               cs = sp->u.cs;
-               if (cs->f != NULL) {
-                  /*
-                   * This character source is a file.
-                   */
-                  end_prfx = NULL;
-                  for (s = cs->fname; *s != '\0'; ++s)
-                     if (*s == '/')
-                        end_prfx = s;
-                  if (end_prfx != NULL)
-                     for (s = cs->fname; s <= end_prfx; ++s)
-                        AppChar(*sbuf, *s);
-                  for (s = fname; *s != '\0'; ++s)
-                     AppChar(*sbuf, *s);
-                  path = str_install(sbuf);
-                  f = fopen(path, "r");
-                  }
-               }
-            sp = sp->next;
-            }
-         }
+	 /*
+	  * This is not a system include file, so search the locations
+	  *  of the "ancestor files".
+	  */
+	 sp = g_src_stack;
+	 while (f == NULL && sp != NULL) {
+	    if (sp->flag == CharSrc) {
+	       cs = sp->u.cs;
+	       if (cs->f != NULL) {
+		  /*
+		   * This character source is a file.
+		   */
+		  end_prfx = NULL;
+		  for (s = cs->fname; *s != '\0'; ++s)
+		     if (*s == '/')
+			end_prfx = s;
+		  if (end_prfx != NULL)
+		     for (s = cs->fname; s <= end_prfx; ++s)
+			AppChar(*sbuf, *s);
+		  for (s = fname; *s != '\0'; ++s)
+		     AppChar(*sbuf, *s);
+		  path = str_install(sbuf);
+		  f = fopen(path, "r");
+		  }
+	       }
+	    sp = sp->next;
+	    }
+	 }
       /*
        * Search in the locations for the system include files.
        */
       prefix = incl_search;
       while (f == NULL && *prefix != NULL) {
-         for (s = *prefix; *s != '\0'; ++s)
-            AppChar(*sbuf, *s);
-         if (s > *prefix && s[-1] != '/')
-            AppChar(*sbuf, '/');
-         for (s = fname; *s != '\0'; ++s)
-            AppChar(*sbuf, *s);
-         path = str_install(sbuf);
-         f = fopen(path, "r");
-         ++prefix;
-         }
+	 for (s = *prefix; *s != '\0'; ++s)
+	    AppChar(*sbuf, *s);
+	 if (s > *prefix && s[-1] != '/')
+	    AppChar(*sbuf, '/');
+	 for (s = fname; *s != '\0'; ++s)
+	    AppChar(*sbuf, *s);
+	 path = str_install(sbuf);
+	 f = fopen(path, "r");
+	 ++prefix;
+	 }
       rel_sbuf(sbuf);
       }
    else {                               /* The path is absolute. */
@@ -122,7 +128,9 @@ void include(struct token *trigger, char *fname, int system)
  * init_files - Initialize this module, setting up the search path for
  *  system header files.
  */
-void init_files(char *opt_lst, char **opt_args)
+void init_files(opt_lst, opt_args)
+char *opt_lst;
+char **opt_args;
    {
    int n_paths = 0;
    int i, j;
@@ -142,24 +150,23 @@ void init_files(char *opt_lst, char **opt_args)
     */
    for (i = 0; opt_lst[i] != '\0'; ++i)
       if (opt_lst[i] == 'I')
-         ++n_paths;
+	 ++n_paths;
 
    /*
     * Set up the array of standard locations to search for header files.
     */
    incl_search = alloc((n_paths + 1) * sizeof(char *));
-   j = 0;
 
    /*
     * Get the locations from the -I options to the preprocessor.
     */
-   for (i = 0; opt_lst[i] != '\0'; ++i)
+   for (i = j = 0; opt_lst[i] != '\0'; ++i)
       if (opt_lst[i] == 'I') {
-         s = opt_args[i];
-         s1 = alloc(strlen(s) + 1);
-         strcpy(s1, s);
-         incl_search[j++] = s1;
-         }
+	 s = opt_args[i];
+	 s1 = alloc(strlen(s) + 1);
+	 strcpy(s1, s);
+	 incl_search[j++] = s1;
+	 }
 
    /*
     *  Establish the standard locations to search after the -I options

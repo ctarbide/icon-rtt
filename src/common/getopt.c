@@ -5,7 +5,7 @@
 #include "../h/gsupport.h"
 
 #ifndef SysOpt
-extern char* progname;
+extern char *g_progname;
 
 /*
  * Based on a public domain implementation of System V
@@ -14,7 +14,7 @@ extern char* progname;
 
 #define BadCh	(int)'?'
 #define EMSG	""
-#define tell(m)	fprintf(stderr,"%s: %s -- %c\n",progname,m,optopt);return BadCh;
+#define tell(m)	fprintf(stderr,"%s: %s -- %c\n", g_progname,m,optopt);return BadCh;
 
 int optind = 1;		/* index into parent argv vector */
 int optopt;		/* character checked for validity */

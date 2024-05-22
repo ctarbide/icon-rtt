@@ -11,11 +11,11 @@
  *  Icon version number and date.
  *  These are the only two entries that change any more.
  */
-#define VersionNumber "9.5.24a"
-#define VersionDate "January 17, 2024"
+#define VersionNumber "9.5.22e"
+#define VersionDate "July 23, 2022"
 
 /*
- * Version number to insure format of data base matches version of iconc
+ * Version number to ensure format of data base matches version of iconc
  *  and rtt.
  */
 #define DVersion "9.0.00"

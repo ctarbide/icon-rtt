@@ -2,6 +2,7 @@
 X=/usr/X11R6
 L=/usr/local
 
+#  STRIP    strip non-essential data from object files
 #  CC       C compiler
 #  CFLAGS   flags for building C files
 #  CFDYN    additional flags for dynamic functions
@@ -10,6 +11,7 @@ L=/usr/local
 #  TLIBS    libraries to link for POSIX threads
 #  XLIBS    libraries to link for graphics
 
+STRIP = strip
 CC = cc
 CFLAGS = -O -I$X/include -I$L/include
 CFDYN = -fPIC

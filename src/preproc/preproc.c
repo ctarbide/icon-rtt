@@ -13,13 +13,14 @@ static void start_select (struct token *t);
 static void end_select   (struct token *t);
 static void incl_file    (struct token *t);
 static void define       (struct token *t);
-static int     expand       (struct token *t, struct macro *m);
+static int  expand       (struct token *t, struct macro *m);
 static void toks_to_str  (struct str_buf *sbuf, struct token *t);
-
+
 /*
  * start_select - handle #if, #ifdef, #ifndef
  */
-static void start_select(struct token *t)
+static void start_select(t)
+struct token *t;
    {
    struct token *t1;
    struct tok_lst *tlst;
@@ -38,14 +39,14 @@ static void start_select(struct token *t)
       t1 = NULL;
       nxt_non_wh(&t1);
       if (t1->tok_id != Identifier)
-         errt2(t1, "identifier must follow #", t->image);
+	 errt2(t1, "identifier must follow #", t->image);
       condition = (m_lookup(t1) == NULL) ? 0 : 1;
       if (t->tok_id == PpIfndef)
-         condition = !condition;
+	 condition = !condition;
       free_t(t1);
       t1 = next_tok();
       if (t1->tok_id != PpDirEnd)
-         errt2(t1, "expecting end of line following argument to #", t->image);
+	 errt2(t1, "expecting end of line following argument to #", t->image);
       free_t(t1);
       }
 
@@ -56,83 +57,84 @@ static void start_select(struct token *t)
    while (!condition) {
       t1 = next_tok();
       if (t1 == NULL)
-        errt2(t, "no matching #endif for #", t->image);
+	errt2(t, "no matching #endif for #", t->image);
       switch (t1->tok_id) {
-         case PpIf:
-         case PpIfdef:
-         case PpIfndef:
-            /*
-             * Nested #if, #ifdef, or #ifndef in a branch of a conditional
-             *  that is being discarded. Contunue discarding until the
-             *  nesting level returns to 0.
-             */
-            ++nesting;
-            break;
+	 case PpIf:
+	 case PpIfdef:
+	 case PpIfndef:
+	    /*
+	     * Nested #if, #ifdef, or #ifndef in a branch of a conditional
+	     *  that is being discarded. Contunue discarding until the
+	     *  nesting level returns to 0.
+	     */
+	    ++nesting;
+	    break;
 
-         case PpEndif:
-            /*
-             * #endif found. See if this is this the end of a nested
-             *  conditional or the end of the conditional we are processing.
-             */
-            if (nesting > 0)
-              --nesting;
-            else {
-               /*
-                * Discard any extraneous tokens on the end of the directive.
-                */
-               while (t->tok_id != PpDirEnd) {
-                  free_t(t);
-                  t = next_tok();
-                  }
-               free_t(t);
-               free_t(t1);
-               return;
-               }
-            break;
+	 case PpEndif:
+	    /*
+	     * #endif found. See if this is this the end of a nested
+	     *  conditional or the end of the conditional we are processing.
+	     */
+	    if (nesting > 0)
+	      --nesting;
+	    else {
+	       /*
+		* Discard any extraneous tokens on the end of the directive.
+		*/
+	       while (t->tok_id != PpDirEnd) {
+		  free_t(t);
+		  t = next_tok();
+		  }
+	       free_t(t);
+	       free_t(t1);
+	       return;
+	       }
+	    break;
 
-         case PpElif:
-            /*
-             * #elif found. If this is not a nested conditional, see if
-             *   it has a true condition.
-             */
-            if (nesting == 0) {
-               free_t(t);
-               t = t1;
-               t1 = NULL;
-               condition = eval(t);
-               }
-            break;
+	 case PpElif:
+	    /*
+	     * #elif found. If this is not a nested conditional, see if
+	     *   it has a true condition.
+	     */
+	    if (nesting == 0) {
+	       free_t(t);
+	       t = t1;
+	       t1 = NULL;
+	       condition = eval(t);
+	       }
+	    break;
 
-         case PpElse:
-            /*
-             * #else found. If this is not a nested conditional, take
-             *  this branch.
-             */
-            if (nesting == 0) {
-               free_t(t);
-               t = t1;
-               t1 = next_tok();
-               /*
-                * Discard any extraneous tokens on the end of the directive.
-                */
-               while (t1->tok_id != PpDirEnd) {
-                  free_t(t1);
-                  t1 = next_tok();
-                  }
-               condition = 1;
-               }
-         }
+	 case PpElse:
+	    /*
+	     * #else found. If this is not a nested conditional, take
+	     *  this branch.
+	     */
+	    if (nesting == 0) {
+	       free_t(t);
+	       t = t1;
+	       t1 = next_tok();
+	       /*
+		* Discard any extraneous tokens on the end of the directive.
+		*/
+	       while (t1->tok_id != PpDirEnd) {
+		  free_t(t1);
+		  t1 = next_tok();
+		  }
+	       condition = 1;
+	       }
+	 }
       free_t(t1);
       }
    tlst = new_t_lst(t);
-   tlst->next = src_stack->cond;
-   src_stack->cond = tlst;
+   tlst->next = g_src_stack->cond;
+   g_src_stack->cond = tlst;
    }
 
 /*
  * end_select - handle #elif, #else, and #endif
  */
-static void end_select(struct token *t)
+static void end_select(t)
+struct token *t;
    {
    struct tok_lst *tlst;
    struct token *t1;
@@ -142,10 +144,10 @@ static void end_select(struct token *t)
     * Make sure we are processing conditional compilation and pop it
     *  from the list of conditional nesting.
     */
-   tlst = src_stack->cond;
+   tlst = g_src_stack->cond;
    if (tlst == NULL)
       errt2(t, "invalid context for #", t->image);
-   src_stack->cond = tlst->next;
+   g_src_stack->cond = tlst->next;
    tlst->next = NULL;
    free_t_lst(tlst);
 
@@ -158,19 +160,19 @@ static void end_select(struct token *t)
    t1 = copy_t(t);
    while (t1->tok_id != PpEndif || nesting > 0) {
       switch (t1->tok_id) {
-         case PpIf:
-         case PpIfdef:
-         case PpIfndef:
-            ++nesting;
-            break;
+	 case PpIf:
+	 case PpIfdef:
+	 case PpIfndef:
+	    ++nesting;
+	    break;
 
-         case PpEndif:
-            --nesting;
-         }
+	 case PpEndif:
+	    --nesting;
+	 }
       free_t(t1);
       t1 = next_tok();
       if (t1 == NULL)
-        errt2(t, "no matching #endif for #", t->image);
+	errt2(t, "no matching #endif for #", t->image);
       }
    free_t(t);
 
@@ -188,7 +190,8 @@ static void end_select(struct token *t)
 /*
  * incl_file - handle #include
  */
-static void incl_file(struct token *t)
+static void incl_file(t)
+struct token *t;
    {
    struct token *file_tok, *t1;
    struct str_buf *sbuf;
@@ -211,7 +214,7 @@ static void incl_file(struct token *t)
       fname = t1->fname;
       line = t1->line;
       if (*s != '<')
-         errt1(t1, "invalid include file syntax");
+	 errt1(t1, "invalid include file syntax");
       ++s;
 
       /*
@@ -221,47 +224,47 @@ static void incl_file(struct token *t)
        */
       sbuf = get_sbuf();
       while (*s != '>') {
-         while (*s != '\0' && *s != '>')
-            AppChar(*sbuf, *s++);
-         if (*s == '\0') {
-            switch (t1->tok_id) {
-               case StrLit:
-               case LStrLit:
-                  AppChar(*sbuf, '"');
-                  break;
-               case CharConst:
-               case LCharConst:
-                  AppChar(*sbuf, '\'');
-                  break;
-               }
-            free_t(t1);
-            t1 = interp_dir();
-            switch (t1->tok_id) {
-               case StrLit:
-                  AppChar(*sbuf, '"');
-                  break;
-               case LStrLit:
-                  AppChar(*sbuf, 'L');
-                  AppChar(*sbuf, '"');
-                  break;
-               case CharConst:
-                  AppChar(*sbuf, '\'');
-                  break;
-               case LCharConst:
-                  AppChar(*sbuf, 'L');
-                  AppChar(*sbuf, '\'');
-                  break;
-               case PpDirEnd:
-                  errt1(t1, "invalid include file syntax");
-               }
-            if (t1->tok_id == WhiteSpace)
-               AppChar(*sbuf, ' ');
-            else
-               s = t1->image;
-            }
-         }
+	 while (*s != '\0' && *s != '>')
+	    AppChar(*sbuf, *s++);
+	 if (*s == '\0') {
+	    switch (t1->tok_id) {
+	       case StrLit:
+	       case LStrLit:
+		  AppChar(*sbuf, '"');
+		  break;
+	       case CharConst:
+	       case LCharConst:
+		  AppChar(*sbuf, '\'');
+		  break;
+	       }
+	    free_t(t1);
+	    t1 = interp_dir();
+	    switch (t1->tok_id) {
+	       case StrLit:
+		  AppChar(*sbuf, '"');
+		  break;
+	       case LStrLit:
+		  AppChar(*sbuf, 'L');
+		  AppChar(*sbuf, '"');
+		  break;
+	       case CharConst:
+		  AppChar(*sbuf, '\'');
+		  break;
+	       case LCharConst:
+		  AppChar(*sbuf, 'L');
+		  AppChar(*sbuf, '\'');
+		  break;
+	       case PpDirEnd:
+		  errt1(t1, "invalid include file syntax");
+	       }
+	    if (t1->tok_id == WhiteSpace)
+	       AppChar(*sbuf, ' ');
+	    else
+	       s = t1->image;
+	    }
+	 }
       if (*++s != '\0')
-         errt1(t1, "invalid include file syntax");
+	 errt1(t1, "invalid include file syntax");
       free_t(t1);
       file_tok = new_token(PpHeader, str_install(sbuf), fname, line);
       rel_sbuf(sbuf);
@@ -286,7 +289,8 @@ static void incl_file(struct token *t)
 /*
  * define - handle #define and #begdef
  */
-static void define(struct token *t)
+static void define(t)
+struct token *t;
    {
    struct token *mname;   /* name of macro */
    int category;	  /* NoArgs for object-like macro, else number params */
@@ -318,24 +322,24 @@ static void define(struct token *t)
       pilst = &prmlst;
       nxt_non_wh(&t1);
       if (t1->tok_id == Identifier) {
-         category = 1;
-         (*pilst) = new_id_lst(t1->image);
-         pilst = &(*pilst)->next;
-         nxt_non_wh(&t1);
-         while (t1->tok_id == ',') {
-            nxt_non_wh(&t1);
-            if (t1->tok_id != Identifier)
-               errt1(t1, "a parameter to a macro must be an identifier");
-            ++category;
-            (*pilst) = new_id_lst(t1->image);
-            pilst = &(*pilst)->next;
-            nxt_non_wh(&t1);
-            }
-         }
+	 category = 1;
+	 (*pilst) = new_id_lst(t1->image);
+	 pilst = &(*pilst)->next;
+	 nxt_non_wh(&t1);
+	 while (t1->tok_id == ',') {
+	    nxt_non_wh(&t1);
+	    if (t1->tok_id != Identifier)
+	       errt1(t1, "a parameter to a macro must be an identifier");
+	    ++category;
+	    (*pilst) = new_id_lst(t1->image);
+	    pilst = &(*pilst)->next;
+	    nxt_non_wh(&t1);
+	    }
+	 }
       else
-         category = 0;
+	 category = 0;
       if (t1->tok_id != ')')
-         errt2(t1, "syntax error in #", t->image);
+	 errt2(t1, "syntax error in #", t->image);
       free_t(t1);
       t1 = next_tok();
       }
@@ -353,20 +357,20 @@ static void define(struct token *t)
        * strip leading white space
        */
       while (t1->tok_id == WhiteSpace) {
-         free_t(t1);
-         t1 = next_tok();
-         }
+	 free_t(t1);
+	 t1 = next_tok();
+	 }
 
       while (t1->tok_id != PpDirEnd) {
-         /*
-          * Expansion of this type of macro does not trigger #line directives.
-          */
-         t1->flag &= ~LineChk;
+	 /*
+	  * Expansion of this type of macro does not trigger #line directives.
+	  */
+	 t1->flag &= ~LineChk;
 
-         (*ptlst) = new_t_lst(t1);
-         ptlst = &(*ptlst)->next;
-         t1 = next_tok();
-         }
+	 (*ptlst) = new_t_lst(t1);
+	 ptlst = &(*ptlst)->next;
+	 t1 = next_tok();
+	 }
       }
    else {
       /*
@@ -374,7 +378,7 @@ static void define(struct token *t)
        */
       multi_line = 1;
       if (t1->tok_id != PpDirEnd)
-         errt1(t1, "expecting new-line at end of #begdef");
+	 errt1(t1, "expecting new-line at end of #begdef");
       free_t(t1);
 
       /*
@@ -384,20 +388,20 @@ static void define(struct token *t)
       nesting = 0;
       t1 = next_tok();
       while (t1 != NULL && (nesting > 0 || t1->tok_id != PpEnddef)) {
-         if (t1->tok_id == PpBegdef)
-            ++nesting;
-         else if (t1->tok_id == PpEnddef)
-            --nesting;
-         (*ptlst) = new_t_lst(t1);
-         ptlst = &(*ptlst)->next;
-         t1 = next_tok();
-         }
+	 if (t1->tok_id == PpBegdef)
+	    ++nesting;
+	 else if (t1->tok_id == PpEnddef)
+	    --nesting;
+	 (*ptlst) = new_t_lst(t1);
+	 ptlst = &(*ptlst)->next;
+	 t1 = next_tok();
+	 }
       if (t1 == NULL)
-         errt1(t, "unexpected end-of-file in #begdef");
+	 errt1(t, "unexpected end-of-file in #begdef");
       free_t(t1);
       t1 = next_tok();
       if (t1->tok_id != PpDirEnd)
-         errt1(t1, "expecting new-line at end of #enddef");
+	 errt1(t1, "expecting new-line at end of #enddef");
       }
    free_t(t1);
    free_t(t);
@@ -412,7 +416,9 @@ static void define(struct token *t)
 /*
  * expand - add expansion of macro to source stack.
  */
-static int expand(struct token *t, struct macro *m)
+static int expand(t, m)
+struct token *t;
+struct macro *m;
    {
    struct token *t1 = NULL;
    struct token *t2;
@@ -439,116 +445,116 @@ static int expand(struct token *t, struct macro *m)
       narg = 0;
       merge_whsp(&whsp, &t1, next_tok);
       if (t1 == NULL || t1->tok_id != '(') {
-         /*
-          * There is no argument list. Do not expand the macro, just push
-          *  back the tokens we read ahead.
-          */
-         if (t1 != NULL)
-            src_stack->toks[src_stack->ntoks++] = t1;
-         if (whsp != NULL)
-            src_stack->toks[src_stack->ntoks++] = whsp;
-         --m->ref_cnt;
-         return 0;
-         }
+	 /*
+	  * There is no argument list. Do not expand the macro, just push
+	  *  back the tokens we read ahead.
+	  */
+	 if (t1 != NULL)
+	    g_src_stack->toks[g_src_stack->ntoks++] = t1;
+	 if (whsp != NULL)
+	    g_src_stack->toks[g_src_stack->ntoks++] = whsp;
+	 --m->ref_cnt;
+	 return 0;
+	 }
       free_t(whsp);
 
       /*
        * See how many arguments we expect.
        */
       if (nparm == 0)
-         nxt_non_wh(&t1);
+	 nxt_non_wh(&t1);
       else {
-         /*
-          * Allocate an array for both raw and macro-expanded token lists
-          *  for the arguments.
-          */
-         args = alloc(nparm * sizeof(struct tok_lst *));
-         exp_args = alloc(nparm * sizeof(struct tok_lst *));
+	 /*
+	  * Allocate an array for both raw and macro-expanded token lists
+	  *  for the arguments.
+	  */
+	 args = alloc(nparm * sizeof(struct tok_lst *));
+	 exp_args = alloc(nparm * sizeof(struct tok_lst *));
 
-         /*
-          * Gather the tokens for each argument.
-          */
-         paren_nest = 0;
-         for ( ; narg < nparm && t1 != NULL && t1->tok_id != ')'; ++narg) {
-            /*
-             * Strip leading white space from the argument.
-             */
-            nxt_non_wh(&t1);
-            tlp = &args[narg];  /* location of raw token list for this arg */
-            *tlp = NULL;
-            trail_whsp = NULL;
-            /*
-             * Gather tokens for this argument.
-             */
-            while (t1 != NULL && (paren_nest > 0 || (t1->tok_id != ',' &&
-                 t1->tok_id != ')'))) {
-               if (t1->tok_id == '(')
-                  ++paren_nest;
-               if (t1->tok_id == ')')
-                  --paren_nest;
-               t1->flag &= ~LineChk;
+	 /*
+	  * Gather the tokens for each argument.
+	  */
+	 paren_nest = 0;
+	 for ( ; narg < nparm && t1 != NULL && t1->tok_id != ')'; ++narg) {
+	    /*
+	     * Strip leading white space from the argument.
+	     */
+	    nxt_non_wh(&t1);
+	    tlp = &args[narg];  /* location of raw token list for this arg */
+	    *tlp = NULL;
+	    trail_whsp = NULL;
+	    /*
+	     * Gather tokens for this argument.
+	     */
+	    while (t1 != NULL && (paren_nest > 0 || (t1->tok_id != ',' &&
+		 t1->tok_id != ')'))) {
+	       if (t1->tok_id == '(')
+		  ++paren_nest;
+	       if (t1->tok_id == ')')
+		  --paren_nest;
+	       t1->flag &= ~LineChk;
 
-               /*
-                * Link this token into the list for the argument. If this
-                *  might be trailing white space, remember where the pointer
-                *  to it is so it can be discarded later.
-                */
-               *tlp = new_t_lst(t1);
-               if (t1->tok_id == WhiteSpace) {
-                  if (trail_whsp == NULL)
-                     trail_whsp = tlp;
-                  }
-               else
-                  trail_whsp = NULL;
-               tlp = &(*tlp)->next;
-               t1 = next_tok();
-               }
-            /*
-             * strip trailing white space
-             */
-            if (trail_whsp != NULL) {
-               free_t_lst(*trail_whsp);
-               *trail_whsp = NULL;
-               }
+	       /*
+		* Link this token into the list for the argument. If this
+		*  might be trailing white space, remember where the pointer
+		*  to it is so it can be discarded later.
+		*/
+	       *tlp = new_t_lst(t1);
+	       if (t1->tok_id == WhiteSpace) {
+		  if (trail_whsp == NULL)
+		     trail_whsp = tlp;
+		  }
+	       else
+		  trail_whsp = NULL;
+	       tlp = &(*tlp)->next;
+	       t1 = next_tok();
+	       }
+	    /*
+	     * strip trailing white space
+	     */
+	    if (trail_whsp != NULL) {
+	       free_t_lst(*trail_whsp);
+	       *trail_whsp = NULL;
+	       }
 
-            /*
-             * Create a macro expanded token list for the argument. This is
-             *  done by establishing a separate preprocessing context with
-             *  a new source stack. The current stack must be be saved and
-             *  restored.
-             */
-            tlp = &exp_args[narg]; /* location of expanded token list for arg */
-            *tlp = NULL;
-            if (src_stack->flag == CharSrc)
-               src_stack->u.cs->next_char = next_char; /* save state */
-            stack_sav = src_stack;
-            src_stack = &dummy;
-            ref.tlst = args[narg];
-            push_src(TokLst, &ref); /* initial stack is list of raw tokens */
-            /*
-             * Get macro expanded tokens.
-             */
-            for (t2 = interp_dir(); t2 != NULL; t2 = interp_dir()) {
-               *tlp = new_t_lst(t2);
-               tlp = &(*tlp)->next;
-               }
-            src_stack = stack_sav;
-            if (src_stack->flag == CharSrc) {
-               /*
-                * Restore global state for tokenizing.
-                */
-               first_char = src_stack->u.cs->char_buf;
-               next_char = src_stack->u.cs->next_char;
-               last_char = src_stack->u.cs->last_char;
-               }
-            }
-         }
+	    /*
+	     * Create a macro expanded token list for the argument. This is
+	     *  done by establishing a separate preprocessing context with
+	     *  a new source stack. The current stack must be be saved and
+	     *  restored.
+	     */
+	    tlp = &exp_args[narg]; /* location of expanded token list for arg */
+	    *tlp = NULL;
+	    if (g_src_stack->flag == CharSrc)
+	       g_src_stack->u.cs->next_char = next_char; /* save state */
+	    stack_sav = g_src_stack;
+	    g_src_stack = &dummy;
+	    ref.tlst = args[narg];
+	    push_src(TokLst, &ref); /* initial stack is list of raw tokens */
+	    /*
+	     * Get macro expanded tokens.
+	     */
+	    for (t2 = interp_dir(); t2 != NULL; t2 = interp_dir()) {
+	       *tlp = new_t_lst(t2);
+	       tlp = &(*tlp)->next;
+	       }
+	    g_src_stack = stack_sav;
+	    if (g_src_stack->flag == CharSrc) {
+	       /*
+		* Restore global state for tokenizing.
+		*/
+	       first_char = g_src_stack->u.cs->char_buf;
+	       next_char = g_src_stack->u.cs->next_char;
+	       last_char = g_src_stack->u.cs->last_char;
+	       }
+	    }
+	 }
       if (t1 == NULL)
-         errt2(t, "unexpected end-of-file in call to macro ", t->image);
+	 errt2(t, "unexpected end-of-file in call to macro ", t->image);
       if (t1->tok_id != ')')
-         errt2(t1, "too many arguments for macro call to ", t->image);
+	 errt2(t1, "too many arguments for macro call to ", t->image);
       if (narg < nparm)
-         errt2(t1, "too few arguments for macro call to ", t->image);
+	 errt2(t1, "too few arguments for macro call to ", t->image);
       free_t(t1);
       }
 
@@ -564,42 +570,44 @@ static int expand(struct token *t, struct macro *m)
       fname = t->fname;
       t1 = next_tok();
       if (t1 != NULL) {
-         if (!(t1->flag & LineChk)) {
-            t1->flag |= LineChk;
-            t1->line = line;
-            t1->fname = fname;
-            }
-         src_stack->toks[src_stack->ntoks++] = t1;
-         }
+	 if (!(t1->flag & LineChk)) {
+	    t1->flag |= LineChk;
+	    t1->line = line;
+	    t1->fname = fname;
+	    }
+	 g_src_stack->toks[g_src_stack->ntoks++] = t1;
+	 }
       }
    return 1;
    }
-
+
 /*
  * toks_to_str - put in a buffer the string image of tokens up to the end of
  *    of a preprocessor directive.
  */
-static void toks_to_str(struct str_buf *sbuf, struct token *t)
+static void toks_to_str(sbuf, t)
+struct str_buf *sbuf;
+struct token *t;
    {
    char *s;
 
    while (t->tok_id != PpDirEnd) {
       if (t->tok_id == WhiteSpace)
-         AppChar(*sbuf, ' ');
+	 AppChar(*sbuf, ' ');
       else {
-         if (t->tok_id == LCharConst || t->tok_id == LStrLit)
-            AppChar(*sbuf, 'L');
-         if (t->tok_id == CharConst || t->tok_id == LCharConst)
-            AppChar(*sbuf, '\'');
-         else if (t->tok_id == StrLit || t->tok_id == LStrLit)
-            AppChar(*sbuf, '"');
-         for (s = t->image; *s != '\0'; ++s)
-            AppChar(*sbuf, *s);
-         if (t->tok_id == CharConst || t->tok_id == LCharConst)
-            AppChar(*sbuf, '\'');
-         else if (t->tok_id == StrLit || t->tok_id == LStrLit)
-            AppChar(*sbuf, '"');
-         }
+	 if (t->tok_id == LCharConst || t->tok_id == LStrLit)
+	    AppChar(*sbuf, 'L');
+	 if (t->tok_id == CharConst || t->tok_id == LCharConst)
+	    AppChar(*sbuf, '\'');
+	 else if (t->tok_id == StrLit || t->tok_id == LStrLit)
+	    AppChar(*sbuf, '"');
+	 for (s = t->image; *s != '\0'; ++s)
+	    AppChar(*sbuf, *s);
+	 if (t->tok_id == CharConst || t->tok_id == LCharConst)
+	    AppChar(*sbuf, '\'');
+	 else if (t->tok_id == StrLit || t->tok_id == LStrLit)
+	    AppChar(*sbuf, '"');
+	 }
       free_t(t);
       t = next_tok();
       }
@@ -619,126 +627,146 @@ struct token *interp_dir()
    /*
     * See if the caller pushed back any tokens
     */
-   if (src_stack->ntoks > 0)
-      return src_stack->toks[--src_stack->ntoks];
+   if (g_src_stack->ntoks > 0)
+      return g_src_stack->toks[--g_src_stack->ntoks];
 
    for (;;) {
       t = next_tok();
       if (t == NULL)
-          return NULL;
+	  return NULL;
 
       switch (t->tok_id) {
-         case PpIf:          /* #if */
-         case PpIfdef:       /* #ifdef */
-         case PpIfndef:      /* #endif */
-            start_select(t);
-            break;
+	 case PpIf:          /* #if */
+	 case PpIfdef:       /* #ifdef */
+	 case PpIfndef:      /* #endif */
+	    start_select(t);
+	    break;
 
-         case PpElif:        /* #elif */
-         case PpElse:        /* #else */
-         case PpEndif:       /* #endif */
-            end_select(t);
-            break;
+	 case PpElif:        /* #elif */
+	 case PpElse:        /* #else */
+	 case PpEndif:       /* #endif */
+	    end_select(t);
+	    break;
 
-         case PpInclude:     /* #include */
-            incl_file(t);
-            break;
+	 case PpInclude:     /* #include */
+	    incl_file(t);
+	    break;
 
-         case PpDefine:      /* #define */
-         case PpBegdef:      /* #begdef */
-            define(t);
-            break;
+	 case PpDefine:      /* #define */
+	 case PpBegdef:      /* #begdef */
+	    define(t);
+	    break;
 
-         case PpEnddef:      /* #endif, but we have not seen an #begdef */
-            errt1(t, "invalid context for #enddef");
+	 case PpEnddef:      /* #endif, but we have not seen an #begdef */
+	    errt1(t, "invalid context for #enddef");
 
-         case PpUndef:       /* #undef */
-            /*
-             * Get the identifier and delete it from the macro symbol table.
-             */
-            t1 = NULL;
-            nxt_non_wh(&t1);
-            if (t1->tok_id != Identifier)
-               errt1(t1, "#undef requires an identifier argument");
-            m_delete(t1);
-            free_t(t1);
-            t1 = next_tok();
-            if (t1->tok_id != PpDirEnd)
-               errt1(t1, "syntax error for #undef");
-            free_t(t1);
-            free_t(t);
-            break;
+	 case PpUndef:       /* #undef */
+	    /*
+	     * Get the identifier and delete it from the macro symbol table.
+	     */
+	    t1 = NULL;
+	    nxt_non_wh(&t1);
+	    if (t1->tok_id != Identifier)
+	       errt1(t1, "#undef requires an identifier argument");
+	    m_delete(t1);
+	    free_t(t1);
+	    t1 = next_tok();
+	    if (t1->tok_id != PpDirEnd)
+	       errt1(t1, "syntax error for #undef");
+	    free_t(t1);
+	    free_t(t);
+	    break;
 
-         case PpLine:        /* #line */
-            /* this directive is handled in next_tok() */
-            break;
+	 case PpLine:        /* #line */
+	    /* this directive is handled in next_tok() */
+	    break;
 
-         case PpError:       /* #error */
-            /*
-             * Create an error message out of the rest of the tokens
-             *  in this directive.
-             */
-            sbuf = get_sbuf();
-            t1 = NULL;
-            nxt_non_wh(&t1);
-            toks_to_str(sbuf, t1);
-            errt1(t, str_install(sbuf));
-            break;
+	 case PpError:       /* #error */
+	    /*
+	     * Create an error message out of the rest of the tokens
+	     *  in this directive.
+	     */
+	    sbuf = get_sbuf();
+	    t1 = NULL;
+	    nxt_non_wh(&t1);
+	    toks_to_str(sbuf, t1);
+	    errt1(t, str_install(sbuf));
+	    break;
 
-         case PpPragma:       /* #pramga */
-         case PpSkip:
-            /*
-             * Ignore all pragmas and all non-ANSI directives that need not
-             *   be passed to the caller.
-             */
-            t1 = next_tok();
-            while (t1->tok_id != PpDirEnd) {
-               free_t(t1);
-               t1 = next_tok();
-               }
-            free_t(t);
-            free_t(t1);
-            break;
+	 case PpPragma:       /* #pragma */
+	 /* case PpSkip: deprecated? TODO: remove */
+	    /*
+	     * Ignore all pragmas and all non-ANSI directives that need not
+	     *   be passed to the caller.
+	     */
+	    t1 = next_tok();
+	    while (t1->tok_id != PpDirEnd) {
+	       free_t(t1);
+	       t1 = next_tok();
+	       }
+	    free_t(t);
+	    free_t(t1);
+	    break;
 
-         case PpKeep:
-            /*
-             * This is a directive special to an application using
-             *  this preprocessor. Pass it on to the application.
-             */
-            sbuf = get_sbuf();
-            AppChar(*sbuf, '#');
-            for (s = t->image; *s != '\0'; ++s)
-               AppChar(*sbuf, *s);
-            toks_to_str(sbuf, next_tok());
-            t->image = str_install(sbuf);
-            rel_sbuf(sbuf);
-            return t;
+	 case PpKeep:
+	    /*
+	     * This is a directive special to an application using
+	     *  this preprocessor. Pass it on to the application.
+	     */
+	    sbuf = get_sbuf();
+	    AppChar(*sbuf, '#');
+	    for (s = t->image; *s != '\0'; ++s)
+	       AppChar(*sbuf, *s);
+	    toks_to_str(sbuf, next_tok());
+	    t->image = str_install(sbuf);
+	    rel_sbuf(sbuf);
+	    return t;
 
-         case PpNull:         /* # */
-            free_t(t);
-            free_t(next_tok());   /* must be PpDirEnd */
-            break;
+	 case PpNull:         /* # */
+	    free_t(t);
+	    free_t(next_tok());   /* must be PpDirEnd */
+	    break;
 
-         default:
-            /*
-             * This is not a directive, see if it is a macro name.
-             */
-            if (t->tok_id == Identifier && !(t->flag & NoExpand) &&
-                 (m = m_lookup(t)) != NULL) {
-               if (max_recurse < 0 || m->recurse < max_recurse) {
-                  if (expand(t, m))
-                     free_t(t);
-                  else
-                     return t;
-                  }
-               else {
-                  t->flag |= NoExpand;
-                  return t;
-                  }
-               }
-            else
-               return t; /* nothing special, just return it */
-         }
+	 case PpOutput:         /* #output */
+	    t1 = NULL;
+	    advance_tok(&t1);
+
+	    if (t1->tok_id != StrLit) {
+	       fprintf(stderr, "/""*%d,%d*""/\n", __LINE__, t1->tok_id);
+	       errt1(t1, "#output requires a file path argument");
+	       }
+
+	    free_t(t);
+	    t = t1;
+	    t->tok_id = Output;
+
+	    t1 = next_tok();
+	    if (t1->tok_id != PpDirEnd)
+	       errt1(t1, "syntax error for #output");
+	    free_t(t1);
+
+	    return t;
+
+	 default:
+	    /*
+	     * This is not a directive, see if it is a macro name.
+	     */
+	    if (t->tok_id == Identifier && !(t->flag & NoExpand) &&
+		 (m = m_lookup(t)) != NULL) {
+	       if (max_recurse < 0 || m->recurse < max_recurse) {
+		  if (expand(t, m))
+		     free_t(t);
+		  else
+		     return t;
+		  }
+	       else {
+		  t->flag |= NoExpand;
+		  return t;
+		  }
+	       }
+	    else
+	       return t; /* nothing special, just return it */
+	 }
       }
    }
 
@@ -759,25 +787,25 @@ struct token *interp_dir()
     * fix_bell - replace \a characters which correct octal escape sequences.
     */
    static char *fix_bell(s)
-   register char *s;
+   char *s;
       {
       struct str_buf *sbuf;
 
       sbuf = get_sbuf();
       while (*s != '\0') {
-         AppChar(*sbuf, *s);
-         if (*s == '\\') {
-            ++s;
-            if (*s == 'a') {
-               AppChar(*sbuf, '0' + ((Bell >> 6) & 7));
-               AppChar(*sbuf, '0' + ((Bell >> 3) & 7));
-               AppChar(*sbuf, '0' + (Bell & 7));
-               }
-            else
-               AppChar(*sbuf, *s);
-            }
-         ++s;
-         }
+	 AppChar(*sbuf, *s);
+	 if (*s == '\\') {
+	    ++s;
+	    if (*s == 'a') {
+	       AppChar(*sbuf, '0' + ((Bell >> 6) & 7));
+	       AppChar(*sbuf, '0' + ((Bell >> 3) & 7));
+	       AppChar(*sbuf, '0' + (Bell & 7));
+	       }
+	    else
+	       AppChar(*sbuf, *s);
+	    }
+	 ++s;
+	 }
       s = str_install(sbuf);
       rel_sbuf(sbuf);
       return s;
@@ -790,30 +818,30 @@ struct token *interp_dir()
    static struct token *check_bell()
       {
       struct token *t;
-      register char *s;
+      char *s;
 
       t = interp_dir();
       if (t == NULL)
-         return NULL;
+	 return NULL;
       switch (t->tok_id) {
-         case StrLit:
-         case LStrLit:
-         case CharConst:
-         case LCharConst:
-            s = t->image;
-            while (*s != '\0') {
-              if (*s == '\\') {
-                 if (*++s == 'a') {
-                    /*
-                     * There is at least one \a to replace.
-                     */
-                    t->image = fix_bell(t->image);
-                    break;
-                    }
-                 }
-              ++s;
-              }
-         }
+	 case StrLit:
+	 case LStrLit:
+	 case CharConst:
+	 case LCharConst:
+	    s = t->image;
+	    while (*s != '\0') {
+	      if (*s == '\\') {
+		 if (*++s == 'a') {
+		    /*
+		     * There is at least one \a to replace.
+		     */
+		    t->image = fix_bell(t->image);
+		    break;
+		    }
+		 }
+	      ++s;
+	      }
+	 }
       return t;
       }
 
@@ -853,131 +881,131 @@ struct token *preproc()
       whsp = NULL;
       merge_whsp(&whsp, &t2, TokSrc);
       if (t2 != NULL && (t2->tok_id == StrLit || t2->tok_id == LStrLit)) {
-         /*
-          * There are at least two adjacent string literals, concatenate them.
-          */
-         sbuf = get_sbuf();
-         str = copy_t(t1);
-         while (t2 != NULL && (t2->tok_id == StrLit || t2->tok_id == LStrLit)) {
-            s = t1->image;
-            while (*s != '\0') {
-               if (*s == '\\') {
-                  AppChar(*sbuf, *s);
-                  ++s;
-                  if (*s == 'x') {
-                     /*
-                      * Hex escape sequence.
-                      */
-                     hex_char = 0;
-                     escape_seq = s;
-                     ++s;
-                     is_hex_char = 1;
-                     while (is_hex_char) {
-                        if (*s >= '0' && *s <= '9')
-                           hex_char = (hex_char << 4) | (*s - '0');
-                        else switch (*s) {
-                           case 'a': case 'A':
-                              hex_char = (hex_char << 4) | 10;
-                              break;
-                           case 'b': case 'B':
-                              hex_char = (hex_char << 4) | 11;
-                              break;
-                           case 'c': case 'C':
-                              hex_char = (hex_char << 4) | 12;
-                              break;
-                           case 'd': case 'D':
-                              hex_char = (hex_char << 4) | 13;
-                              break;
-                           case 'e': case 'E':
-                              hex_char = (hex_char << 4) | 14;
-                              break;
-                           case 'f': case 'F':
-                              hex_char = (hex_char << 4) | 15;
-                              break;
-                           default: is_hex_char = 0;
-                           }
-                        if (is_hex_char)
-                           ++s;
-                        }
-                     /*
-                      * If this escape sequence is at the end of the
-                      *  string and the next string starts with a
-                      *  hex digit, use the canonical form, otherwise
-                      *  use it as is.
-                      */
-                     if (*s == '\0' && isxdigit(t2->image[0])) {
-                        AppChar(*sbuf, ((hex_char >> 6) & 03) + '0');
-                        AppChar(*sbuf, ((hex_char >> 3) & 07) + '0');
-                        AppChar(*sbuf, (hex_char        & 07) + '0');
-                        }
-                     else
-                        while (escape_seq != s)
-                           AppChar(*sbuf, *escape_seq++);
-                     }
-                  else if (*s >= '0' && *s <= '7') {
-                     /*
-                      * Octal escape sequence.
-                      */
-                     escape_seq = s;
-                     i = 1;
-                     while (i <= 3 && *s >= '0' && *s <= '7') {
-                        ++i;
-                        ++s;
-                        }
-                     /*
-                      * If this escape sequence is at the end of the
-                      *  string and the next string starts with an
-                      *  octal digit, extend it to 3 digits, otherwise
-                      *  use it as is.
-                      */
-                     if (*s == '\0' && t2->image[0] >= '0' &&
-                           t2->image[0] <= '7' && i <= 3) {
-                        AppChar(*sbuf, '0');
-                        if (i <= 2)
-                           AppChar(*sbuf, '0');
-                        }
-                     while (escape_seq != s)
-                        AppChar(*sbuf, *escape_seq++);
-                     }
-                  }
-               else {
-                  /*
-                   * Not an escape sequence, just copy the character to the
-                   *  buffer.
-                   */
-                  AppChar(*sbuf, *s);
-                  ++s;
-                  }
-               }
-            free_t(t1);
-            t1 = t2;
+	 /*
+	  * There are at least two adjacent string literals, concatenate them.
+	  */
+	 sbuf = get_sbuf();
+	 str = copy_t(t1);
+	 while (t2 != NULL && (t2->tok_id == StrLit || t2->tok_id == LStrLit)) {
+	    s = t1->image;
+	    while (*s != '\0') {
+	       if (*s == '\\') {
+		  AppChar(*sbuf, *s);
+		  ++s;
+		  if (*s == 'x') {
+		     /*
+		      * Hex escape sequence.
+		      */
+		     hex_char = 0;
+		     escape_seq = s;
+		     ++s;
+		     is_hex_char = 1;
+		     while (is_hex_char) {
+			if (*s >= '0' && *s <= '9')
+			   hex_char = (hex_char << 4) | (*s - '0');
+			else switch (*s) {
+			   case 'a': case 'A':
+			      hex_char = (hex_char << 4) | 10;
+			      break;
+			   case 'b': case 'B':
+			      hex_char = (hex_char << 4) | 11;
+			      break;
+			   case 'c': case 'C':
+			      hex_char = (hex_char << 4) | 12;
+			      break;
+			   case 'd': case 'D':
+			      hex_char = (hex_char << 4) | 13;
+			      break;
+			   case 'e': case 'E':
+			      hex_char = (hex_char << 4) | 14;
+			      break;
+			   case 'f': case 'F':
+			      hex_char = (hex_char << 4) | 15;
+			      break;
+			   default: is_hex_char = 0;
+			   }
+			if (is_hex_char)
+			   ++s;
+			}
+		     /*
+		      * If this escape sequence is at the end of the
+		      *  string and the next string starts with a
+		      *  hex digit, use the canonical form, otherwise
+		      *  use it as is.
+		      */
+		     if (*s == '\0' && isxdigit(t2->image[0])) {
+			AppChar(*sbuf, ((hex_char >> 6) & 03) + '0');
+			AppChar(*sbuf, ((hex_char >> 3) & 07) + '0');
+			AppChar(*sbuf, (hex_char        & 07) + '0');
+			}
+		     else
+			while (escape_seq != s)
+			   AppChar(*sbuf, *escape_seq++);
+		     }
+		  else if (*s >= '0' && *s <= '7') {
+		     /*
+		      * Octal escape sequence.
+		      */
+		     escape_seq = s;
+		     i = 1;
+		     while (i <= 3 && *s >= '0' && *s <= '7') {
+			++i;
+			++s;
+			}
+		     /*
+		      * If this escape sequence is at the end of the
+		      *  string and the next string starts with an
+		      *  octal digit, extend it to 3 digits, otherwise
+		      *  use it as is.
+		      */
+		     if (*s == '\0' && t2->image[0] >= '0' &&
+			   t2->image[0] <= '7' && i <= 3) {
+			AppChar(*sbuf, '0');
+			if (i <= 2)
+			   AppChar(*sbuf, '0');
+			}
+		     while (escape_seq != s)
+			AppChar(*sbuf, *escape_seq++);
+		     }
+		  }
+	       else {
+		  /*
+		   * Not an escape sequence, just copy the character to the
+		   *  buffer.
+		   */
+		  AppChar(*sbuf, *s);
+		  ++s;
+		  }
+	       }
+	    free_t(t1);
+	    t1 = t2;
 
-            /*
-             * Get the next non-white space token, saving any skipped
-             *  white space.
-             */
-            merge_whsp(&whsp, &t2, TokSrc);
-            }
+	    /*
+	     * Get the next non-white space token, saving any skipped
+	     *  white space.
+	     */
+	    merge_whsp(&whsp, &t2, TokSrc);
+	    }
 
-         /*
-          * Copy the image of the last token into the buffer, creating
-          *  the image for the concatenated token.
-          */
-         for (s = t1->image; *s != '\0'; ++s)
-            AppChar(*sbuf, *s);
-         str->image = str_install(sbuf);
-         free_t(t1);
-         t1 = str;
-         rel_sbuf(sbuf);
-         }
+	 /*
+	  * Copy the image of the last token into the buffer, creating
+	  *  the image for the concatenated token.
+	  */
+	 for (s = t1->image; *s != '\0'; ++s)
+	    AppChar(*sbuf, *s);
+	 str->image = str_install(sbuf);
+	 free_t(t1);
+	 t1 = str;
+	 rel_sbuf(sbuf);
+	 }
 
       /*
        * Push back any look-ahead tokens.
        */
       if (t2 != NULL)
-         src_stack->toks[src_stack->ntoks++] = t2;
+	 g_src_stack->toks[g_src_stack->ntoks++] = t2;
       if (whsp != NULL)
-         src_stack->toks[src_stack->ntoks++] = whsp;
+	 g_src_stack->toks[g_src_stack->ntoks++] = whsp;
       }
    return t1;
    }

@@ -57,7 +57,8 @@ void free_stbl()
 /*
  * init_sbuf - initialize a new sbuf struct, allocating an initial buffer.
  */
-void init_sbuf(struct str_buf *sbuf)
+void init_sbuf(sbuf)
+struct str_buf *sbuf;
    {
    sbuf->size = SBufSize;
    sbuf->frag_lst = alloc(sizeof(struct str_buf_frag) + (SBufSize - 1));
@@ -70,7 +71,8 @@ void init_sbuf(struct str_buf *sbuf)
 /*
  * clear_sbuf - free string buffer storage.
  */
-void clear_sbuf(struct str_buf *sbuf)
+void clear_sbuf(sbuf)
+struct str_buf *sbuf;
    {
    struct str_buf_frag *sbf, *sbf1;
 
@@ -88,13 +90,14 @@ void clear_sbuf(struct str_buf *sbuf)
  * new_sbuf - allocate a new buffer for a sbuf struct, copying the partially
  *   created string from the end of full buffer to the new one.
  */
-void new_sbuf(struct str_buf *sbuf)
+void new_sbuf(sbuf)
+struct str_buf *sbuf;
    {
    struct str_buf_frag *sbf;
    char *s1, *s2;
 
    /*
-    * The new buffer is larger than the old one to insure that any
+    * The new buffer is larger than the old one to ensure that any
     *  size string can be buffered.
     */
    sbuf->size *= 2;
@@ -113,7 +116,8 @@ void new_sbuf(struct str_buf *sbuf)
 /*
  * spec_str - install a special string (null terminated) in the string table.
  */
-char *spec_str(char *s)
+char *spec_str(s)
+char *s;
    {
    struct str_entry *se;
    register char *s1;
@@ -143,7 +147,8 @@ char *spec_str(char *s)
  *   the string table. If not, put it there. Return a pointer to the
  *   string in the table.
  */
-char *str_install(struct str_buf *sbuf)
+char *str_install(sbuf)
+struct str_buf *sbuf;
    {
    int h;
    struct str_entry *se;
@@ -191,7 +196,9 @@ char *str_install(struct str_buf *sbuf)
  * streq - compare s1 with s2 for len bytes, and return 1 for equal,
  *  0 for not equal.
  */
-static int streq(int len, char *s1, char *s2) 
+static int streq(len, s1, s2)
+register int len;
+register char *s1, *s2;
    {
    while (len--)
       if (*s1++ != *s2++)

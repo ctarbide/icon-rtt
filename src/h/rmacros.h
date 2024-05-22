@@ -92,7 +92,7 @@
 /*
  * Check for null-valued descriptor.
  */
-#define ChkNull(d)	((d).dword==D_Null)
+#define ChkNull(d)	((d).dword == (word)D_Null)
 
 /*
  * Check for equivalent descriptors.
@@ -359,7 +359,7 @@
  * Construct a substring trapped variable.
  */
 #define SubStr(dest,var,len,pos)\
-   if ((var)->dword == D_Tvsubs)\
+   if ((var)->dword == (word)D_Tvsubs)\
       (dest)->vword.bptr = (union block *)alcsubs(len, (pos) +\
          BlkLoc(*(var))->tvsubs.sspos - 1, &BlkLoc(*(var))->tvsubs.ssvar);\
    else\
@@ -436,10 +436,10 @@
  * Shorter Versions of the Push*SP macros that assume sp points to the top
  * of the stack.
  */
-#define PushDesc(d)		PushDescSP(sp,d)
-#define PushNull		PushNullSP(sp)
-#define PushVal(x)		PushValSP(sp,x)
-#define PushAVal(x)		PushValSP(sp,x)
+#define PushDesc(d)		PushDescSP(g_sp,d)
+#define PushNull		PushNullSP(g_sp)
+#define PushVal(x)		PushValSP(g_sp,x)
+#define PushAVal(x)		PushValSP(g_sp,x)
 
 /*
  * Macros related to function and operator definition.

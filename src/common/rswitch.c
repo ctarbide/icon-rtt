@@ -19,9 +19,35 @@
 #include <sys/stat.h>
 
 #include "../h/define.h"
+#include "../h/arch.h"
+#include "../h/cpuconf.h"
+#include "../h/typedefs.h"
+#include "../h/rmacros.h"
+#include "../h/rstructs.h"
+#include "../h/rproto.h"
 
-extern void new_context(int, void *);
-extern void syserr(char *msg);
+#include "../h/config.h"
+
+#ifdef Graphics
+/* taken from ../h/grttin.h, required by some prototypes defined in
+ * ../runtime/protos.h
+ */
+typedef int XRectangle, XPoint;
+
+#ifdef XWindows
+typedef int Atom, Time, XSelectionEvent, XErrorEvent, XErrorHandler;
+typedef int XGCValues, XColor, XFontStruct, XWindowAttributes, XEvent;
+typedef int XExposeEvent, XKeyEvent, XButtonEvent, XConfigureEvent;
+typedef int XSizeHints, XWMHints, XClassHint, XTextProperty;
+typedef int Colormap, XVisualInfo, va_list;
+typedef int *Display, Cursor, GC, Window, Pixmap, Visual, KeySym;
+typedef int WidgetClass, XImage, XpmAttributes;
+#endif	/* XWindows */
+#endif
+
+#include "../h/graphics.h"
+#include "../runtime/protos.h"
+
 extern void *alloc(unsigned int n);
 
 extern long stksize;		/* value of COEXPSIZE */

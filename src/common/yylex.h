@@ -48,7 +48,7 @@ struct str_buf lex_sbuf;	/* string buffer for lexical analyzer */
 static struct toktab *lasttok = NULL;
 static int lastend = 0;
 static int eofflag = 0;
-static int cc = '\n';
+static int g_cc = '\n';
 
 int yylex()
    {
@@ -73,13 +73,13 @@ int yylex()
       }
    nlflag = 0;
 loop:
-   c = cc;
+   c = g_cc;
    /*
     * Remember where a semicolon will go if we insert one.
     */
    semi_loc.n_file = tok_loc.n_file;
    semi_loc.n_line = in_line;
-   if (cc == '\n')
+   if (g_cc == '\n')
       --semi_loc.n_line;
    semi_loc.n_col = incol;
    /*
@@ -131,11 +131,11 @@ loop:
        */
       if (eofflag++) {
 	 eofflag = 0;
-	 cc = '\n';
+	 g_cc = '\n';
 	 yylval = NULL;
 	 return 0;
 	 }
-      cc = EOF;
+      g_cc = EOF;
       t = T_Eof;
       yylval = NULL;
       goto ret;
@@ -147,19 +147,19 @@ loop:
     *  token gathering routines write a value into cc.
     */
    if (isalpha(c) || (c == '_')) {   /* gather ident or reserved word */
-      if ((t = getident(c, &cc)) == NULL)
+      if ((t = getident(c, &g_cc)) == NULL)
 	 goto loop;
       }
    else if (isdigit(c) || (c == '.')) {	/* gather numeric literal or "." */
-      if ((t = getnum(c, &cc)) == NULL)
+      if ((t = getnum(c, &g_cc)) == NULL)
 	 goto loop;
       }
    else if (c == '"' || c == '\'') {    /* gather string or cset literal */
-      if ((t = getstring(c, &cc)) == NULL)
+      if ((t = getstring(c, &g_cc)) == NULL)
 	 goto loop;
       }
    else {			/* gather longest legal operator */
-      if ((n = getopr(c, &cc)) == -1)
+      if ((n = getopr(c, &g_cc)) == -1)
 	 goto loop;
       t = &(optab[n].tok);
       yylval = OpNode(n);
@@ -190,7 +190,10 @@ ret:
  * getident - gather an identifier beginning with ac.  The character
  *  following identifier goes in cc.
  */
-static struct toktab *getident(int ac, int *cc)
+
+static struct toktab *getident(ac, cc)
+int ac;
+int *cc;
    {
    register int c;
    register struct toktab *t;
@@ -226,6 +229,7 @@ static struct toktab *getident(int ac, int *cc)
  *  is a reserved word, return a pointer to its entry in the token table.
  *  Return NULL if the string isn't a reserved word.
  */
+
 static struct toktab *findres()
    {
    register struct toktab *t;
@@ -254,7 +258,8 @@ static struct toktab *findres()
 /*
  * bufcmp - compare a null terminated string to what is in the string buffer.
  */
-static int bufcmp(char *s)
+static int bufcmp(s)
+char *s;
    {
    register char *s1;
    s1 = lex_sbuf.strtimage;
@@ -275,7 +280,10 @@ static int bufcmp(char *s)
  * getnum also handles the "." operator, which is distinguished from
  *  a numeric literal by what follows it.
  */
-static struct toktab *getnum(int ac, int *cc)
+
+static struct toktab *getnum(ac, cc)
+int ac;
+int *cc;
    {
    register int c;
    register unsigned int r, state;
@@ -321,13 +329,13 @@ static struct toktab *getnum(int ac, int *cc)
 	    if (isdigit(c))   continue;
 	    break;
 	 case 5:		/* first digit after r */
-	    if ((isdigit(c) || isletter(c)) && tonum(c) < r)
+	    if ((isdigit(c) || isletter(c)) && (unsigned int)tonum(c) < r)
 	       { state = 6; continue; }
 	    tfatal("invalid integer literal", (char *)NULL);
 	    break;
 	 case 6:		/* remaining digits after r */
 	    if (isdigit(c) || isletter(c)) {
-	       if (tonum(c) >= r) {	/* illegal digit for radix r */
+	       if ((unsigned int)tonum(c) >= r) {	/* illegal digit for radix r */
 		  tfatal("invalid digit in integer literal", (char *)NULL);
 		  r = tonum('z');       /* prevent more messages */
 		  }
@@ -361,7 +369,9 @@ static struct toktab *getnum(int ac, int *cc)
  * getstring - gather a string literal starting with ac and place the
  *  character following the literal in *cc.
  */
-static struct toktab *getstring(int ac, int *cc)
+static struct toktab *getstring(ac, cc)
+int ac;
+int *cc;
    {
    register int c, sc;
    int sav_indx;
@@ -429,6 +439,7 @@ static struct toktab *getstring(int ac, int *cc)
  * ctlesc - translate a control escape -- backslash followed by
  *  caret and one character.
  */
+
 static int ctlesc()
    {
    register int c;
@@ -444,7 +455,9 @@ static int ctlesc()
  * octesc - translate an octal escape -- backslash followed by
  *  one, two, or three octal digits.
  */
-static int octesc(int ac)
+
+static int octesc(ac)
+int ac;
    {
    register int c, nc, i;
 
@@ -466,6 +479,7 @@ static int octesc(int ac)
  * hexesc - translate a hexadecimal escape -- backslash-x
  *  followed by one or two hexadecimal digits.
  */
+
 static int hexesc()
    {
    register int c, nc, i;
@@ -495,6 +509,7 @@ static int hexesc()
 /*
  * setlineno - set line number from #line comment, return following char.
  */
+
 static int setlineno()
    {
    register int c;
@@ -518,7 +533,9 @@ static int setlineno()
 /*
  * setfilenm -	set file name from #line comment, return following char.
  */
-static int setfilenm(int c)
+
+static int setfilenm(c)
+register int c;
    {
    while (c == ' ' || c == '\t')
       c = NextChar;
@@ -545,6 +562,7 @@ static int setfilenm(int c)
  *
  *  Called from the lexical analyzer; interfaces it to the preprocessor.
  */
+
 int nextchar()
    {
    register int c;

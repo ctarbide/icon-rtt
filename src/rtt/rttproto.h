@@ -7,6 +7,7 @@ struct node      *arith_nd (struct token *tok, struct node *p1,
                              struct node *d_act);
 struct il_c      *bdy_prm   (int addr_of, int just_desc, struct sym_entry *sym, int may_mod);
 int               c_walk    (struct node *n, int indent, int brace);
+int               c_walk_cat(struct node *n, int indent, int brace, int stmt_list);
 int               call_ret  (struct node *n);
 struct token     *chk_exct  (struct token *tok);
 void           chkabsret (struct token *tok, int ret_typ);
@@ -15,7 +16,7 @@ void           clr_dpnd  (char *srcname);
 void           clr_prmloc (void);
 struct token     *cnv_to_id (struct token *t);
 char             *cnv_name  (int typcd, struct node *dflt, int *dflt_to_ptr);
-struct node      *comp_nd   (struct token *tok, struct node *dcls,
+struct node      *comp_nd   (int gln, struct token *tok, struct node *dcls,
                               struct node *stmts);
 int               creat_obj (void);
 void           d_lst_typ (struct node *dcls);
@@ -33,6 +34,7 @@ void           full_lst  (char *fname);
 void           func_def  (struct node *dcltor);
 void           id_def    (struct node *dcltor, struct node *x);
 void           keepdir   (struct token *s);
+void           outputdir (struct token *s);
 int               icn_typ   (struct node *n);
 struct il_c      *ilc_dcl   (struct node *tqual, struct node *dcltor,
                               struct node *init);
@@ -51,12 +53,21 @@ void           loaddb    (char *db);
 void           mrg_prmloc (struct parminfo *parminfo);
 struct parminfo  *new_prmloc (void);
 struct node      *node0     (int id, struct token *tok);
+struct node      *node0ex   (int gln, int id, struct token *tok);
 struct node      *node1     (int id, struct token *tok, struct node *n1);
+struct node      *node1ex   (int gln, int id, struct token *tok, struct node *n1);
 struct node      *node2     (int id, struct token *tok, struct node *n1,
+                              struct node *n2);
+struct node      *node2ex   (int gln, int id, struct token *tok, struct node *n1,
                               struct node *n2);
 struct node      *node3     (int id, struct token *tok, struct node *n1,
                               struct node *n2, struct node *n3);
+struct node      *node3ex   (int gln, int id, struct token *tok, struct node *n1,
+                              struct node *n2, struct node *n3);
 struct node      *node4     (int id, struct token *tok, struct node *n1,
+                              struct node *n2, struct node *n3,
+                              struct node *n4);
+struct node      *node4ex   (int gln, int id, struct token *tok, struct node *n1,
                               struct node *n2, struct node *n3,
                               struct node *n4);
 struct il_c      *parm_dcl  (int addr_of, struct sym_entry *sym);
@@ -64,7 +75,6 @@ void	pop_cntxt	(void);
 void           pop_lvl   (void);
 void           prologue  (void);
 void           prt_str   (char *s, int indent);
-void		  ptout	    (struct token * x);
 void	push_cntxt	(int lvl_incr);
 void           push_lvl  (void);
 void           put_c_fl  (char *fname, int keep);
@@ -88,5 +98,28 @@ char             *typ_name  (int typ, struct token *tok);
 void           unuse     (struct init_tend *t_lst, int lvl);
 void           var_args  (struct token *ident);
 void           yyerror   (char *s);
-int               yylex     (void);
-int               yyparse   (void);
+struct node *copy_tree(struct node *n);
+struct node *alloc_node(size_t size);
+void node_update_trace(struct node *n);
+
+void push_into_switch(void);
+void pop_out_of_switch(void);
+void switch_case_stmt(void);
+
+const char *node_id_name(int nd_id);
+const char *node_name(struct node *nd);
+
+struct node *
+navigate1(struct node *n, int nd_id, int child);
+
+struct node *
+navigate2(struct node *n, int nd_id1, int child1, int nd_id2, int child2);
+
+struct node *
+navigate3(struct node *n, int nd_id1, int child1, int nd_id2, int child2, int nd_id3, int child3);
+
+struct node *
+navigate_CompNd_2_ConCatNd_1(struct node *n);
+
+const char *
+sym_name(struct sym_entry *sym);

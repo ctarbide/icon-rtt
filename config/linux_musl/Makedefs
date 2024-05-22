@@ -1,3 +1,4 @@
+#  STRIP    strip non-essential data from object files
 #  CC       C compiler
 #  CFLAGS   flags for building C files
 #  CFDYN    additional flags for dynamic functions
@@ -6,6 +7,7 @@
 #  TLIBS    libraries to link for POSIX threads
 #  XLIBS    libraries to link for graphics
 
+STRIP = strip
 CC = gcc
 CFLAGS = -O -D_MUSL
 CFDYN = -fPIC

@@ -30,12 +30,12 @@ void	id_comment	(FILE *f);
 void	init_sbuf	(struct str_buf *sbuf);
 void	init_str	(void);
 long	longwrite	(char *s, long len, FILE *file);
-char	*makename	(char *dest, char *d, char *name, char *e);
+char	*makename	(char *dest, size_t sz, char *d, char *name, char *e);
 long	millisec	(void);
 struct il_code *new_il	(int il_type, int size);
 void	new_sbuf	(struct str_buf *sbuf);
 void	nxt_pre		(char *pre, char *nxt, int n);
-char	*pathfind	(char *buf, char *path, char *name, char *extn);
+char	*pathfind	(char *buf, size_t sz, char *path, char *name, char *extn);
 int	ppch		(void);
 void	ppdef		(char *name, char *value);
 void	ppecho		(void);
@@ -52,3 +52,17 @@ void	lear_sbuf	(struct str_buf *sbuf);
 #ifndef SysOpt
    int	getopt		(int argc, char * const argv[], const char *optstring);
 #endif					/* NoSysOpt */
+
+void (*fdlsym(void *handle, const char *symbol))(void);
+
+/*
+ * nofake -Rprotos src/common/\*.nw
+ */
+char *
+concat(const char *s1, ...);
+size_t
+lconcat(char *dst, size_t dstsize, const char *s1, ...);
+size_t
+xstrlcat(char *dst, const char *src, size_t dsize);
+size_t
+xstrlcpy(char *dst, const char *src, size_t dsize);

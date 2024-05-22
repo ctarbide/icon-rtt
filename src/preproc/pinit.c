@@ -12,12 +12,15 @@ static void mac_opts     (char *opt_lst, char **opt_args);
 static void undef_opt    (char *s, int len);
 
 struct src dummy;
-
+
 /*
  * init_preproc - initialize all parts of the preprocessor, establishing
  *  the primary file as the current source of tokens.
  */
-void init_preproc(char *fname, char *opt_lst, char **opt_args)
+void init_preproc(fname, opt_lst, opt_args)
+char *fname;
+char *opt_lst;
+char **opt_args;
    {
 
    init_str();                      /* initialize string table */
@@ -26,7 +29,7 @@ void init_preproc(char *fname, char *opt_lst, char **opt_args)
    init_files(opt_lst, opt_args);   /* initialize standard header locations */
    dummy.flag = DummySrc;           /* marker at bottom of source stack */
    dummy.ntoks = 0;
-   src_stack = &dummy;
+   g_src_stack = &dummy;
    mac_opts(opt_lst, opt_args);     /* process options for predefined macros */
    source(fname);                   /* establish primary source file */
    }
@@ -36,7 +39,9 @@ void init_preproc(char *fname, char *opt_lst, char **opt_args)
  *  effect when preprocessing starts.  The options may be on the command
  *  line.  Also establish predefined macros.
  */
-static void mac_opts(char *opt_lst, char **opt_args)
+static void mac_opts(opt_lst, opt_args)
+char *opt_lst;
+char **opt_args;
    {
    int i;
 
@@ -45,27 +50,30 @@ static void mac_opts(char *opt_lst, char **opt_args)
     */
    for (i = 0; opt_lst[i] != '\0'; ++i)
       switch(opt_lst[i]) {
-         case 'U':
-            /*
-             * Undefine and predefined identifier.
-             */
-            undef_opt(opt_args[i], (int)strlen(opt_args[i]));
-            break;
+	 case 'U':
+	    /*
+	     * Undefine and predefined identifier.
+	     */
+	    undef_opt(opt_args[i], (int)strlen(opt_args[i]));
+	    break;
 
-         case 'D':
-            /*
-             * Define an identifier. Use "1" if no defining string is given.
-             */
-            define_opt(opt_args[i], (int)strlen(opt_args[i]), one_tok);
-            break;
-         }
+	 case 'D':
+	    /*
+	     * Define an identifier. Use "1" if no defining string is given.
+	     */
+	    define_opt(opt_args[i], (int)strlen(opt_args[i]), one_tok);
+	    break;
+	 }
    }
 
 /*
  * str_src - establish a string, given by a character pointer and a length,
  *  as the current source of tokens.
  */
-void str_src(char *src_name, char *s, int len)
+void str_src(src_name, s, len)
+char *src_name;
+char *s;
+int len;
    {
    union src_ref ref;
    int *ip1, *ip2;
@@ -89,12 +97,14 @@ void str_src(char *src_name, char *s, int len)
    next_char = first_char;
    last_char = ref.cs->last_char;
    }
-
+
 /*
  * undef_opt - take the argument to a -U option and, if it is valid,
  *  undefine it.
  */
-static void undef_opt(char *s, int len)
+static void undef_opt(s, len)
+char *s;
+int len;
    {
    struct token *mname;
    int i;
@@ -109,18 +119,21 @@ static void undef_opt(char *s, int len)
      next_tok() != NULL) {
       fprintf(stderr, "invalid argument to -U option: ");
       for (i = 0; i < len; ++i)
-         putc(s[i], stderr);    /* show offending argument */
+	 putc(s[i], stderr);    /* show offending argument */
       putc('\n', stderr);
       show_usage();
       }
    m_delete(mname);
    }
-
+
 /*
  * define_opt - take an argument to a -D option and, if it is valid, perform
  *  the requested definition.
  */
-static void define_opt(char *s, int len, struct token *dflt)
+static void define_opt(s, len, dflt)
+char *s;
+int len;
+struct token *dflt;
    {
    struct token *mname;
    struct token *t;
@@ -140,7 +153,7 @@ static void define_opt(char *s, int len, struct token *dflt)
    if (mname == NULL || mname->tok_id != Identifier) {
       fprintf(stderr, "invalid argument to -D option: ");
       for (i = 0; i < len; ++i)
-         putc(s[i], stderr);
+	 putc(s[i], stderr);
       putc('\n', stderr);
       show_usage();
       }
@@ -154,9 +167,9 @@ static void define_opt(char *s, int len, struct token *dflt)
        */
       t = next_tok();
       if (t != NULL && t->tok_id == WhiteSpace) {
-         free_t(t);
-         t = next_tok();
-         }
+	 free_t(t);
+	 t = next_tok();
+	 }
 
 
       /*
@@ -167,23 +180,23 @@ static void define_opt(char *s, int len, struct token *dflt)
       ptlst = &body;
       trail_whsp = NULL;
       while (t != NULL) {
-         t->flag &= ~LineChk;
-         (*ptlst) = new_t_lst(t);
-         if (t->tok_id == WhiteSpace)
-            trail_whsp = ptlst;
-         else
-            trail_whsp = NULL;
-         ptlst = &(*ptlst)->next;
-         t = next_tok();
-         }
+	 t->flag &= ~LineChk;
+	 (*ptlst) = new_t_lst(t);
+	 if (t->tok_id == WhiteSpace)
+	    trail_whsp = ptlst;
+	 else
+	    trail_whsp = NULL;
+	 ptlst = &(*ptlst)->next;
+	 t = next_tok();
+	 }
 
       /*
        * strip trailing white space
        */
       if (trail_whsp != NULL) {
-         free_t_lst(*trail_whsp);
-         *trail_whsp = NULL;
-         }
+	 free_t_lst(*trail_whsp);
+	 *trail_whsp = NULL;
+	 }
       }
    else {
       /*
@@ -191,17 +204,17 @@ static void define_opt(char *s, int len, struct token *dflt)
        *  default value for the macro definition.
        */
       if (next_tok() == NULL)
-         if (dflt == NULL)
-            body = NULL;
-         else
-            body = new_t_lst(copy_t(dflt));
+	 if (dflt == NULL)
+	    body = NULL;
+	 else
+	    body = new_t_lst(copy_t(dflt));
       else {
-         fprintf(stderr, "invalid argument to -D option: ");
-         for (i = 0; i < len; ++i)
-            putc(s[i], stderr);
-         putc('\n', stderr);
-         show_usage();
-         }
+	 fprintf(stderr, "invalid argument to -D option: ");
+	 for (i = 0; i < len; ++i)
+	    putc(s[i], stderr);
+	 putc('\n', stderr);
+	 show_usage();
+	 }
       }
 
    m_install(mname, NoArgs, 0, NULL, body); /* install macro definition */

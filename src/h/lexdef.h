@@ -5,7 +5,7 @@
 /*
  * Miscellaneous globals.
  */
-extern int yychar;		/* parser's current input token type */
+/*extern int yychar;*/		/* parser's current input token type */
 extern int yynerrs;		/* number of errors in parse */
 extern int nocode;		/* true to suppress code generation */
 

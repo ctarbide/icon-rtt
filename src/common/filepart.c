@@ -4,7 +4,7 @@
 #include "../h/gsupport.h"
 
 static char *pathelem	(char *s, char *buf);
-static char *tryfile	(char *buf, char *dir, char *name, char *extn);
+static char *tryfile	(char *buf, size_t sz, char *dir, char *name, char *extn);
 
 /*
  *  Define symbols for building file names.
@@ -35,27 +35,30 @@ static char *tryfile	(char *buf, char *dir, char *name, char *extn);
  *  name is the file name.
  *  extn is the file extension (.icn or .u1) to be appended, or NULL if none.
  */
-char *pathfind(char *buf, char *path, char *name, char *extn)
+char *pathfind(buf, sz, path, name, extn)
+char *buf, *path, *name, *extn;
+size_t sz;
    {
    char pbuf[MaxPath];
 
-   if (tryfile(buf, (char *)NULL, name, extn))	/* try curr directory first */
+   if (tryfile(buf, sz, (char *)NULL, name, extn))	/* try curr directory first */
       return buf;
    if (!path)					/* if no path, use default */
       path = DefPath;
 
    while ((path = pathelem(path, pbuf)) != 0)	/* for each path element */
-      if (tryfile(buf, pbuf, name, extn))	/* look for file */
-         return buf;
+      if (tryfile(buf, sz, pbuf, name, extn))	/* look for file */
+	 return buf;
    return NULL;				/* return NULL if no file found */
    }
-
+
 /*
  * pathelem(s,buf) -- copy next path element from s to buf.
  *
  *  Returns the updated pointer s.
  */
-static char *pathelem(char *s, char *buf)
+static char *pathelem(s, buf)
+char *s, *buf;
    {
    char c;
 
@@ -74,24 +77,26 @@ static char *pathelem(char *s, char *buf)
        *  Seems like makename should really be the one to do that.
        */
       if (!strchr(Prefix, buf[-1])) {	/* if separator not already there */
-         *buf++ = FileSep;
-         }
+	 *buf++ = FileSep;
+	 }
    #endif				/* FileSep */
 
    *buf = '\0';
    return s;
    }
-
+
 /*
  * tryfile(buf, dir, name, extn) -- check to see if file is readable.
  *
  *  The file name is constructed in buf from dir + name + extn.
  *  findfile returns buf if successful or NULL if not.
  */
-static char *tryfile(char *buf, char *dir, char *name, char *extn)
+static char *tryfile(buf, sz, dir, name, extn)
+char *buf, *dir, *name, *extn;
+size_t sz;
    {
    FILE *f;
-   makename(buf, dir, name, extn);
+   makename(buf, sz, dir, name, extn);
    if ((f = fopen(buf, "r")) != NULL) {
       fclose(f);
       return buf;
@@ -104,7 +109,8 @@ static char *tryfile(char *buf, char *dir, char *name, char *extn)
  * fparse - break a file name down into component parts.
  *  Result is a pointer to a struct of static pointers good until the next call.
  */
-struct fileparts *fparse(char *s)
+struct fileparts *fparse(s)
+char *s;
    {
    static char buf[MaxPath+2];
    static struct fileparts fp;
@@ -115,11 +121,11 @@ struct fileparts *fparse(char *s)
    fp.ext = p = s + strlen(s);
    while (--p >= s) {
       if (*p == '.' && *fp.ext == '\0')
-         fp.ext = p;
+	 fp.ext = p;
       else if (strchr(Prefix,*p)) {
-         q = p+1;
-         break;
-         }
+	 q = p+1;
+	 break;
+	 }
       }
 
    fp.dir = buf;
@@ -140,7 +146,9 @@ struct fileparts *fparse(char *s)
 /*
  * makename - make a file name, optionally substituting a new dir and/or ext
  */
-char *makename(char *dest, char *d, char *name, char *e)
+char *makename(dest, sz, d, name, e)
+char *dest, *d, *name, *e;
+size_t sz;
    {
    struct fileparts fp;
    fp = *fparse(name);
@@ -148,28 +156,29 @@ char *makename(char *dest, char *d, char *name, char *e)
       fp.dir = d;
    if (e != NULL)
       fp.ext = e;
-   sprintf(dest,"%s%s%s",fp.dir,fp.name,fp.ext);
+   snprintf(dest, sz, "%s%s%s", fp.dir, fp.name, fp.ext);
    return dest;
    }
 
 /*
  * smatch - case-insensitive string match - returns nonzero if they match
  */
-int smatch(char *s, char *t)
+int smatch(s,t)
+char *s, *t;
    {
    char a, b;
    for (;;) {
       while (*s == *t)
-         if (*s++ == '\0')
-            return 1;
-         else
-            t++;
+	 if (*s++ == '\0')
+	    return 1;
+	 else
+	    t++;
       a = *s++;
       b = *t++;
       if (isupper(a))  a = tolower(a);
       if (isupper(b))  b = tolower(b);
       if (a != b)
-         return 0;
+	 return 0;
       }
    }
 
@@ -184,12 +193,12 @@ FILE *pathOpen(fname, mode)
 
    for (i = 0; fname[i] != '\0'; i++) {
       if (fname[i] == '/' || fname[i] == ':' || fname[i] == '\\') {
-         /* fname contains an explicit path */
-         return fopen(fname, mode);
-         }
+	 /* fname contains an explicit path */
+	 return fopen(fname, mode);
+	 }
       }
 
-   if (!pathfind(buf, getenv("PATH"), fname, NULL))
+   if (!pathfind(buf, sizeof(buf), getenv("PATH"), fname, NULL))
       return 0;
 
    return fopen(buf, mode);

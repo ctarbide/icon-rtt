@@ -1,2 +1,5 @@
-Makedefs
+*~
+*.o
+*.stamp
+/Makedefs
 **/.DS_Store

@@ -2,7 +2,7 @@ include ../../Makedefs
 
 
 OBJS =	long.o getopt.o time.o filepart.o identify.o strtbl.o rtdb.o\
-	munix.o literals.o rswitch.o alloc.o long.o getopt.o time.o\
+	munix.o literals.o alloc.o long.o getopt.o time.o\
 	xwindow.o ipp.o
 
 common:		$(OBJS)
@@ -30,7 +30,6 @@ literals.o: ../h/esctab.h
 rtdb.o: ../h/version.h icontype.h
 
 xwindow.o: ../h/graphics.h ../h/xwin.h
-
 
 #  The following section is needed if changes are made to the Icon grammar,
 #  but it is not run as part of the normal installation process.  If it is

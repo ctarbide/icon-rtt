@@ -7,6 +7,8 @@
  */
 #include "rtt.h"
 
+int               yylex     (void);
+
 /*
  * Prototype for static function.
  */
@@ -75,26 +77,27 @@ void init_lex()
       sym_add(Auto,          spec_str("auto"),          OtherDcl, 0);
       sym_add(Break,         spec_str("break"),         OtherDcl, 0);
       sym_add(Case,          spec_str("case"),          OtherDcl, 0);
-      sym_add(TokChar,       spec_str("char"),          OtherDcl, 0);
+      sym_add(Char,          spec_str("char"),          OtherDcl, 0);
       sym_add(Const,         spec_str("const"),         OtherDcl, 0);
       sym_add(Continue,      spec_str("continue"),      OtherDcl, 0);
       sym_add(Default,       spec_str("default"),       OtherDcl, 0);
       sym_add(Do,            spec_str("do"),            OtherDcl, 0);
       sym_add(Doubl,         spec_str("double"),        OtherDcl, 0);
       sym_add(Else,          spec_str("else"),          OtherDcl, 0);
-      sym_add(TokEnum,       spec_str("enum"),          OtherDcl, 0);
+      sym_add(Enum,          spec_str("enum"),          OtherDcl, 0);
       sym_add(Extern,        spec_str("extern"),        OtherDcl, 0);
       sym_add(Float,         spec_str("float"),         OtherDcl, 0);
       sym_add(For,           spec_str("for"),           OtherDcl, 0);
       sym_add(Goto,          spec_str("goto"),          OtherDcl, 0);
       sym_add(If,            spec_str("if"),            OtherDcl, 0);
       sym_add(Int,           spec_str("int"),           OtherDcl, 0);
-      sym_add(TokLong,       spec_str("long"),          OtherDcl, 0);
-      sym_add(TokRegister,   spec_str("register"),      OtherDcl, 0);
+      sym_add(Long,          spec_str("long"),          OtherDcl, 0);
+      sym_add(Register,      spec_str("register"),      OtherDcl, 0);
       sym_add(Return,        spec_str("return"),        OtherDcl, 0);
-      sym_add(TokShort,      spec_str("short"),         OtherDcl, 0);
+      sym_add(Short,         spec_str("short"),         OtherDcl, 0);
       sym_add(Signed,        spec_str("signed"),        OtherDcl, 0);
       sym_add(Sizeof,        spec_str("sizeof"),        OtherDcl, 0);
+      sym_add(PassThru,      spec_str("passthru"),      OtherDcl, 0);
       sym_add(Static,        spec_str("static"),        OtherDcl, 0);
       sym_add(Struct,        spec_str("struct"),        OtherDcl, 0);
       sym_add(Switch,        spec_str("switch"),        OtherDcl, 0);
@@ -125,7 +128,7 @@ void init_lex()
       sym_add(Errorfail,     spec_str("errorfail"),     OtherDcl, 0);
       sym_add(Exact,         spec_str("exact"),         OtherDcl, 0);
       sym_add(Fail,          spec_str("fail"),          OtherDcl, 0);
-      sym_add(TokFunction,   spec_str("function"),      OtherDcl, 0);
+      sym_add(Function,      spec_str("function"),      OtherDcl, 0);
       sym_add(Inline,        spec_str("inline"),        OtherDcl, 0);
       sym_add(Is,            spec_str("is"),            OtherDcl, 0);
       sym_add(Keyword,       spec_str("keyword"),       OtherDcl, 0);
@@ -134,7 +137,7 @@ void init_lex()
       sym_add(New,           spec_str("new"),           OtherDcl, 0);
       sym_add(Of,            spec_str("of"),            OtherDcl, 0);
       sym_add(Operator,      spec_str("operator"),      OtherDcl, 0);
-      str_rslt = spec_str("result");
+      g_str_rslt = spec_str("result");
       sym_add(Runerr,        spec_str("runerr"),        OtherDcl, 0);
       sym_add(Store,         spec_str("store"),         OtherDcl, 0);
       sym_add(Struct_var,    spec_str("struct_var"),    OtherDcl, 0);
@@ -143,22 +146,22 @@ void init_lex()
       sym_add(Then,          spec_str("then"),          OtherDcl, 0);
       sym_add(Tmp_cset,      spec_str("tmp_cset"),      OtherDcl, 0);
       sym_add(Tmp_string,    spec_str("tmp_string"),    OtherDcl, 0);
-      sym_add(TokType,       spec_str("type"),          OtherDcl, 0);
+      sym_add(Type,          spec_str("type"),          OtherDcl, 0);
       sym_add(Type_case,     spec_str("type_case"),     OtherDcl, 0);
       sym_add(Underef,       spec_str("underef"),       OtherDcl, 0);
       sym_add(Variable,      spec_str("variable"),      OtherDcl, 0);
 
       for (i = 0; i < num_typs; ++i) {
-         icontypes[i].id = spec_str(icontypes[i].id);
-         sym = sym_add(IconType, icontypes[i].id, OtherDcl, 0);
-         sym->u.typ_indx = i;
-         }
+	 icontypes[i].id = spec_str(icontypes[i].id);
+	 sym = sym_add(IconType, icontypes[i].id, OtherDcl, 0);
+	 sym->u.typ_indx = i;
+	 }
 
       for (i = 0; i < num_cmpnts; ++i) {
-         typecompnt[i].id = spec_str(typecompnt[i].id);
-         sym = sym_add(Component, typecompnt[i].id, OtherDcl, 0);
-         sym->u.typ_indx = i;
-         }
+	 typecompnt[i].id = spec_str(typecompnt[i].id);
+	 sym = sym_add(Component, typecompnt[i].id, OtherDcl, 0);
+	 sym->u.typ_indx = i;
+	 }
       }
    }
 
@@ -166,27 +169,28 @@ void init_lex()
  * int_suffix - we have reached the end of what seems to be an integer
  *  constant. check for a valid suffix.
  */
-static int int_suffix(char *s)
+static int int_suffix(s)
+char *s;
    {
    int tok_id;
 
    if (*s == 'u' || *s == 'U') {
       ++s;
       if (*s == 'l' || *s == 'L') {
-         ++s;
-         tok_id = ULIntConst;  /* unsigned long */
-         }
+	 ++s;
+	 tok_id = ULIntConst;  /* unsigned long */
+	 }
       else
-         tok_id  = UIntConst;  /* unsigned */
+	 tok_id  = UIntConst;  /* unsigned */
       }
    else if (*s == 'l' || *s == 'L') {
       ++s;
       if (*s == 'u' || *s == 'U') {
-         ++s;
-         tok_id = ULIntConst;  /* unsigned long */
-         }
+	 ++s;
+	 tok_id = ULIntConst;  /* unsigned long */
+	 }
       else
-         tok_id = LIntConst;   /* long */
+	 tok_id = LIntConst;   /* long */
       }
    else
       tok_id = IntConst;       /* plain int */
@@ -200,7 +204,7 @@ static int int_suffix(char *s)
  */
 int yylex()
    {
-   register char *s;
+   char *s;
    struct sym_entry *sym;
    struct token *lk_ahead = NULL;
    int is_float;
@@ -233,11 +237,11 @@ int yylex()
    if (lex_state == TypeComp && yylval.t->tok_id == '*') {
       lk_ahead = preproc();
       if (lk_ahead != NULL && lk_ahead->tok_id == '*') {
-         free_t(lk_ahead);
-         lk_ahead = NULL;
-         yylval.t->tok_id = Intersect;
-         yylval.t->image = spec_str("**");
-         }
+	 free_t(lk_ahead);
+	 lk_ahead = NULL;
+	 yylval.t->tok_id = Intersect;
+	 yylval.t->image = spec_str("**");
+	 }
       }
 
    /*
@@ -251,7 +255,7 @@ int yylex()
        */
       sym = sym_lkup(yylval.t->image);
       if (sym != NULL)
-         yylval.t->tok_id = sym->tok_id;
+	 yylval.t->tok_id = sym->tok_id;
       }
    else if (yylval.t->tok_id == PpNumber) {
       /*
@@ -259,68 +263,70 @@ int yylex()
        */
       s = yylval.t->image;
       if (*s == '0' && (*++s == 'x' || *s == 'X')) {
-         /*
-          * Hex integer constant.
-          */
-         ++s;
-         while (isxdigit(*s))
-            ++s;
-         yylval.t->tok_id = int_suffix(s);
-         }
+	 /*
+	  * Hex integer constant.
+	  */
+	 ++s;
+	 while (isxdigit(*s))
+	    ++s;
+	 yylval.t->tok_id = int_suffix(s);
+	 }
       else {
-         is_float = 0;
-         while (isdigit(*s))
-             ++s;
-         if (*s == '.') {
-            is_float = 1;
-            ++s;
-            while (isdigit(*s))
-               ++s;
-            }
-         if (*s == 'e' || *s == 'E') {
-            is_float = 1;
-            ++s;
-            if (*s == '+' || *s == '-')
-               ++s;
-            while (isdigit(*s))
-               ++s;
-            }
-         if (is_float) {
-            switch (*s) {
-               case '\0':
-                  yylval.t->tok_id = DblConst;   /* double */
-                  break;
-               case 'f': case 'F':
-                   yylval.t->tok_id = FltConst;  /* float */
-                   break;
-               case 'l': case 'L':
-                   yylval.t->tok_id = LDblConst; /* long double */
-                   break;
-               default:
-                   errt2(yylval.t, "invalid float constant: ", yylval.t->image);
-               }
-            }
-         else {
-            /*
-             * This appears to be an integer constant. If it starts
-             *  with '0', it should be an octal constant.
-             */
-            if (yylval.t->image[0] == '0') {
-               s = yylval.t->image;
-               while (*s >= '0' && *s <= '7')
-                  ++s;
-               }
-            yylval.t->tok_id = int_suffix(s);
-            }
-         }
+	 is_float = 0;
+	 while (isdigit(*s))
+	     ++s;
+	 if (*s == '.') {
+	    is_float = 1;
+	    ++s;
+	    while (isdigit(*s))
+	       ++s;
+	    }
+	 if (*s == 'e' || *s == 'E') {
+	    is_float = 1;
+	    ++s;
+	    if (*s == '+' || *s == '-')
+	       ++s;
+	    while (isdigit(*s))
+	       ++s;
+	    }
+	 if (is_float) {
+	    switch (*s) {
+	       case '\0':
+		  yylval.t->tok_id = DblConst;   /* double */
+		  break;
+	       case 'f': case 'F':
+		   yylval.t->tok_id = FltConst;  /* float */
+		   break;
+	       case 'l': case 'L':
+		   yylval.t->tok_id = LDblConst; /* long double */
+		   break;
+	       default:
+		   errt2(yylval.t, "invalid float constant: ", yylval.t->image);
+	       }
+	    }
+	 else {
+	    /*
+	     * This appears to be an integer constant. If it starts
+	     *  with '0', it should be an octal constant.
+	     */
+	    if (yylval.t->image[0] == '0') {
+	       s = yylval.t->image;
+	       while (*s >= '0' && *s <= '7')
+		  ++s;
+	       }
+	    yylval.t->tok_id = int_suffix(s);
+	    }
+	 }
       }
    else if (yylval.t->tok_id == PpKeep) {
-      /*
-       * This is a non-standard preprocessor directive that must be
-       *  passed on to the output.
+      /* non-standard preprocessor directive
        */
-      keepdir(yylval.t);
-      return yylex();
+      yylval.t->tok_id = Keep;
+      }
+   else if (yylval.t->tok_id == PpOutput) {
+      /* non-standard preprocessor directive
+       */
+      yylval.t->tok_id = Output;
       }
    else if (lex_state == OpHead && yylval.t->tok_id != '}' &&
      GoodChar((int)yylval.t->image[0])) {
@@ -331,14 +337,14 @@ int yylex()
        */
       sbuf = get_sbuf();
       for (s = yylval.t->image; *s != '\0'; ++s)
-         AppChar(*sbuf, *s);
+	 AppChar(*sbuf, *s);
       lk_ahead = preproc();
       while (lk_ahead != NULL && GoodChar((int)lk_ahead->image[0])) {
-         for (s = lk_ahead->image; *s != '\0'; ++s)
-            AppChar(*sbuf, *s);
-         free_t(lk_ahead);
-         lk_ahead = preproc();
-         }
+	 for (s = lk_ahead->image; *s != '\0'; ++s)
+	    AppChar(*sbuf, *s);
+	 free_t(lk_ahead);
+	 lk_ahead = preproc();
+	 }
       yylval.t->tok_id = OpSym;
       yylval.t->image = str_install(sbuf);
       rel_sbuf(sbuf);
@@ -348,7 +354,7 @@ int yylex()
        * This is a one-character token, make sure it is valid.
        */
       if (!GoodChar(yylval.t->tok_id))
-         errt2(yylval.t, "invalid character: ", yylval.t->image);
+	 errt2(yylval.t, "invalid character: ", yylval.t->image);
       }
 
    return yylval.t->tok_id;

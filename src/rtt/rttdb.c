@@ -57,7 +57,8 @@ struct implement *cur_impl;	/* data base entry for current operation */
 /*
  * loaddb - load data base.
  */
-void loaddb(char *dbname)
+void loaddb(dbname)
+char *dbname;
    {
    char *op;
    struct implement *ip;
@@ -151,7 +152,9 @@ void loaddb(char *dbname)
  * max_pre - find the maximum prefix in an implemetation table and set the
  *  prefix array to the next value.
  */
-static void max_pre(struct implement **tbl, char *pre)
+static void max_pre(tbl, pre)
+struct implement **tbl;
+char *pre;
    {
    register struct implement *ptr;
    unsigned hashval;
@@ -180,7 +183,8 @@ static void max_pre(struct implement **tbl, char *pre)
  * src_lkup - return pointer to dependency information for the given
  *   source file.
  */
-struct srcfile *src_lkup(char *srcname)
+struct srcfile *src_lkup(srcname)
+char *srcname;
    {
    unsigned hashval;
    struct srcfile *sfile;
@@ -212,7 +216,9 @@ struct srcfile *src_lkup(char *srcname)
  * add_dpnd - add the given source/dependency relation to the dependency
  *   table.
  */
-void add_dpnd(struct srcfile *sfile, char *c_name)
+void add_dpnd(sfile, c_name)
+struct srcfile *sfile;
+char *c_name;
    {
    struct cfile *cf;
 
@@ -225,7 +231,8 @@ void add_dpnd(struct srcfile *sfile, char *c_name)
 /*
  * clr_dpnd - delete all dependencies for the given source file.
  */
-void clr_dpnd(char *srcname)
+void clr_dpnd(srcname)
+char *srcname;
    {
    src_lkup(srcname)->dependents = NULL;
    }
@@ -233,7 +240,8 @@ void clr_dpnd(char *srcname)
 /*
  * dumpdb - write the updated data base.
  */
-void dumpdb(char *dbname)
+void dumpdb(dbname)
+char *dbname;
    {
    #ifdef Rttx
       fprintf(stdout,
@@ -303,8 +311,13 @@ void dumpdb(char *dbname)
  * prt_impl - sort and print to the data base the enties from one
  *   of the operation tables.
  */
-static void prt_impls(FILE *db, char *sect, struct implement **tbl,
-   int num, struct implement **sort_ary, int (*cmp)())
+static void prt_impls(db, sect, tbl, num, sort_ary, cmp)
+FILE *db;
+char *sect;
+struct implement **tbl;
+int num;
+struct implement **sort_ary;
+int (*cmp)();
    {
    int i;
    int j;
@@ -458,7 +471,9 @@ static void prt_impls(FILE *db, char *sect, struct implement **tbl,
  *   code used by iconc to perform type infernence for the operation
  *   and to generate a tailored version of the operation.
  */
-static void put_inlin(FILE *db, struct il_code *il)
+static void put_inlin(db, il)
+FILE *db;
+struct il_code *il;
    {
    int i;
    int num_cases;
@@ -812,7 +827,9 @@ static void put_inlin(FILE *db, struct il_code *il)
 /*
  * put_case - put the cases of a type_case statement into the data base file.
  */
-static int put_case(FILE *db, struct il_code *il)
+static int put_case(db, il)
+FILE *db;
+struct il_code *il;
    {
    int *typ_vect;
    int i, j;
@@ -839,7 +856,9 @@ static int put_case(FILE *db, struct il_code *il)
  * put_typcd - convert a numeric type code into an alpha type code and
  *  put it in the data base file.
  */
-static void put_typcd(FILE *db, int typcd)
+static void put_typcd(db, typcd)
+FILE *db;
+int typcd;
    {
    if (typcd >= 0)
       fprintf(db, "T%d ", typcd);
@@ -894,7 +913,9 @@ static void put_typcd(FILE *db, int typcd)
 /*
  * put_ilc - put in-line C code in the data base file.
  */
-static void put_ilc(FILE *db, struct il_c *ilc)
+static void put_ilc(db, ilc)
+FILE *db;
+struct il_c *ilc;
    {
    /*
     * In-line C code is either "nil" or code bracketed by $c $e.
@@ -968,7 +989,10 @@ static void put_ilc(FILE *db, struct il_c *ilc)
 /*
  * put_var - output in-line C code for a variable.
  */
-static void put_var(FILE *db, int code, struct il_c *ilc)
+static void put_var(db, code, ilc)
+FILE *db;
+int code;
+struct il_c *ilc;
    {
    fprintf(db, "$%c", code);  /* 'r': non-mod ref, 'm': mod ref, 't': tended */
    if (ilc->s != NULL)
@@ -983,7 +1007,10 @@ static void put_var(FILE *db, int code, struct il_c *ilc)
  * ret_flag - put a return/suspend/fail/fall-through flag in the data base
  *  file.
  */
-static void ret_flag(FILE *db, int flag, int may_fthru)
+static void ret_flag(db, flag, may_fthru)
+FILE *db;
+int flag;
+int may_fthru;
    {
    if (flag & DoesFail)
       fprintf(db, "f");      /* can fail */
@@ -1013,7 +1040,9 @@ static void ret_flag(FILE *db, int flag, int may_fthru)
 /*
  * put_ret - put the body of a return/suspend statement in the data base.
  */
-static void put_ret(FILE *db, struct il_c *ilc)
+static void put_ret(db, ilc)
+FILE *db;
+struct il_c *ilc;
    {
    int i;
 
@@ -1034,7 +1063,9 @@ static void put_ret(FILE *db, struct il_c *ilc)
  * name_cmp - compare implementation structs by name; function used as
  *  an argument to qsort().
  */
-static int name_cmp(char *p1, char *p2)
+static int name_cmp(p1, p2)
+char *p1;
+char *p2;
    {
    register struct implement *ip1;
    register struct implement *ip2;
@@ -1048,7 +1079,9 @@ static int name_cmp(char *p1, char *p2)
  * op_cmp - compare implementation structs by operator and number of args;
  *   function used as an argument to qsort().
  */
-static int op_cmp(char *p1, char *p2)
+static int op_cmp(p1, p2)
+char *p1;
+char *p2;
    {
    register int cmp;
    register struct implement *ip1;
@@ -1067,9 +1100,10 @@ static int op_cmp(char *p1, char *p2)
 /*
  * prt_dpnd - print dependency information to the data base.
  */
-static void prt_dpnd(FILE *db)
+static void prt_dpnd(db)
+FILE *db;
    {
-   struct srcfile **sort_ary;
+   struct srcfile **sort_ary = NULL;
    struct srcfile *sfile;
    unsigned hashval;
    int line_left;
@@ -1114,7 +1148,9 @@ static void prt_dpnd(FILE *db)
 /*
  * src_cmp - compare srcfile structs; function used as an argument to qsort().
  */
-static int src_cmp(char *p1, char *p2)
+static int src_cmp(p1, p2)
+char *p1;
+char *p2;
    {
    register struct srcfile *sp1;
    register struct srcfile *sp2;
@@ -1127,7 +1163,10 @@ static int src_cmp(char *p1, char *p2)
 /*
  * prt_c_fl - print list of C files in reverse order.
  */
-static int prt_c_fl(FILE *db, struct cfile *clst, int line_left)
+static int prt_c_fl(db, clst, line_left)
+FILE *db;
+struct cfile *clst;
+int line_left;
    {
    int len;
 
@@ -1153,7 +1192,8 @@ static int prt_c_fl(FILE *db, struct cfile *clst, int line_left)
  * full_lst - print a full list of all files produced by translations
  *  as represented in the dependencies section of the data base.
  */
-void full_lst(char *fname)
+void full_lst(fname)
+char *fname;
    {
    unsigned hashval;
    struct srcfile *sfile;
@@ -1181,13 +1221,14 @@ void full_lst(char *fname)
  * impl_fnc - find or create implementation struct for function currently
  *  being parsed.
  */
-void impl_fnc(struct token *name)
+void impl_fnc(name)
+struct token *name;
    {
    /*
     * Set the global operation type for later use. If this is a
     *  new function update the number of them.
     */
-   op_type = TokFunction;
+   op_type = Function;
    num_fnc = set_impl(name, bhash, num_fnc, fnc_pre);
    }
 
@@ -1195,7 +1236,8 @@ void impl_fnc(struct token *name)
  * impl_key - find or create implementation struct for keyword currently
  *  being parsed.
  */
-void impl_key(struct token *name)
+void impl_key(name)
+struct token *name;
    {
    /*
     * Set the global operation type for later use. If this is a
@@ -1209,8 +1251,11 @@ void impl_key(struct token *name)
  * set_impl - lookup a function or keyword in a hash table and update the
  *  entry, creating the entry if needed.
  */
-static int set_impl(struct token *name, struct implement **tbl,
-   int num_impl, char *pre)
+static int set_impl(name, tbl, num_impl, pre)
+struct token *name;
+struct implement **tbl;
+int num_impl;
+char *pre;
    {
    register struct implement *ptr;
    char *name_s;
@@ -1229,7 +1274,7 @@ static int set_impl(struct token *name, struct implement **tbl,
       ptr = NewStruct(implement);
       hashval = IHasher(name_s);
       ptr->blink = tbl[hashval];
-      ptr->oper_typ = ((op_type == TokFunction) ? 'F' : 'K');
+      ptr->oper_typ = ((op_type == Function) ? 'F' : 'K');
       nxt_pre(ptr->prefix, pre, 2);    /* allocate a unique prefix */
       ptr->name = name_s;
       ptr->op = NULL;
@@ -1267,7 +1312,8 @@ static int set_impl(struct token *name, struct implement **tbl,
  * set_prms - set the parameter information of an implementation based on
  *   the params list constructed during parsing.
  */
-static void set_prms(struct implement *ptr)
+static void set_prms(ptr)
+struct implement *ptr;
    {
    struct sym_entry *sym;
    int nargs;
@@ -1277,7 +1323,7 @@ static void set_prms(struct implement *ptr)
     * Create an array of parameter flags for the operation. The flag
     * indicates the deref/underef and varargs status for each parameter.
     */
-   if (params == NULL) {
+   if (g_params == NULL) {
       ptr->nargs = 0;
       ptr->arg_flgs = NULL;
       }
@@ -1287,12 +1333,12 @@ static void set_prms(struct implement *ptr)
        *  can be determined by the number assigned to the first one on the
        *  list.
        */
-      nargs = params->u.param_info.param_num + 1;
+      nargs = g_params->u.param_info.param_num + 1;
       ptr->nargs = nargs;
       ptr->arg_flgs = alloc(nargs * sizeof(int));
       for (i = 0; i < nargs; ++i)
          ptr->arg_flgs[i] = 0;
-      for (sym = params; sym != NULL; sym = sym->u.param_info.next)
+      for (sym = g_params; sym != NULL; sym = sym->u.param_info.next)
          ptr->arg_flgs[sym->u.param_info.param_num] |= sym->id_type;
       }
    }
@@ -1301,7 +1347,9 @@ static void set_prms(struct implement *ptr)
  * impl_op - find or create implementation struct for operator currently
  *  being parsed.
  */
-void impl_op(struct token *op_sym, struct token *name)
+void impl_op(op_sym, name)
+struct token *op_sym;
+struct token *name;
    {
    register struct implement *ptr;
    char *op;
@@ -1319,10 +1367,10 @@ void impl_op(struct token *op_sym, struct token *name)
     *  can be determined by the number assigned to the first one on the
     *  list.
     */
-   if (params == NULL)
+   if (g_params == NULL)
       nargs = 0;
    else
-      nargs = params->u.param_info.param_num + 1;
+      nargs = g_params->u.param_info.param_num + 1;
 
    /*
     * Locate the operator in the hash table; it must match both the
@@ -1379,7 +1427,10 @@ void impl_op(struct token *op_sym, struct token *name)
  * set_r_seq - save result sequence information for updating the
  *  operation entry.
  */
-void set_r_seq(long min, long max, int resume)
+void set_r_seq(min, max, resume)
+long min;
+long max;
+int resume;
    {
    if (min == UnbndSeq)
       min = 0;

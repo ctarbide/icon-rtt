@@ -4,6 +4,9 @@
  * This source file contains the routines for issuing error messages.
  */
 
+extern char *g_progname;
+extern char *g_ofile;
+
 /*
  * Prototype.
  */
@@ -18,7 +21,9 @@ static	char	*mapterm	(int typ,struct node *val);
  *  message is produced; if the state isn't found, "syntax error"
  *  is produced.
  */
-void yyerror(int tok, nodeptr lval, int state)
+void yyerror(tok, lval, state)
+int tok, state;
+nodeptr lval;
    {
    register struct errmsg *p;
    int line;
@@ -47,7 +52,9 @@ void yyerror(int tok, nodeptr lval, int state)
  * mapterm finds a printable string for the given token type
  *  and value.
  */
-static char *mapterm(int typ, nodeptr val)
+static char *mapterm(typ,val)
+int typ;
+nodeptr val;
    {
    register struct toktab *t;
    register struct optab *ot;
@@ -70,7 +77,8 @@ static char *mapterm(int typ, nodeptr val)
  * tfatal produces the translator error messages s1 and s2 (if nonnull).  The
  *  location of the error is found in tok_loc.
  */
-void tfatal(char *s1, char *s2)
+void tfatal(s1, s2)
+char *s1, *s2;
    {
 
    if (tok_loc.n_file)
@@ -87,7 +95,9 @@ void tfatal(char *s1, char *s2)
  * nfatal produces the error messages s1 and s2 (if nonnull), and associates
  *  it with source location of node.
  */
-void nfatal(nodeptr n, char *s1, char *s2)
+void nfatal(n, s1, s2)
+nodeptr n;
+char *s1, *s2;
    {
 
    if (n != NULL) {
@@ -101,11 +111,30 @@ void nfatal(nodeptr n, char *s1, char *s2)
    nocode++;
    }
 
+#ifdef Iconc
+/*
+ * twarn produces s1 and s2 (if nonnull) as translator warning messages.
+ *  The location of the error is found in tok_loc.
+ */
+void twarn(s1, s2)
+char *s1, *s2;
+   {
+   if (tok_loc.n_file)
+      fprintf(stderr, "File %s; ", tok_loc.n_file);
+   fprintf(stderr, "Line %d # ", tok_loc.n_line);
+   if (s2)
+      fprintf(stderr, "\"%s\": ", s2);
+   fprintf(stderr, "%s\n", s1);
+   twarns++;
+   }
+#endif					/* Iconc */
+
 /*
  * tsyserr is called for fatal errors.  The message s is produced and the
  *  translator exits.
  */
-void tsyserr(char *s)
+void tsyserr(s)
+char *s;
    {
 
 
@@ -119,7 +148,8 @@ void tsyserr(char *s)
 /*
  * quit - immediate exit with error message
  */
-void quit(char *msg)
+void quit(msg)
+char *msg;
    {
    quitf(msg,"");
    }
@@ -127,15 +157,13 @@ void quit(char *msg)
 /*
  * quitf - immediate exit with message format and argument
  */
-void quitf(char *msg, char *arg)
+void quitf(msg,arg)
+char *msg, *arg;
    {
-   extern char *progname;
-   extern char *ofile;
-
-   fprintf(stderr,"%s: ",progname);
+   fprintf(stderr,"%s: ",g_progname);
    fprintf(stderr,msg,arg);
    fprintf(stderr,"\n");
-   if (ofile)
-      remove(ofile);			/* remove bad icode file */
+   if (g_ofile)
+      remove(g_ofile);			/* remove bad icode file */
    exit(EXIT_FAILURE);
    }

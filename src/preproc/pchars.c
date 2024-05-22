@@ -19,7 +19,9 @@ void fill_cbuf()
    struct char_src *cs;
    FILE *f;
 
-   cs = src_stack->u.cs;
+    c2 = c3 = 0;
+
+   cs = g_src_stack->u.cs;
    f = cs->f;
    s = cs->char_buf;
    l = cs->line_buf;

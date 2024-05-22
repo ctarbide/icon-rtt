@@ -1,3 +1,4 @@
+#  STRIP    strip non-essential data from object files
 #  CC       C compiler
 #  CFLAGS   flags for building C files
 #  CFDYN    additional flags for dynamic functions
@@ -7,6 +8,7 @@
 #  XLIBS    libraries to link for graphics
 #  SFLAGS   flags for stripping iconx
 
+STRIP = strip
 CC = cc
 CFLAGS = -O -I /opt/X11/include
 CFDYN =

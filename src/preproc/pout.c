@@ -7,7 +7,8 @@ int line_cntrl;
 /*
  * output - output preprocessed tokens for the current file.
  */
-void output(FILE *out_file)
+void output(out_file)
+FILE *out_file;
    {
    struct token *t, *t1;
    struct token *saved_whsp;
@@ -170,7 +171,7 @@ void output(FILE *out_file)
          /*
           * Keep track of trailing blank lines and new-lines. This
           *  information is used to make the insertion of #line
-          *  directives more intelligent and to insure that the output
+          *  directives more intelligent and to ensure that the output
           *  file ends with a new-line.
           */
          for (s = t->image; *s != '\0'; ++s) {

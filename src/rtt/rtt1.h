@@ -1,6 +1,29 @@
 #include "../preproc/preproc.h"
 #include "../preproc/pproto.h"
 
+/* gln stands for grammar line number */
+
+#define GLN_POSTFIX_EXPR_ARRAY 98
+#define GLN_POSTFIX_EXPR_NOPARAMS 100
+#define GLN_POSTFIX_EXPR_PARAMS 102
+#define GLN_POSTFIX_EXPR_DOT 104
+#define GLN_POSTFIX_EXPR_ARROW 105
+#define GLN_POSTFIX_EXPR_INCR 106
+#define GLN_POSTFIX_EXPR_DECR 107
+#define GLN_POSTFIX_EXPR_IS 109
+#define GLN_POSTFIX_EXPR_CNV 111
+#define GLN_POSTFIX_EXPR_DEF 114
+#define GLN_STRUCT_DCLTION_LST 357
+#define GLN_ENUMERATOR 419
+#define GLN_LOCAL_DCLS 612
+#define GLN_STMT_LST 631
+#define GLN_EXPR_STMT_OPT_EXPR_SEMICOLON 638
+#define GLN_SELECTION_STMT_IFSTMT 642
+#define GLN_SELECTION_STMT_ELSE 644
+#define GLN_ITERATION_STMT_DO_STMT_WHILE_SEMICOLON 669
+#define GLN_ITERATION_STMT_FOR 673
+#define GLN_FUNC_HEAD_TYP_DCLTION_SPECS_DCLTOR 712
+
 #define IndentInc 3
 #define MaxCol 80
 
@@ -23,8 +46,10 @@ struct srcfile {
    struct srcfile *next;
    };
 
-#define ForceNl() nl = 1;
-extern int nl;  /* flag: a new-line is needed in the output */
+#define ForceNl() g_nl = 1;
+extern int g_nl;  /* flag: a new-line is needed in the output */
+
+extern int g_switch_level; /* let nodes be aware of their existence in a switch */
 
 /*
  * The lexical analyzer recognizes 3 states. Operators are treated differently
@@ -36,11 +61,10 @@ extern int nl;  /* flag: a new-line is needed in the output */
 
 extern int lex_state;      /* state of operator recognition */
 extern char *compiler_def; /* #define for COMPILER */
-extern FILE *out_file;     /* output file */
+extern FILE *g_out_file;     /* output file */
 extern int def_fnd;        /* C input defines something concrete */
 extern char *inclname;     /* include file to be included by C compiler */
 extern int iconx_flg;      /* flag: indicate that iconx style code is needed */
-extern int enable_out;     /* enable output of C code */
 extern char *largeints;    /* "Largeints" or "NoLargeInts" */
 
 /*
@@ -108,26 +132,26 @@ struct init_tend {
    };
 
 
-extern int op_type;                /* Function, Keyword, Operator, or OrdFunc */
-extern char lc_letter;             /* f = function, o = operator, k = keyword */
-extern char uc_letter;             /* F = function, O = operator, K = keyword */
-extern char prfx1;                 /* 1st char of unique prefix for operation */
-extern char prfx2;                 /* 2nd char of unique prefix for operation */
-extern char *fname;                /* current source file name */
-extern int line;                   /* current source line number */
-extern struct implement *cur_impl; /* data base entry for current operator */
-extern struct token *comment;      /* descriptive comment for current oper */
-extern int n_tmp_str;              /* total number of string buffers needed */
-extern int n_tmp_cset;             /* total number of cset buffers needed */
-extern int nxt_sbuf;               /* index of next string buffer */
-extern int nxt_cbuf;               /* index of next cset buffer */
-extern struct sym_entry *params;   /* current list of parameters */
-extern struct sym_entry *decl_lst; /* declarations from "declare {...}" */
-extern struct init_tend *tend_lst; /* list of allocated tended slots */
-extern char *str_rslt;             /* string "result" in string table */
-extern word lbl_num;               /* next unused label number */
-extern struct sym_entry *v_len;    /* symbol entry for size of varargs */
-extern int il_indx;                /* next index into data base symbol table */
+extern int op_type;                  /* Function, Keyword, Operator, or OrdFunc */
+extern char lc_letter;               /* f = function, o = operator, k = keyword */
+extern char uc_letter;               /* F = function, O = operator, K = keyword */
+extern char prfx1;                   /* 1st char of unique prefix for operation */
+extern char prfx2;                   /* 2nd char of unique prefix for operation */
+extern char *g_fname;                /* current source file name */
+extern int g_line;                   /* current source line number */
+extern struct implement *cur_impl;   /* data base entry for current operator */
+extern struct token *comment;        /* descriptive comment for current oper */
+extern int g_n_tmp_str;              /* total number of string buffers needed */
+extern int g_n_tmp_cset;             /* total number of cset buffers needed */
+extern int g_nxt_sbuf;               /* index of next string buffer */
+extern int g_nxt_cbuf;               /* index of next cset buffer */
+extern struct sym_entry *g_params;   /* current list of parameters */
+extern struct sym_entry *g_decl_lst; /* declarations from "declare {...}" */
+extern struct init_tend *g_tend_lst; /* list of allocated tended slots */
+extern char *g_str_rslt;             /* string "result" in string table */
+extern word g_lbl_num;               /* next unused label number */
+extern struct sym_entry *g_v_len;    /* symbol entry for size of varargs */
+extern int g_il_indx;                /* next index into data base symbol table */
 
 /*
  * lvl_entry keeps track of what is happening at a level of nested declarations.
@@ -141,7 +165,7 @@ struct lvl_entry {
    struct lvl_entry *next;
    };
 
-extern struct lvl_entry *dcl_stk; /* stack of declaration contexts */
+extern struct lvl_entry *g_dcl_stk; /* stack of declaration contexts */
 
 extern int fnc_ret;  /* RetInt, RetDbl, RetNoVal, or RetSig for current func */
 
@@ -170,8 +194,7 @@ extern int abs_ret; /* type from abstract return statement */
 #define AbstrNd  15 /* abstract type computation */
 #define IcnTypNd 16 /* name of an Icon type */
 
-#define NewNode(size) (struct node *)alloc(\
-    sizeof(struct node) + (size-1) * sizeof(union field))
+#define NewNode(size) alloc_node(size)
 
 union field {
    struct node *child;
@@ -179,8 +202,13 @@ union field {
    };
 
 struct node {
-   int nd_id;
    struct token *tok;
+#ifdef TRACE_NODE_MEMBER
+   char *trace;
+#endif
+   int16_t nd_id;
+   int16_t gln; /* grammar line number (in rttgram.y) */
+   int16_t switch_level;
    union field u[1]; /* actual size varies with node type */
    };
 

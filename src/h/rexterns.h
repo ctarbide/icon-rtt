@@ -103,7 +103,7 @@ extern struct b_coexpr *mainhead;	/* &main */
  */
 
 extern int ixinited;			/* iconx has initialized */
-extern inst ipc;			/* interpreter program counter */
+extern inst g_ipc;			/* interpreter program counter */
 extern int ilevel;			/* interpreter level */
 extern int ntended;			/* number of active tended descriptors*/
 extern struct b_cset k_ascii;	/* value of &ascii */
@@ -113,12 +113,12 @@ extern struct b_cset k_lcase;	/* value of &lcase */
 extern struct b_cset k_letters;	/* value of &letters */
 extern struct b_cset k_ucase;	/* value of &ucase */
 extern struct descrip tended[];	/* tended descriptors */
-extern struct ef_marker *efp;	/* expression frame pointer */
-extern struct gf_marker *gfp;	/* generator frame pointer */
-extern struct pf_marker *pfp;	/* procedure frame pointer */
-extern word *sp;			/* interpreter stack pointer */
-extern word *stack;			/* interpreter stack base */
-extern word *stackend;		/* end of evaluation stack */
+extern struct ef_marker *g_efp;	/* expression frame pointer */
+extern struct gf_marker *g_gfp;	/* generator frame pointer */
+extern struct pf_marker *g_pfp;	/* procedure frame pointer */
+extern word *g_sp;			/* interpreter stack pointer */
+extern word *g_stack;			/* interpreter stack base */
+extern word *g_stackend;		/* end of evaluation stack */
 
 extern struct pstrnm pntab[];
 extern int pnsize;

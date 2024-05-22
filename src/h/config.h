@@ -127,7 +127,7 @@
 #endif					/* DBSuffix */
 
 #ifndef PPDirectives
-   #define PPDirectives {"passthru", PpKeep},
+   #define PPDirectives {"passthru", PpKeep}, {"output", PpOutput},
 #endif					/* PPDirectives */
 
 #ifndef ExecSuffix
@@ -137,6 +137,30 @@
 #ifndef CSuffix
    #define CSuffix ".c"
 #endif					/* CSuffix */
+
+#ifndef HSuffix
+   #define HSuffix ".h"
+#endif					/* HSuffix */
+
+#ifndef ObjSuffix
+   #define ObjSuffix ".o"
+#endif					/* ObjSuffix */
+
+#ifndef LibSuffix
+   #define LibSuffix ".a"
+#endif					/* LibSuffix */
+
+#ifndef CComp
+   #define CComp "cc"
+#endif					/* CComp */
+
+#ifndef COpts
+   #define COpts ""
+#endif					/* COpts */
+
+#ifndef NWSuffix
+   #define NWSuffix ".nw"
+#endif					/* NWSuffix */
 
 /*
  * Note, size of the hash table is a power of 2:

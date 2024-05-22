@@ -87,7 +87,7 @@ char *findexe(char *name, char *buf, size_t len) {
  *  writing the resulting path in buf if found.
  */
 char *findonpath(char *name, char *buf, size_t len) {
-   int nlen, plen;
+   size_t nlen, plen;
    char *path, *next, *sep, *end;
    struct stat status;
 
@@ -134,14 +134,16 @@ char *findonpath(char *name, char *buf, size_t len) {
 #define MAX_FOLLOWED_LINKS 24
 
 char *followsym(char *name, char *buf, size_t len) {
-   int i, n;
+   size_t i, n;
+   ssize_t sn;
    char *s, tbuf[MaxPath];
 
    strcpy(buf, name);
 
    for (i = 0; i < MAX_FOLLOWED_LINKS; i++) {
-      if ((n = readlink(buf, tbuf, sizeof(tbuf) - 1)) <= 0)
+      if ((sn = readlink(buf, tbuf, sizeof(tbuf) - 1)) <= 0)
          break;
+      n = sn;
       tbuf[n] = 0;
 
       if (tbuf[0] == '/') {
@@ -242,3 +244,13 @@ char *canonize(char *path) {
    *out++ = '\0';
    return path;				/* return result */
    }
+
+void (*fdlsym(void *handle, const char *symbol))(void)
+{
+    union {
+        void *vp;
+        void (*fp)(void);
+    } res;
+    res.vp = dlsym(handle, symbol);
+    return res.fp;
+}
