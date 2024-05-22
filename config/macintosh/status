@@ -1,0 +1,36 @@
+System configuration:
+
+	Apple Macintosh running MacOS X
+
+Latest Icon version:
+
+	Version 9.5.24a of January 17, 2024
+
+Installer:
+
+	Gregg Townsend
+	Icon Project
+	The University of Arizona
+
+Missing features:
+
+	None
+
+Known bugs:
+
+	None
+
+Comments:
+
+	Tested most recently with MacOS Sonoma 14.2.1 on Apple M1 Mac Mini.
+
+	See the special Macintosh page in the documentation directory.
+
+	Icon runs on Darwin, which is (loosely speaking) the
+	command-line-based Unix substructure of MacOS X.  The
+	Xcode Command Line Tools must be installed to build Icon.
+	(A full Xcode installation is not required.)
+
+Date:
+
+	January 17, 2024.

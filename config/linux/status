@@ -1,0 +1,42 @@
+System configuration:
+
+	Linux (on all hardware platforms)
+
+Latest Icon version:
+
+	Version 9.5.24a of January 17, 2024
+
+Installer:
+
+	Gregg Townsend
+	Icon Project
+	The University of Arizona
+
+Missing features:
+
+	None
+
+Known bugs:
+
+	None
+
+Comments:
+
+	Tested on x64 Ubuntu 20.04.6 LTS with cc 9.4.0 and Linux 5.4.0-169.
+
+	Tested on arm7l Beaglebone Debian 10.3 with cc 8.3.0 and Linux 4.19.94.
+
+	The following notes are old and not recently verified:
+
+	With graphics, additional packages are needed:
+	$ sudo apt-get install \
+		build-essential libx11-dev libxpm-devel libxt-dev libxaw7-dev
+
+	Graphics users may also want to add some old-style fonts,
+	because Icon can't use client-side font rendering:
+	$ sudo apt-get install xfonts-100dpi  [or -75dpi, or both]
+
+
+Date:
+
+	January 26, 2024

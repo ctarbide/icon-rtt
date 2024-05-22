@@ -1,0 +1,68 @@
+MODIFICATION CHECKLIST
+<<ARIZONA-ONLY>>
+
+Icon maintenance has evolved from infrequent formal releases to a system of
+continual modifications that are immediately available publicly through GitHub.
+When a set of changes is ready to go:
+
+Set the version number and date (for &version) in src/h/version.h.
+The date should be the date of modification, i.e. today's date.
+The version number should be of the form  9.5.yyx  where
+	yy is the last two digits of today's year
+	x is an alphabetic sequence character within the year (a,b,c,...)
+
+Update doc/relnotes or doc/faq if warranted, also changing the date at the top.
+
+Do full rebuilds and tests, both with and without graphics.
+Do this on multiple architectures if warranted by non-trivial edits.
+Verify the appearance of &version as printed by the tests.
+Check in the changes.
+Set a Git "annotated" tag of the form "v9.5.yyx" (note the leading v):
+	git tag -a "v9.5.yyx" -m "fix xxx yyy problem on zzz"
+Push the mods *with the tag*:
+	git push
+	git push --tags
+
+Propagate documentation changes to the website "ugide" directory.
+Rebuild the IPL documentation if necessary.
+Send an announcement to the Icon-language mailing list if warranted.
+
+
+-------------------------------------------------------------------
+The old checklist for periodic heavyweight releases was as follows:
+
+review diffs; check vs release notes; check spelling
+run manual gtests
+run full library test script (ipl/CheckAll)
+build & test on several platforms
+
+set final value for &version
+update version numbers in doc files
+update date in man page files
+grep for other places to update the version number
+review docs especially acknowledgments
+update FAQ
+update README
+run "make" in the doc directory
+
+copy source and make Dist-Clean to prune ARIZONA-ONLY, .git, etc
+install source package for distribution
+make binary packages & put in place
+make library package and test with Jcon
+update Jcon copy of library
+
+make new v9nn web directory and install docs
+rebuild and install library reference pages
+update other web pages to reference new version
+edit configuration names on other pages (e.g. Mac, Cygwin)
+
+install updated FAQ
+sync FTP area 
+update website status page
+update other website pages
+change redirection of /icon/current URLs (.htaccess AND symlink)
+add "superseded" line to previous release index.htm
+post announcement comp.lang.icon
+
+tag distributed version in Git
+modify &version setting in Git copy

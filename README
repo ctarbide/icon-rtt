@@ -1,0 +1,29 @@
+README file for the Icon Programming Language source tree
+https://github.com/gtownsend/icon
+
+This directory contains an implementation of the Icon programming language.
+For documentation, see these HTML files:
+
+    doc/index.htm     documentation guide
+    doc/relnotes.htm  release notes
+    doc/macintosh.htm the Macintosh port
+    doc/cygwin.htm    the Cygwin port
+    doc/faq.htm       frequently asked questions about Icon
+    doc/install.htm   installation instructions  (for binary releases)
+    doc/build.htm     build instructions         (for source releases)
+
+Man pages showing how to run Icon are in:
+    man/man1/icon.1   man(1) page for icon
+    man/man1/icont.1  man(1) page for icont
+
+This material is in the public domain.  You may use and copy this material
+freely.  This privilege extends to modifications, although any modified
+version of this system given to a third party should clearly identify your
+modifications as well as the original source.
+
+The responsibility for the use of this material resides entirely with you.
+We make no warranty of any kind concerning this material, nor do we make
+any claim as to the suitability of Icon for any application.
+
+For more information, see the Icon website:
+    www.cs.arizona.edu/icon

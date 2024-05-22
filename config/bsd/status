@@ -1,0 +1,36 @@
+System configuration:
+
+	All BSD variants (FreeBSD, NetBSD, OpenBSD) except Macintosh
+
+Latest Icon version:
+
+	Version 9.5.20h of August 2, 2020
+
+Installer:
+
+	Jacob Martin
+
+Missing features:
+
+	None
+
+Known bugs:
+
+	None
+
+Comments:
+
+	This configuration is for FreeBSD, NetBSD, and OpenBSD.
+	For Darwin (Apple Macintosh), use the "macintosh" configuration.
+
+	Tested on OpenBSD 6.7, both i386 and amd64 architectures.
+
+	older notes:
+
+	Building on OpenBSD produces unsuppressible linker warnings
+	that urge the replacement of certain standard library functions.
+	This has not been done.
+
+Date:
+
+	August 4, 2020
