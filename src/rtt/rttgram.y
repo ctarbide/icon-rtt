@@ -464,8 +464,7 @@ type_qual
 
 
 dcltor
-   : direct_dcltor          {$$ = $1;}
-   | pointer direct_dcltor  {$$ = node2ex(__LINE__, ConCatNd, NULL, $1, $2);}
+   : opt_pointer direct_dcltor        {$$ = node2ex(__LINE__, ConCatNd, NULL, $1, $2);}
    ;
 
 no_tdn_dcltor

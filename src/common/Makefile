@@ -3,7 +3,7 @@ include ../../Makedefs
 
 OBJS =	long.o getopt.o time.o filepart.o identify.o strtbl.o rtdb.o\
 	munix.o literals.o alloc.o long.o getopt.o time.o\
-	xwindow.o ipp.o
+	xwindow.o ipp.o lconcat.o strlcat.o strlcpy.o
 
 common:		$(OBJS)
 
@@ -30,6 +30,18 @@ literals.o: ../h/esctab.h
 rtdb.o: ../h/version.h icontype.h
 
 xwindow.o: ../h/graphics.h ../h/xwin.h
+
+lconcat.o: lconcat.nw
+	nofake.sh -Rlconcat.c -olconcat.c plumbing.nw lconcat.nw
+	$(CC) $(CFLAGS) -c -o lconcat.o lconcat.c
+
+strlcat.o: strlcat.nw
+	nofake.sh -Rstrlcat.c -ostrlcat.c plumbing.nw strlcat.nw
+	$(CC) $(CFLAGS) -c -o strlcat.o strlcat.c
+
+strlcpy.o: strlcpy.nw
+	nofake.sh -Rstrlcpy.c -ostrlcpy.c plumbing.nw strlcpy.nw
+	$(CC) $(CFLAGS) -c -o strlcpy.o strlcpy.c
 
 #  The following section is needed if changes are made to the Icon grammar,
 #  but it is not run as part of the normal installation process.  If it is

@@ -16,7 +16,8 @@ POBJS = pout.o pchars.o  perr.o pmem.o  bldtok.o macro.o preproc.o\
 
 COBJS = ../common/getopt.o ../common/time.o ../common/filepart.o \
 	  ../common/identify.o ../common/strtbl.o ../common/alloc.o \
-	  ../common/rtdb.o ../common/munix.o ../common/literals.o
+	  ../common/rtdb.o ../common/munix.o ../common/literals.o \
+	  ../common/lconcat.o ../common/strlcat.o ../common/strlcpy.o
 
 OBJ = $(ROBJS) $(POBJS) $(COBJS)
 

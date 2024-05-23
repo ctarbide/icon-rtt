@@ -79,7 +79,7 @@ static void untend        (int indent);
 static char *
 top_level_chunk_name(struct node *n);
 static int is_static_function(struct node *head);
-static struct node *fnc_head_has_no_args(struct node *head);
+static struct node *fnc_head_args(struct node *head);
 static int get_args_names(struct node **out, int start, int len, struct node *n);
 static int get_comma_children(struct node **out, int start, int len, struct node *n);
 /* static int get_declarations(struct node **out, int start, int len, struct node *n); */
@@ -1546,6 +1546,11 @@ int indent, brace;
 	       /*
 		* function call or declaration: <expr> ( <expr-list> )
 		*/
+	       if (n->u[0].child == NULL) {
+		  fprintf(g_out_file, "\n/""*%d,%d,%s*""/\n", __LINE__, n->gln, node_name(n));
+		  fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+		  exit(1);
+		  }
 	       if (n->u[0].child->tok->tok_id == PassThru)
 		  return c_walk(n->u[1].child, indent, 0);
 	       c_walk(n->u[0].child, indent, 0);
@@ -1633,8 +1638,6 @@ int indent, brace;
 	       /*
 		* case <expr> : <statement>
 		*/
-	       ForceNl();
-	       prt_str("", 0);
 	       ForceNl();
 	       prt_tok(t, indent);
 	       prt_str(" ", indent);
@@ -3290,13 +3293,12 @@ struct node *head;
    return 0; /* never reached */
    }
 
-static struct node *fnc_head_has_no_args(head)
+static struct node *fnc_head_args(head)
 struct node *head;
    {
-   struct node *nd;
-   if ((nd = navigate2(head, LstNd, 1, ConCatNd, 1)))
-      if (nd->nd_id == BinryNd && nd->tok->tok_id == ')' && nd->u[1].child == NULL)
-	 return nd;
+   struct node *nd1;
+   if ((nd1 = nav_n_n_t(head, LstNd, 1, ConCatNd, 1, BinryNd, ')', 1)))
+      return nd1;
    return NULL;
    }
 
@@ -3436,23 +3438,30 @@ int start, len;
 static struct node *header_k_and_r_to_ansi(head, prm_dcl)
 struct node *head, *prm_dcl;
    {
-   if (fnc_head_has_no_args(head)) {
+   struct node *args;
+
+   args = fnc_head_args(head);
+
+   if (args == NULL) {
       struct node *new_head, *nd;
       struct token *t;
+
       new_head = copy_tree(head);
-      nd = navigate2(new_head, LstNd, 1, ConCatNd, 1);
+      nd = nav_n_n(new_head, LstNd, 1, ConCatNd, 1); /* args holder */
+      if (nd == NULL) {
+	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	 exit(1);
+	 }
       t = new_token(Void, "void", __FILE__, __LINE__);
       nd->u[1].child = node0(PrimryNd, t);
       node_update_trace(new_head);
       return new_head;
       }
    else if (prm_dcl) {
-      struct node *list, *new_head, *names[MAX_NARGS], *decls[MAX_NARGS], *decl_lst;
+      struct node *new_head, *names[MAX_NARGS], *decls[MAX_NARGS], *decl_lst;
       int i, argc, argc_check;
 
-      list = navigate3(head, LstNd, 1, ConCatNd, 1, BinryNd, 1);
-
-      argc = get_args_names(names, 0, sizeof(names)/sizeof(*names), list);
+      argc = get_args_names(names, 0, sizeof(names)/sizeof(*names), args);
 
       argc_check = get_declarations_as_list(decls, 0, sizeof(decls)/sizeof(*decls), prm_dcl);
       if (argc != argc_check) {
@@ -3471,7 +3480,11 @@ struct node *head, *prm_dcl;
 	 for (j=0; j<argc; j++) {
 	    struct node *decl, *nd;
 	    decl = decls[j];
-	    if ((nd = navigate2(decl, LstNd, 1, ConCatNd, 1))) {
+	    if ((nd = nav_n_n(decl, LstNd, 1, ConCatNd, 1))) {
+	       if (nd->tok == NULL) {
+		  fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+		  exit(1);
+		  }
 	       if (nd->tok->tok_id == identifier->tok_id && strcmp(nd->tok->image, identifier->image) == 0) {
 		  found = decl;
 		  break;
@@ -3508,11 +3521,11 @@ struct node *head, *prm_dcl;
 	 }
 
       new_head = node2ex(-1, LstNd, NULL,
-	 copy_tree(navigate1(head, LstNd, 0)),
+	 copy_tree(nav_n(head, LstNd, 0)),
 	 node2ex(-1, ConCatNd, NULL,
-	    copy_tree(navigate2(head, LstNd, 1, ConCatNd, 0)),
+	    copy_tree(nav_n_n(head, LstNd, 1, ConCatNd, 0)),
 	    node2ex(-1, BinryNd, new_token(')', ")", __FILE__, __LINE__),
-	       copy_tree(navigate3(head, LstNd, 1, ConCatNd, 1, BinryNd, 0)),
+	       copy_tree(nav_n_n_t(head, LstNd, 1, ConCatNd, 1, BinryNd, ')', 0)),
 	       decl_lst)));
 
       return new_head;
@@ -4130,7 +4143,6 @@ struct token *t;
    char buf[MaxPath], *cname;
 
    cname = salloc(makename(buf, sizeof(buf), SourceDir, t->image, NULL));
-   fprintf(stderr, "/""*%d,[%s]*""/\n", __LINE__, cname);
    if (g_out_file) {
       fclose(g_out_file);
       g_out_file = NULL;
@@ -4232,18 +4244,41 @@ struct node *n;
    {
    struct node *nd1, *nd2;
 
-   if ((nd1 = navigate1(n, BinryNd, 0)) && n->tok->tok_id == ';') {
-      if (nd1->nd_id == BinryNd ) {
+   if ((nd1 = nav_t(n, BinryNd, ';', 0))) {
+      if (nd1->nd_id == BinryNd && n->u[1].child == NULL) {
 	 switch (nd1->tok->tok_id) {
-	    case Enum: return "<<enums>>=";
-	    case Union: return "<<unions>>=";
-	    case Struct: return "<<structs>>=";
+	    case Enum:
+	       if ((nd2 = nd1->u[0].child) && nd2->nd_id == PrimryNd && nd2->tok->tok_id == Identifier) {
+		  int tag_only = nd1->u[1].child == NULL;
+		  snprintf(top_level_chunk_name_buffer, sizeof(top_level_chunk_name_buffer),
+		     tag_only ? "<<enum tag %s>>=" : "<<enum %s>>=", nd2->tok->image);
+		  return top_level_chunk_name_buffer;
+
+		  }
+	       return "<<enums>>=";
+	    case Union:
+	       if ((nd2 = nd1->u[0].child) && nd2->nd_id == PrimryNd && nd2->tok->tok_id == Identifier) {
+		  int tag_only = nd1->u[1].child == NULL;
+		  snprintf(top_level_chunk_name_buffer, sizeof(top_level_chunk_name_buffer),
+		     tag_only ? "<<union tag %s>>=" : "<<union %s>>=", nd2->tok->image);
+		  return top_level_chunk_name_buffer;
+
+		  }
+	       return "<<unions>>=";
+	    case Struct:
+	       if ((nd2 = nd1->u[0].child) && nd2->nd_id == PrimryNd && nd2->tok->tok_id == Identifier) {
+		  int tag_only = nd1->u[1].child == NULL;
+		  snprintf(top_level_chunk_name_buffer, sizeof(top_level_chunk_name_buffer),
+		     tag_only ? "<<struct tag %s>>=" : "<<struct %s>>=", nd2->tok->image);
+		  return top_level_chunk_name_buffer;
+
+		  }
+	       return "<<structs>>=";
 	    }
 	 }
-      if ((nd2 = navigate1(nd1, LstNd, 0)) && nd1->tok == NULL &&
+      if ((nd2 = nav_n(nd1, LstNd, 0)) &&
 	    nd2->nd_id == PrimryNd && nd2->tok->tok_id == Typedef) {
 	 struct node *id;
-	 fprintf(g_out_file, "\n/""*%d,%d,%s*""/\n", __LINE__, n->gln, node_name(n));
 	 id = defining_identifier(n->u[1].child);
 	 if (id) {
 	    snprintf(top_level_chunk_name_buffer, sizeof(top_level_chunk_name_buffer),

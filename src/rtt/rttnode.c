@@ -946,48 +946,64 @@ struct node *n;
 void node_update_trace(n) struct node *n; {}
 #endif
 
-struct node *
-navigate1(n, nd_id, child)
-struct node *n;
-int nd_id, child;
-   {
-   if (n->nd_id == nd_id)
-      return n->u[child].child;
-   return NULL;
-   }
-
-struct node *
-navigate2(n, nd_id1, child1, nd_id2, child2)
-struct node *n;
-int nd_id1, child1, nd_id2, child2;
-   {
-   struct node *nd;
-   if ((nd = navigate1(n, nd_id1, child1)))
-      return navigate1(nd, nd_id2, child2);
-   return NULL;
-   }
-
-struct node *
-navigate3(n, nd_id1, child1, nd_id2, child2, nd_id3, child3)
-struct node *n;
-int nd_id1, child1, nd_id2, child2, nd_id3, child3;
-   {
-   struct node *nd;
-   if ((nd = navigate2(n, nd_id1, child1, nd_id2, child2)))
-      return navigate1(nd, nd_id3, child3);
-   return NULL;
-   }
-
-struct node *
-navigate_CompNd_2_ConCatNd_1(n)
-struct node *n;
-   {
-   return navigate2(n, CompNd, 2, ConCatNd, 1);
-   }
-
 const char *
 sym_name(sym)
 struct sym_entry *sym;
    {
    return sym ? sym->image : "nullsym";
+   }
+
+struct node *
+nav_n(n, nd_id, child)
+struct node *n;
+int nd_id, child;
+   {
+   if (n->nd_id == nd_id && n->tok == NULL)
+      return n->u[child].child;
+   return NULL;
+   }
+
+struct node *
+nav_t(n, nd_id, tok_id, child)
+struct node *n;
+int nd_id, tok_id, child;
+   {
+   if (n->nd_id == nd_id && n->tok && n->tok->tok_id == tok_id)
+      return n->u[child].child;
+   return NULL;
+   }
+
+struct node *
+nav_n_n(n, nd_id1, child1, nd_id2, child2)
+struct node *n;
+int nd_id1, nd_id2, child1, child2;
+   {
+   struct node *nd;
+   if ((nd = nav_n(n, nd_id1, child1)))
+      return nav_n(nd, nd_id2, child2);
+   return NULL;
+   }
+
+struct node *
+nav_n_t(n, nd_id1, child1, nd_id2, tok_id2, child2)
+struct node *n;
+int nd_id1, nd_id2, tok_id2, child1, child2;
+   {
+   struct node *nd;
+   if ((nd = nav_n(n, nd_id1, child1)))
+      return nav_t(nd, nd_id2, tok_id2, child2);
+   return NULL;
+   }
+
+struct node *
+nav_n_n_t(n, nd_id1, child1, nd_id2, child2, nd_id3, tok_id3, child3)
+struct node *n;
+int nd_id1, nd_id2, nd_id3, tok_id3;
+int child1, child2, child3;
+   {
+   struct node *nd1, *nd2;
+   if ((nd1 = nav_n(n, nd_id1, child1)))
+      if ((nd2 = nav_n_t(nd1, nd_id2, child2, nd_id3, tok_id3, child3)))
+	 return nd2;
+   return NULL;
    }

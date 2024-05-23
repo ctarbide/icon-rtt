@@ -109,17 +109,20 @@ void switch_case_stmt(void);
 const char *node_id_name(int nd_id);
 const char *node_name(struct node *nd);
 
-struct node *
-navigate1(struct node *n, int nd_id, int child);
-
-struct node *
-navigate2(struct node *n, int nd_id1, int child1, int nd_id2, int child2);
-
-struct node *
-navigate3(struct node *n, int nd_id1, int child1, int nd_id2, int child2, int nd_id3, int child3);
-
-struct node *
-navigate_CompNd_2_ConCatNd_1(struct node *n);
-
 const char *
 sym_name(struct sym_entry *sym);
+
+struct node *
+nav_n(struct node *n, int nd_id, int child);
+
+struct node *
+nav_t(struct node *n, int nd_id, int tok_id, int child);
+
+struct node *
+nav_n_n(struct node *n, int nd_id1, int child1, int nd_id2, int child2);
+
+struct node *
+nav_n_t(struct node *n, int nd_id1, int child1, int nd_id2, int tok_id2, int child2);
+
+struct node *
+nav_n_n_t(struct node *n, int nd_id1, int child1, int nd_id2, int child2, int nd_id3, int tok_id3, int child3);
