@@ -807,7 +807,6 @@ size_t nfields;
    {
    size_t allocsz = sizeof(struct node) - sizeof(union field) + (nfields * sizeof(union field));
    struct node *res = alloc(allocsz);
-   res->switch_level = g_switch_level;
    return res;
    }
 
@@ -953,12 +952,28 @@ struct sym_entry *sym;
    return sym ? sym->image : "nullsym";
    }
 
+int
+is_n(n, nd_id)
+struct node *n;
+int nd_id;
+   {
+   return n && n->nd_id == nd_id && n->tok == NULL;
+   }
+
+int
+is_t(n, nd_id, tok_id)
+struct node *n;
+int nd_id, tok_id;
+   {
+   return n && n->nd_id == nd_id && n->tok && n->tok->tok_id == tok_id;
+   }
+
 struct node *
 nav_n(n, nd_id, child)
 struct node *n;
 int nd_id, child;
    {
-   if (n->nd_id == nd_id && n->tok == NULL)
+   if (n && n->nd_id == nd_id && n->tok == NULL)
       return n->u[child].child;
    return NULL;
    }
@@ -968,7 +983,7 @@ nav_t(n, nd_id, tok_id, child)
 struct node *n;
 int nd_id, tok_id, child;
    {
-   if (n->nd_id == nd_id && n->tok && n->tok->tok_id == tok_id)
+   if (n && n->nd_id == nd_id && n->tok && n->tok->tok_id == tok_id)
       return n->u[child].child;
    return NULL;
    }

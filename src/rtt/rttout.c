@@ -1,10 +1,8 @@
 
 /* fprintf(stderr, "/""*%d,%d,%s*""/\n", __LINE__, n->gln, node_name(n)); */
 /* fprintf(g_out_file, "\n/""*%d,%d*""/\n", __LINE__, n->gln); */
-/* fprintf(g_out_file, "\n/""*%d,gln=%d,cfc=%d*""/\n", __LINE__, n->gln, stmt_list); */
 /* fprintf(g_out_file, "\n/""*%d,%d,%s*""/\n", __LINE__, n->gln, node_name(n)); */
 /* fprintf(g_out_file, "\n/""*%d,%s*""/\n", __LINE__, node_name(n->u[1].child)); */
-/* fprintf(g_out_file, "\n/""*%d,gln=%d,swlvl=%d,%s*""/\n", __LINE__, n->gln, n->switch_level, node_name(n)); */
 
 #include "rtt.h"
 
@@ -87,6 +85,7 @@ static int get_declarations_as_list(struct node **out, int start, int len, struc
 static struct node *header_k_and_r_to_ansi(struct node *head, struct node *prm_dcl);
 static struct node *defining_identifier(struct node *n);
 static char top_level_chunk_name_buffer[100];
+static int c_walk_cat(struct node *n, int indent, int brace);
 
 int op_type = OrdFunc;  /* type of operation */
 char lc_letter;         /* f = function, o = operator, k = keyword */
@@ -1163,23 +1162,6 @@ int can_output_trace(void)
 #endif
    }
 
-/* aditional indentation for statements other than 'case' and 'default' when
- * inside a 'switch' statement
- */
-int c_walk_cat(n, indent, brace, stmt_list)
-struct node *n;
-int indent, brace, stmt_list;
-   {
-   if (n && n->switch_level && stmt_list) {
-      int skip_add_indent = n->nd_id == ConCatNd ||
-	 (n->nd_id == BinryNd && n->tok->tok_id == Case) ||
-	 (n->nd_id == PrefxNd && n->tok->tok_id == Default)
-	 ;
-      return c_walk(n, indent + IndentInc * !skip_add_indent, brace);
-      }
-   return c_walk(n, indent, brace);
-   }
-
 /*
  * c_walk - walk the syntax tree for extended C code and output the
  *  corresponding ordinary C. Return and indication of whether execution
@@ -1196,7 +1178,7 @@ int indent, brace;
    int save_break;
    static int does_break = 0;
    static int may_brnchto;  /* may reach end of code by branching into middle */
-   /* static int stmt_list = 0; */
+   static int found_switch = 0;
 
    if (n == NULL)
       return 1;
@@ -1274,10 +1256,8 @@ int indent, brace;
 	       return 1;
 	    case Default:
 	       ForceNl();
-	       prt_str("", 0);
-	       ForceNl();
 	       prt_tok(t, indent);
-	       if (n->u[0].child->nd_id == CompNd && n->u[0].child->tok->tok_id == '{') {
+	       if (is_t(n->u[0].child, CompNd, '{')) {
 		  prt_str(": ", indent);
 		  fall_thru = c_walk(n->u[0].child, indent + IndentInc * 2, 0);
 		  }
@@ -1499,12 +1479,10 @@ int indent, brace;
 	  * All postfix expressions are printed as the operand followed
 	  *  by the token image of the operation.
 	  */
-	 /* fprintf(g_out_file, "/""*%d,%lu,%d*""/", __LINE__, trace_count, n->gln); */
 	 fall_thru = c_walk(n->u[0].child, indent, 0);
 	 prt_tok(t, indent);
-	 if (n->gln == GLN_EXPR_STMT_OPT_EXPR_SEMICOLON) {
+	 if (n->gln == GLN_EXPR_STMT_OPT_EXPR_SEMICOLON)
 	    ForceNl();
-	 }
 	 return fall_thru;
       case PreSpcNd: /* prefix expression that needs a space after it */
 	 /*
@@ -1527,7 +1505,6 @@ int indent, brace;
 	       /*
 		* subscripting expression or declaration: <expr> [ <expr> ]
 		*/
-	       n1 = n->u[0].child;
 	       c_walk(n->u[0].child, indent, 0);
 	       prt_str("[", indent);
 	       c_walk(n->u[1].child, indent, 0);
@@ -1642,9 +1619,15 @@ int indent, brace;
 	       prt_tok(t, indent);
 	       prt_str(" ", indent);
 	       c_walk(n->u[0].child, indent, 0);
-	       if (n->u[1].child->nd_id == CompNd && n->u[1].child->tok->tok_id == '{') {
+	       if (is_t(n->u[1].child, CompNd, '{')) {
 		  prt_str(": ", indent);
 		  fall_thru = c_walk(n->u[1].child, indent + IndentInc * 2, 0);
+		  }
+	       else if (
+		     is_t(n->u[1].child, BinryNd, Case) ||
+		     is_t(n->u[1].child, PrefxNd, Default)) {
+		  prt_str(":", indent);
+		  fall_thru = c_walk(n->u[1].child, indent, 0);
 		  }
 	       else {
 		  prt_str(":", indent);
@@ -1657,6 +1640,7 @@ int indent, brace;
 	       /*
 		* switch ( <expr> ) <statement>
 		*/
+	       found_switch = 1;
 	       prt_tok(t, indent);  /* switch */
 	       prt_str(" (", indent);
 	       c_walk(n->u[0].child, indent, 0);
@@ -1762,15 +1746,15 @@ int indent, brace;
 	  *
 	  * Various lists of code parts that do not need space between them.
 	  */
-	 if (c_walk_cat(n->u[0].child, indent, 0, n->gln == GLN_STMT_LST))
-	    return c_walk_cat(n->u[1].child, indent, 0, n->gln == GLN_STMT_LST);
+	 if (c_walk(n->u[0].child, indent, 0))
+	    return c_walk(n->u[1].child, indent, 0);
 	 else {
 	    /*
 	     * Cannot directly reach the second piece of code, see if
 	     *  it is possible to branch into it.
 	     */
 	    may_brnchto = 0;
-	    fall_thru = c_walk_cat(n->u[1].child, indent, 0, n->gln == GLN_STMT_LST);
+	    fall_thru = c_walk(n->u[1].child, indent, 0);
 	    return may_brnchto & fall_thru;
 	    }
       case CommaNd: /* arg lst, declarator lst, or init lst, not comma op */
@@ -1842,10 +1826,16 @@ int indent, brace;
 	  *  may be required for a one-statement body; we already
 	  *  have a set.
 	  */
-	 if (n->u[0].child == NULL && n->u[1].sym == NULL)
-	    fall_thru = c_walk(n->u[2].child, indent, 1);
-	 else
-	    fall_thru = c_walk(n->u[2].child, indent, 0);
+	 do {
+	    int brace1 = n->u[0].child == NULL && n->u[1].sym == NULL;
+	    if (found_switch) {
+	       found_switch = 0;
+	       fall_thru = c_walk_cat(n->u[2].child, indent, brace1);
+	       }
+	    else
+	       fall_thru = c_walk(n->u[2].child, indent, brace1);
+	    } while (0);
+
 	 if (!brace) {
 	    ForceNl();
 	    prt_str("}", indent);
@@ -4289,4 +4279,19 @@ struct node *n;
 	 }
       }
    return "<<globals>>=";
+   }
+
+static int c_walk_cat(n, indent, brace)
+struct node *n;
+int indent, brace;
+   {
+   int fall_thru;
+   struct node *nd;
+   if ((nd = nav_n(n, ConCatNd, 0))) {
+      fall_thru = c_walk_cat(nd, indent, brace);
+      return fall_thru | c_walk_cat(n->u[1].child, indent, brace);
+      }
+   if (!is_t(n, BinryNd, Case) && !is_t(n, PrefxNd, Default))
+      indent += IndentInc;
+   return c_walk(n, indent, brace);
    }

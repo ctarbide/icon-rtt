@@ -7,7 +7,6 @@ struct node      *arith_nd (struct token *tok, struct node *p1,
                              struct node *d_act);
 struct il_c      *bdy_prm   (int addr_of, int just_desc, struct sym_entry *sym, int may_mod);
 int               c_walk    (struct node *n, int indent, int brace);
-int               c_walk_cat(struct node *n, int indent, int brace, int stmt_list);
 int               call_ret  (struct node *n);
 struct token     *chk_exct  (struct token *tok);
 void           chkabsret (struct token *tok, int ret_typ);
@@ -111,6 +110,9 @@ const char *node_name(struct node *nd);
 
 const char *
 sym_name(struct sym_entry *sym);
+
+int is_n(struct node *n, int nd_id);
+int is_t(struct node *n, int nd_id, int tok_id);
 
 struct node *
 nav_n(struct node *n, int nd_id, int child);

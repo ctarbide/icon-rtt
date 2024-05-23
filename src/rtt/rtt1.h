@@ -208,7 +208,6 @@ struct node {
 #endif
    int16_t nd_id;
    int16_t gln; /* grammar line number (in rttgram.y) */
-   int16_t switch_level;
    union field u[1]; /* actual size varies with node type */
    };
 
