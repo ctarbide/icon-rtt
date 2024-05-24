@@ -1861,9 +1861,6 @@ int indent, brace;
 		* if ( <expr> ) <statement>
 		* if ( <expr> ) <statement> else <statement>
 		*/
-	       if (n->gln == GLN_SELECTION_STMT_ELSE) {
-		  ForceNl();
-	       }
 	       prt_tok(t, indent);  /* if */
 	       prt_str(" (", indent);
 	       c_walk(n->u[0].child, indent + IndentInc, 0);
@@ -1879,7 +1876,7 @@ int indent, brace;
 		   */
 		  ForceNl();
 		  prt_str("else ", indent);
-		  if (n1->nd_id == TrnryNd && n1->tok->tok_id == If)
+		  if (is_t(n1, TrnryNd, If))
 		     fall_thru |= c_walk(n1, indent, 0);
 		  else
 		     fall_thru |= c_walk(n1, indent + IndentInc, 0);

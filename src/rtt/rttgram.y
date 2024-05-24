@@ -662,9 +662,9 @@ expr_stmt
    ;
 
 selection_stmt
-   : If '(' expr ')' stmt   %prec IfStmt {$$ = node3ex(GLN_SELECTION_STMT_IFSTMT, TrnryNd, $1, $3, $5, NULL);
+   : If '(' expr ')' stmt   %prec IfStmt {$$ = node3ex(__LINE__, TrnryNd, $1, $3, $5, NULL);
                                           free_t($2); free_t($4);}
-   | If '(' expr ')' stmt Else stmt      {$$ = node3ex(GLN_SELECTION_STMT_ELSE, TrnryNd, $1, $3, $5, $7);
+   | If '(' expr ')' stmt Else stmt      {$$ = node3ex(__LINE__, TrnryNd, $1, $3, $5, $7);
                                           free_t($2); free_t($4); free_t($6);}
    | Switch {push_into_switch();} '(' expr ')' stmt {pop_out_of_switch();}
       {$$ = node2ex(__LINE__, BinryNd, $1, $4, $6); free_t($3); free_t($5);}
