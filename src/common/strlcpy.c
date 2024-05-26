@@ -33,16 +33,15 @@
 #include <inttypes.h>
 #include <string.h>
 #include <math.h>
-#include <ctype.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stddef.h>
 /* #include <fcntl.h> */
 /* #include <unistd.h> */
-/* placeholder */
+
 size_t
 xstrlcpy(char *dst, const char *src, size_t dsize);
-/* placeholder */
+
 size_t
 xstrlcpy(char *dst, const char *src, size_t dsize)
 {

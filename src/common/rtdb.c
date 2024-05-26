@@ -10,7 +10,7 @@
  */
 #define GetInt(n, c)\
    n = 0;\
-   while (isdigit(c)) {\
+   while (C_isdigit(c)) {\
       n = n * 10 + (c - '0');\
       c = getc(db);\
       }
@@ -19,7 +19,7 @@
  * SkipWhSp - skip white space characters in the data base.
  */
 #define SkipWhSp(c)\
-   while (isspace(c)) {\
+   while (C_isspace(c)) {\
       if (c == '\n')\
          ++dbline;\
       c = getc(db);\
@@ -101,7 +101,7 @@ char **lrgintflg;
    SkipWhSp(c)
    while (c == 'T') {
       c = getc(db);
-      if (!isdigit(c))
+      if (!C_isdigit(c))
          db_err1(1, "expected type code");
       GetInt(n, c)
       if (n >= num_typs)
@@ -125,7 +125,7 @@ char **lrgintflg;
    SkipWhSp(c)
    while (c == 'C') {
       c = getc(db);
-      if (!isdigit(c))
+      if (!C_isdigit(c))
          db_err1(1, "expected type component code");
       GetInt(n, c)
       if (n >= num_cmpnts)
@@ -172,7 +172,7 @@ char *db_string()
       db_err1(1, "unexpected EOF");
    if (c == '$')
       return NULL;
-   while (!isspace(c) && c != EOF) {
+   while (!C_isspace(c) && c != EOF) {
       AppChar(db_sbuf, c);
       c = getc(db);
       }
@@ -215,12 +215,12 @@ int oper_typ;
     */
    c = getc(db);
    SkipWhSp(c)
-   if (isalpha(c) || isdigit(c))
+   if (C_isalpha(c) || C_isdigit(c))
       ip->prefix[0] = c;
    else
      db_err2(1, "invalid prefix for", ip->name);
    c = getc(db);
-   if (isalpha(c) || isdigit(c))
+   if (C_isalpha(c) || C_isdigit(c))
       ip->prefix[1] = c;
    else
      db_err2(1, "invalid prefix for", ip->name);
@@ -230,7 +230,7 @@ int oper_typ;
     */
    c = getc(db);
    SkipWhSp(c)
-   if (!isdigit(c))
+   if (!C_isdigit(c))
      db_err2(1, "number of parameters missing for", ip->name);
    GetInt(n, c)
    ip->nargs = n;
@@ -287,7 +287,7 @@ int oper_typ;
       ip->max_result = NoRsltSeq;
       }
    else {
-      if (!isdigit(c))
+      if (!C_isdigit(c))
         db_err2(1, "invalid result sequence for", ip->name);
       GetInt(n, c)
       ip->min_result = n;
@@ -298,7 +298,7 @@ int oper_typ;
          ip->max_result = UnbndSeq;
          c = getc(db);
          }
-      else if (isdigit(c)) {
+      else if (C_isdigit(c)) {
          GetInt(n, c)
          ip->max_result = n;
          }
@@ -624,7 +624,7 @@ static struct il_code *db_inlin()
                   c = getc(db);              /* quoted literal without quotes */
                   }
                else
-                  while (c != EOF && !isspace(c)) {
+                  while (c != EOF && !C_isspace(c)) {
                      AppChar(db_sbuf, c);
                      c = getc(db);
                      }
@@ -893,7 +893,7 @@ static struct il_code *db_ilvar()
    c = getc(db);
    SkipWhSp(c)
 
-   if (isdigit(c)) {
+   if (C_isdigit(c)) {
       /*
        * Simple variable: just a symbol table index.
        */
@@ -1069,7 +1069,7 @@ static struct il_c *db_ilc()
                               (*nxtp)->code[0] = db_ilc();
                               c = getc(db);
                               SkipWhSp(c);
-                              if (!isdigit(c))
+                              if (!C_isdigit(c))
                                  db_err1(1, "$cgoto: expected label number");
                               GetInt(n, c);
                               (*nxtp)->n = n;
@@ -1098,7 +1098,7 @@ static struct il_c *db_ilc()
                         *nxtp = new_ilc(ILC_Goto);
                         c = getc(db);
                         SkipWhSp(c);
-                        if (!isdigit(c))
+                        if (!C_isdigit(c))
                            db_err1(1, "$goto: expected label number");
                         GetInt(n, c);
                         (*nxtp)->n = n;
@@ -1108,7 +1108,7 @@ static struct il_c *db_ilc()
                         *nxtp = new_ilc(ILC_Lbl);
                         c = getc(db);
                         SkipWhSp(c);
-                        if (!isdigit(c))
+                        if (!C_isdigit(c))
                            db_err1(1, "$lbl: expected label number");
                         GetInt(n, c);
                         (*nxtp)->n = n;
@@ -1120,7 +1120,7 @@ static struct il_c *db_ilc()
                            (*nxtp)->s = "d";
                            c = getc(db);
                            }
-                        if (isdigit(c)) {
+                        if (C_isdigit(c)) {
                            GetInt(n, c);
                            (*nxtp)->n = n;
                            }
@@ -1133,7 +1133,7 @@ static struct il_c *db_ilc()
                         break;
                      case 'r':                     /* $r[d]<indx> or $ret ... */
                         c = getc(db);
-                        if (isdigit(c) || c == 'd') {
+                        if (C_isdigit(c) || c == 'd') {
                            *nxtp = new_ilc(ILC_Ref);
                            if (c == 'd') {
                               (*nxtp)->s = "d";
@@ -1173,7 +1173,7 @@ static struct il_c *db_ilc()
                      case 't':                     /* $t[d]<indx> */
                         *nxtp = new_ilc(ILC_Tend);
                         c = getc(db);
-                        if (!isdigit(c))
+                        if (!C_isdigit(c))
                            db_err1(1, "$t: expected index");
                         GetInt(n, c);
                         (*nxtp)->n = n;
@@ -1463,7 +1463,7 @@ char *suffix;
    SkipWhSp(c)
 
    for (;;) {
-      if (*suffix == '\0' && (isspace(c) || c == EOF)) {
+      if (*suffix == '\0' && (C_isspace(c) || c == EOF)) {
          if (c == '\n')
             ++dbline;
          return;
@@ -1498,7 +1498,7 @@ struct implement **tbl;
     *  If multiple data bases are loaded into one hash table, use the
     *  first entry encountered for each operation.
     */
-   while ((ip = db_impl(toupper(section[0]))) != NULL) {
+   while ((ip = db_impl(C_toupper(section[0]))) != NULL) {
       if (db_ilkup(ip->name, tbl) == NULL) {
          db_code(ip);
          hashval = IHasher(ip->name);
@@ -1559,7 +1559,7 @@ int n;
     */
    num_dig = 0;
    for (i = 0; i < n; ++i)
-      if (isdigit(nxt[i]))
+      if (C_isdigit(nxt[i]))
          ++num_dig;
 
    for (i = n - 1; i >= 0; --i) {
@@ -1621,14 +1621,14 @@ static int cmp_1_pre(p1, p2)
 int p1;
 int p2;
    {
-   if (isdigit(p1)) {
-      if (isdigit(p2))
+   if (C_isdigit(p1)) {
+      if (C_isdigit(p2))
          return p1 - p2;
       else
          return -1;
       }
     else {
-       if (isdigit(p2))
+       if (C_isdigit(p2))
           return 1;
        else
          return p1 - p2;

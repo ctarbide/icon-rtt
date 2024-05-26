@@ -238,14 +238,14 @@ int ppch()
 	  *  that's what's next, or as much else as we can.
 	  */
 	 f = *bnxt;
-	 if (isalpha(f) || f == '_') {
+	 if (C_isalpha(f) || f == '_') {
 	    /*
 	     * This is the first character of an identifier.  It could
 	     *  be the name of a definition.  If so, the name will be
 	     *  contiguous in this buffer.  Check it.
 	     */
 	    p = bnxt + 1;
-	    while (p < blim && (isalnum(c = *p) || c == '_'))	/* find end */
+	    while (p < blim && (C_isalnum(c = *p) || c == '_'))	/* find end */
 	       p++;
 	    bstop = p;			/* safe to consume through end */
 	    if (((d = dlookup(bnxt, p-bnxt, bnxt)) == 0)  || (d->inuse == 1)) {
@@ -269,11 +269,11 @@ int ppch()
 	    p = bnxt++;
 	    while (p < blim) {
 	       c = *p;
-	       if (isalpha(c) || c == '_') {	/* there's an id ahead */
+	       if (C_isalpha(c) || c == '_') {	/* there's an id ahead */
 		  bstop = p;
 		  return f;
 		  }
-	       else if (isdigit(c)) {		/* numeric constant */
+	       else if (C_isdigit(c)) {		/* numeric constant */
 		  p = nskip(p);
 		  }
 	       else if (c == '#') {		/* comment: skip to EOL */
@@ -317,9 +317,9 @@ int ppch()
 	  */
 	 p = bnxt = bstop = blim = buf;		/* reset buffer pointers */
 	 curfile->lno++;			/* bump line number */
-	 while (isspace(c = *p))
+	 while (C_isspace(c = *p))
 	    p++;				/* find first nonwhite */
-	 if (c == '$' && (!ispunct(p[1]) || p[1]==' '))
+	 if (c == '$' && (!C_ispunct(p[1]) || p[1]==' '))
 	    ppdir(p + 1);			/* handle preprocessor cmd */
 	 else if (buf[1]=='l' && buf[2]=='i' && buf[3]=='n' && buf[4]=='e' &&
 		  buf[0]=='#' && buf[5]==' ')
@@ -525,7 +525,7 @@ char *s;
    {
    char c, *name, *val;
 
-   if (isalpha(c = *s) || c == '_')
+   if (C_isalpha(c = *s) || c == '_')
       s = getidt(name = s - 1, s);		/* get name */
    else
       return "$define: missing name";
@@ -541,7 +541,7 @@ char *s;
 	    }
 	 s++;
 	 }
-      while (isspace(s[-1]))			/* trim trailing whitespace */
+      while (C_isspace(s[-1]))			/* trim trailing whitespace */
 	 s--;
       }
    *s = '\0';
@@ -557,7 +557,7 @@ char *s;
    {
    char c, *name;
 
-   if (isalpha(c = *s) || c == '_')
+   if (C_isalpha(c = *s) || c == '_')
       s = getidt(name = s - 1, s);		/* get name */
    else
       return "$undef: missing name";
@@ -596,15 +596,15 @@ char *s;
    char c;
    char *fname;
 
-   if (!isdigit(c = *s))
+   if (!C_isdigit(c = *s))
       return "$line: no line number";
    n = c - '0';
 
-   while (isdigit(c = *++s))		/* extract line number */
+   while (C_isdigit(c = *++s))		/* extract line number */
       n = 10 * n + c - '0';
    s = wskip(s);			/* skip whitespace */
 
-   if (isalpha (c = *s) || c == '_' || c == '"') {	/* if filename */
+   if (C_isalpha (c = *s) || c == '_' || c == '"') {	/* if filename */
       s = getfnm(fname = s - 1, s);			/* extract it */
       if (*fname == '\0')
 	 return "$line: invalid file name";
@@ -650,7 +650,7 @@ int f;
    char c, *name;
 
    ifdepth++;
-   if (isalpha(c = *s) || c == '_')
+   if (C_isalpha(c = *s) || c == '_')
       s = getidt(name = s - 1, s);		/* get name */
    else
       return "$ifdef/$ifndef: missing name";
@@ -714,9 +714,9 @@ int doelse, report;
       /*
        * Check for any other kind of preprocessing directive.
        */
-      while (isspace(c = *p))
+      while (C_isspace(c = *p))
 	 p++;				/* find first nonwhite */
-      if (c != '$' || (ispunct(p[1]) && p[1]!=' '))
+      if (c != '$' || (C_ispunct(p[1]) && p[1]!=' '))
 	 continue;			/* not a preprocessing directive */
       p = wskip(p+1);			/* skip whitespace */
       p = getidt(cmd = p-1, p);		/* get command name */
@@ -768,7 +768,7 @@ char *s;
    {
    char c;
 
-   while (isspace(c = *s))
+   while (C_isspace(c = *s))
       s++;
    if (c == '#')
       while ((c = *++s) != 0)
@@ -784,21 +784,21 @@ char *s;
    {
       char c;
 
-      while (isdigit(c = *++s))
+      while (C_isdigit(c = *++s))
 	 ;
       if (c == 'r' || c == 'R') {
-	 while (isalnum(c = *++s))
+	 while (C_isalnum(c = *++s))
 	    ;
 	 return s;
 	 }
       if (c == '.')
-	 while (isdigit (c = *++s))
+	 while (C_isdigit (c = *++s))
 	    ;
       if (c == 'e' || c == 'E') {
 	 c = s[1];
 	 if (c == '+' || c == '-')
 	    s++;
-	 while (isdigit (c = *++s))
+	 while (C_isdigit (c = *++s))
 	    ;
 	 }
       return s;
@@ -844,7 +844,7 @@ char *dst, *src;
    {
    char c;
 
-   while (isalnum(c = *src) || (c == '_')) {
+   while (C_isalnum(c = *src) || (c == '_')) {
       *dst++ = c;
       src++;
       }

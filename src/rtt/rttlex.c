@@ -267,18 +267,18 @@ int yylex()
 	  * Hex integer constant.
 	  */
 	 ++s;
-	 while (isxdigit(*s))
+	 while (C_isxdigit(*s))
 	    ++s;
 	 yylval.t->tok_id = int_suffix(s);
 	 }
       else {
 	 is_float = 0;
-	 while (isdigit(*s))
+	 while (C_isdigit(*s))
 	     ++s;
 	 if (*s == '.') {
 	    is_float = 1;
 	    ++s;
-	    while (isdigit(*s))
+	    while (C_isdigit(*s))
 	       ++s;
 	    }
 	 if (*s == 'e' || *s == 'E') {
@@ -286,7 +286,7 @@ int yylex()
 	    ++s;
 	    if (*s == '+' || *s == '-')
 	       ++s;
-	    while (isdigit(*s))
+	    while (C_isdigit(*s))
 	       ++s;
 	    }
 	 if (is_float) {

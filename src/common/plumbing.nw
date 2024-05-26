@@ -14,6 +14,28 @@
 #endif
 @
 
+<<macros>>=
+
+<<enums>>=
+
+<<unions>>=
+
+<<globals>>=
+
+<<globals initialization>>=
+
+<<definitions>>=
+
+<<structs>>=
+
+<<protos>>=
+
+<<impl>>=
+
+<<main variables>>=
+
+<<main impl>>=
+
 <<includes>>=
 #include <stdlib.h>
 #include <stdio.h>
@@ -21,54 +43,9 @@
 #include <inttypes.h>
 #include <string.h>
 #include <math.h>
-#include <ctype.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stddef.h>
 /* #include <fcntl.h> */
 /* #include <unistd.h> */
-@
-
-<<macros>>=
-/* placeholder */
-@
-
-<<enums>>=
-/* placeholder */
-@
-
-<<unions>>=
-/* placeholder */
-@
-
-<<globals>>=
-/* placeholder */
-@
-
-<<globals initialization>>=
-/* placeholder */
-@
-
-<<definitions>>=
-/* placeholder */
-@
-
-<<structs>>=
-/* placeholder */
-@
-
-<<protos>>=
-/* placeholder */
-@
-
-<<impl>>=
-/* placeholder */
-@
-
-<<main variables>>=
-/* placeholder */
-@
-
-<<main impl>>=
-/* placeholder */
 @

@@ -933,7 +933,7 @@ struct token *preproc()
 		      *  hex digit, use the canonical form, otherwise
 		      *  use it as is.
 		      */
-		     if (*s == '\0' && isxdigit(t2->image[0])) {
+		     if (*s == '\0' && C_isxdigit(t2->image[0])) {
 			AppChar(*sbuf, ((hex_char >> 6) & 03) + '0');
 			AppChar(*sbuf, ((hex_char >> 3) & 07) + '0');
 			AppChar(*sbuf, (hex_char        & 07) + '0');

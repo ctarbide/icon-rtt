@@ -5,7 +5,6 @@
 /*
  * Universal (Standard 1989 ANSI C) includes.
  */
-#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <math.h>

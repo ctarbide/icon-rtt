@@ -16,22 +16,21 @@
 #include <inttypes.h>
 #include <string.h>
 #include <math.h>
-#include <ctype.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stddef.h>
 /* #include <fcntl.h> */
 /* #include <unistd.h> */
-/* placeholder */
+
 #ifndef SIZE_MAX
 #define SIZE_MAX ((size_t)-1)
 #endif
-/* placeholder */
+
 char *
 concat(const char *s1, ...);
 size_t
 lconcat(char *dst, size_t dstsize, const char *s1, ...);
-/* placeholder */
+
 char *
 concat(const char *s1, ...)
 {

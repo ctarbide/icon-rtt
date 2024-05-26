@@ -23,8 +23,8 @@ static	int		ctlesc		(void);
 static	int		hexesc		(void);
 static	int		octesc		(int ac);
 
-#define isletter(s)	(isupper(c) | islower(c))
-#define tonum(c)        (isdigit(c) ? (c - '0') : ((c & 037) + 9))
+#define isletter(s)	C_isalpha(c)
+#define tonum(c)        (C_isdigit(c) ? (c - '0') : ((c & 037) + 9))
 
 struct node tok_loc =
    {0, NULL, 0, 0};	/* "model" node containing location of current token */
@@ -85,7 +85,7 @@ loop:
    /*
     * Skip whitespace and comments and process #line directives.
     */
-   while (c == Comment || isspace(c)) {
+   while (c == Comment || C_isspace(c)) {
       if (c == '\n') {
          nlflag++;
          c = NextChar;
@@ -150,7 +150,7 @@ loop:
       if ((t = getident(c, &g_cc)) == NULL)
 	 goto loop;
       }
-   else if (isdigit(c) || (c == '.')) {	/* gather numeric literal or "." */
+   else if (C_isdigit(c) || (c == '.')) {	/* gather numeric literal or "." */
       if ((t = getnum(c, &g_cc)) == NULL)
 	 goto loop;
       }
@@ -206,7 +206,7 @@ int *cc;
    do {
       AppChar(lex_sbuf, c);
       c = NextChar;
-      } while (isalnum(c) || (c == '_'));
+      } while (C_isalnum(c) || (c == '_'));
    *cc = c;
    /*
     * If the identifier is a reserved word, make a ResNode for it and return
@@ -305,7 +305,7 @@ int *cc;
       c = NextChar;
       switch (state) {
 	 case 0:		/* integer part */
-	    if (isdigit(c))	    { r = r * 10 + tonum(c); continue; }
+	    if (C_isdigit(c))	    { r = r * 10 + tonum(c); continue; }
 	    if (c == '.')           { state = 1; realflag++; continue; }
 	    if (c == 'e' || c == 'E')  { state = 2; realflag++; continue; }
 	    if (c == 'r' || c == 'R')  {
@@ -316,25 +316,25 @@ int *cc;
 	       }
 	    break;
 	 case 1:		/* fractional part */
-	    if (isdigit(c))   continue;
+	    if (C_isdigit(c))   continue;
 	    if (c == 'e' || c == 'E')   { state = 2; continue; }
 	    break;
 	 case 2:		/* optional exponent sign */
 	    if (c == '+' || c == '-') { state = 3; continue; }
 	 case 3:		/* first digit after e, e+, or e- */
-	    if (isdigit(c)) { state = 4; continue; }
+	    if (C_isdigit(c)) { state = 4; continue; }
 	    tfatal("invalid real literal", (char *)NULL);
 	    break;
 	 case 4:		/* remaining digits after e */
-	    if (isdigit(c))   continue;
+	    if (C_isdigit(c))   continue;
 	    break;
 	 case 5:		/* first digit after r */
-	    if ((isdigit(c) || isletter(c)) && (unsigned int)tonum(c) < r)
+	    if ((C_isdigit(c) || isletter(c)) && (unsigned int)tonum(c) < r)
 	       { state = 6; continue; }
 	    tfatal("invalid integer literal", (char *)NULL);
 	    break;
 	 case 6:		/* remaining digits after r */
-	    if (isdigit(c) || isletter(c)) {
+	    if (C_isdigit(c) || isletter(c)) {
 	       if ((unsigned int)tonum(c) >= r) {	/* illegal digit for radix r */
 		  tfatal("invalid digit in integer literal", (char *)NULL);
 		  r = tonum('z');       /* prevent more messages */
@@ -343,7 +343,7 @@ int *cc;
 	       }
 	    break;
          case 7:		/* token began with "." */
-            if (isdigit(c)) {
+            if (C_isdigit(c)) {
                state = 1;		/* followed by digit is a real const */
 	       realflag = 1;
                continue;
@@ -387,7 +387,7 @@ int *cc;
        */
       if (c == '_')
          sav_indx = lex_sbuf.endimage - lex_sbuf.strtimage;
-      else if (!isspace(c))
+      else if (!C_isspace(c))
          sav_indx = -1;
 
       if (c == Escape) {
@@ -414,7 +414,7 @@ int *cc;
        */
       if (c == '\n' && sav_indx >= 0) {
          lex_sbuf.endimage = lex_sbuf.strtimage + sav_indx;
-         while ((c = NextChar) != EOF && isspace(c))
+         while ((c = NextChar) != EOF && C_isspace(c))
             ;
          }
       }
@@ -494,7 +494,7 @@ static int hexesc()
 	 nc -= 'a' - 10;
       else if (nc >= 'A' && nc <= 'F')
 	 nc -= 'A' - 10;
-      else if (isdigit(nc))
+      else if (C_isdigit(nc))
 	 nc -= '0';
       else {
 	 PushChar(nc);

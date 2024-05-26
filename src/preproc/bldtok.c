@@ -246,7 +246,7 @@ static struct token *pp_number()
 	    c = *next_char;
 	    }
 	 }
-      else if (isdigit(c) || c == '.' || islower(c) || isupper(c) || c == '_') {
+      else if (C_isdigit(c) || c == '.' || C_islower(c) || C_isupper(c) || c == '_') {
 	 AppChar(tknize_sbuf, c);
 	 AdvChar();
 	 c = *next_char;
@@ -379,7 +379,7 @@ struct token *tokenize()
 	       free_t(t1);  /* discard white space */
 	    }
 	 c = *next_char;
-	 if (islower(c) || isupper(c) || c == '_') {
+	 if (C_islower(c) || C_isupper(c) || c == '_') {
 	    /*
 	     * Tokenize the identifier following the #
 	     */
@@ -446,10 +446,10 @@ struct token *tokenize()
    /*
     * Check for identifier.
     */
-   if (islower(c) || isupper(c) || c == '_') {
+   if (C_islower(c) || C_isupper(c) || c == '_') {
       AppChar(tknize_sbuf, c);
       c = *next_char;
-      while (islower(c) || isupper(c) || isdigit(c) || c == '_') {
+      while (C_islower(c) || C_isupper(c) || C_isdigit(c) || c == '_') {
 	 AppChar(tknize_sbuf, c);
 	 AdvChar();
 	 c = *next_char;
@@ -460,7 +460,7 @@ struct token *tokenize()
    /*
     * Check for number.
     */
-   if (isdigit(c)) {
+   if (C_isdigit(c)) {
       AppChar(tknize_sbuf, c);
       return pp_number();
       }
@@ -489,7 +489,7 @@ struct token *tokenize()
    switch (c) {
       case '.':
 	 c = *next_char;
-	 if (isdigit(c)) {
+	 if (C_isdigit(c)) {
 	    /*
 	     * Number
 	     */

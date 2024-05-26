@@ -1,9 +1,9 @@
 include ../../Makedefs
 
 
-OBJS =	long.o getopt.o time.o filepart.o identify.o strtbl.o rtdb.o\
-	munix.o literals.o alloc.o long.o getopt.o time.o\
-	xwindow.o ipp.o lconcat.o strlcat.o strlcpy.o
+OBJS =	long.o getopt.o time.o filepart.o identify.o strtbl.o rtdb.o \
+	munix.o literals.o alloc.o long.o getopt.o time.o \
+	xwindow.o ipp.o lconcat.o strlcat.o strlcpy.o localely.o
 
 common:		$(OBJS)
 
@@ -42,6 +42,10 @@ strlcat.o: strlcat.nw
 strlcpy.o: strlcpy.nw
 	nofake.sh -Rstrlcpy.c -ostrlcpy.c plumbing.nw strlcpy.nw
 	$(CC) $(CFLAGS) -c -o strlcpy.o strlcpy.c
+
+localely.o: localely.nw
+	nofake.sh -Rlocalely.c -olocalely.c plumbing.nw localely.nw
+	$(CC) $(CFLAGS) -c -o localely.o localely.c
 
 #  The following section is needed if changes are made to the Icon grammar,
 #  but it is not run as part of the normal installation process.  If it is

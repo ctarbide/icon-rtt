@@ -56,13 +56,6 @@ void	lear_sbuf	(struct str_buf *sbuf);
 void (*fdlsym(void *handle, const char *symbol))(void);
 
 /*
- * nofake -Rprotos src/common/\*.nw
+ * nofake -Rprotos ../common/\*.nw > nwprotos.h
  */
-char *
-concat(const char *s1, ...);
-size_t
-lconcat(char *dst, size_t dstsize, const char *s1, ...);
-size_t
-xstrlcat(char *dst, const char *src, size_t dsize);
-size_t
-xstrlcpy(char *dst, const char *src, size_t dsize);
+#include "../h/nwprotos.h"

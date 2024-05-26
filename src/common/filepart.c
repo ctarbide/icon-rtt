@@ -175,8 +175,8 @@ char *s, *t;
 	    t++;
       a = *s++;
       b = *t++;
-      if (isupper(a))  a = tolower(a);
-      if (isupper(b))  b = tolower(b);
+      if (C_isupper(a))  a = C_tolower(a);
+      if (C_isupper(b))  b = C_tolower(b);
       if (a != b)
 	 return 0;
       }
