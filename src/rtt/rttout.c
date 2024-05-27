@@ -86,6 +86,7 @@ static struct node *header_k_and_r_to_ansi(struct node *head, struct node *prm_d
 static struct node *defining_identifier(struct node *n);
 static char top_level_chunk_name_buffer[100];
 static int c_walk_cat(struct node *n, int indent, int brace);
+static int c_walk_nl(struct node *n, int indent, int brace, int may_force_nl);
 
 int op_type = OrdFunc;  /* type of operation */
 char lc_letter;         /* f = function, o = operator, k = keyword */
@@ -1171,6 +1172,13 @@ int c_walk(n, indent, brace)
 struct node *n;
 int indent, brace;
    {
+   return c_walk_nl(n, indent, brace, 1);
+   }
+
+static int c_walk_nl(n, indent, brace, may_force_nl)
+struct node *n;
+int indent, brace, may_force_nl;
+   {
    struct token *t;
    struct node *n1;
    struct sym_entry *sym;
@@ -1683,13 +1691,13 @@ int indent, brace;
 		*/
 	       prt_tok(t, indent);  /* do */
 	       prt_str(" ", indent);
-	       c_walk(n->u[0].child, indent + IndentInc, 0);
-	       ForceNl();
-	       prt_str("while (", indent);
+	       c_walk_nl(n->u[0].child, indent + IndentInc, 0, 0);
+	       prt_str(" while (", indent + IndentInc);
 	       save_break = does_break;
 	       c_walk(n->u[1].child, indent, 0);
 	       does_break = save_break;
 	       prt_str(");", indent);
+	       ForceNl();
 	       return 1;
 	    case '.':
 	    case Arrow:
@@ -1840,7 +1848,8 @@ int indent, brace;
 	    ForceNl();
 	    prt_str("}", indent);
 	    }
-	 ForceNl();
+	 if (may_force_nl)
+	    ForceNl();
 	 return fall_thru;
       case TrnryNd: /* an expression with 3 subexpressions */
 	 switch (t->tok_id) {
