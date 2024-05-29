@@ -28,7 +28,7 @@ union xval {
  */
 struct str_buf_frag {
    struct str_buf_frag *next;     /* next buffer fragment */
-   char s[1];                     /* variable size buffer, really > 1 */
+   /* data follows */
    };
 
 struct str_buf {
@@ -41,9 +41,9 @@ struct str_buf {
    };
 
 #define AppChar(sbuf, c) do {\
-   if ((sbuf).endimage >= (sbuf).end)\
-      new_sbuf(&(sbuf));\
-   *((sbuf).endimage)++ = (c);\
+   if ((sbuf)->endimage >= (sbuf)->end)\
+      grow_sbuf(sbuf);\
+   *((sbuf)->endimage)++ = (c);\
    } while (0)
 
 /*

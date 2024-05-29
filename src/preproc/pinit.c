@@ -135,8 +135,7 @@ char *s;
 int len;
 struct token *dflt;
    {
-   struct token *mname;
-   struct token *t;
+   struct token *mname, *t;
    struct tok_lst *body = NULL;
    struct tok_lst **ptlst, **trail_whsp;
    int i;

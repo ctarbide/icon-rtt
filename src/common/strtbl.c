@@ -4,6 +4,13 @@
  */
 #include "../h/gsupport.h"
 
+#define SBUF_GROW_FACTOR 2
+
+size_t g_grow_count = 0;
+size_t g_wasted_space = 0;
+size_t g_sbuf_init_count = 0;
+size_t g_sbuf_donate_count = 0;
+
 /*
  * Prototype for static function.
  */
@@ -21,7 +28,7 @@ struct str_entry {
 #define SBufSize 1024                     /* initial size of a string buffer */
 #define StrTblSz 149                      /* size of string hash table */
 static struct str_entry **str_tbl = NULL; /* string hash table */
-
+
 /*
  * init_str - initialize string hash table.
  */
@@ -32,10 +39,10 @@ void init_str()
    if (str_tbl == NULL) {
       str_tbl = alloc(StrTblSz * sizeof(struct str_entry *));
       for (h = 0; h < StrTblSz; ++h)
-         str_tbl[h] = NULL;
+	 str_tbl[h] = NULL;
       }
    }
-
+
 /*
  * free_stbl - free string table.
  */
@@ -46,28 +53,31 @@ void free_stbl()
 
    for (h = 0; h < StrTblSz; ++h)
       for (se = str_tbl[h]; se != NULL; se = se1) {
-         se1 = se->next;
-         free((char *)se);
-         }
+	 se1 = se->next;
+	 free((char *)se);
+	 }
 
    free((char *)str_tbl);
    str_tbl = NULL;
    }
-
+
 /*
- * init_sbuf - initialize a new sbuf struct, allocating an initial buffer.
+ * init_sbuf - initialize a str_buf, allocating an initial buffer if not
+ * already initialized.
  */
 void init_sbuf(sbuf)
 struct str_buf *sbuf;
    {
+   if (sbuf->frag_lst)
+      return;
+   g_sbuf_init_count++;
    sbuf->size = SBufSize;
-   sbuf->frag_lst = alloc(sizeof(struct str_buf_frag) + (SBufSize - 1));
+   sbuf->frag_lst = alloc(sizeof(*sbuf->frag_lst) + SBufSize);
    sbuf->frag_lst->next = NULL;
-   sbuf->strtimage = sbuf->frag_lst->s;
-   sbuf->endimage = sbuf->strtimage;
-   sbuf->end = sbuf->strtimage + SBufSize;
+   sbuf->strtimage = (void*)(sbuf->frag_lst + 1);
+   sbuf->end = (sbuf->endimage = sbuf->strtimage) + SBufSize;
    }
-
+
 /*
  * clear_sbuf - free string buffer storage.
  */
@@ -85,32 +95,56 @@ struct str_buf *sbuf;
    sbuf->endimage = NULL;
    sbuf->end = NULL;
    }
-
+
 /*
- * new_sbuf - allocate a new buffer for a sbuf struct, copying the partially
+ * grow_sbuf - allocate a new buffer fragment for a sbuf, copying the partially
  *   created string from the end of full buffer to the new one.
  */
-void new_sbuf(sbuf)
+void grow_sbuf(sbuf)
 struct str_buf *sbuf;
    {
-   struct str_buf_frag *sbf;
-   char *s1, *s2;
+   struct str_buf_frag *newfrag;
+   size_t newsz, waste;
 
-   /*
-    * The new buffer is larger than the old one to ensure that any
-    *  size string can be buffered.
-    */
-   sbuf->size *= 2;
-   s1 = sbuf->strtimage;
-   sbf = alloc(sizeof(struct str_buf_frag) + (sbuf->size - 1));
-   sbf->next = sbuf->frag_lst;
-   sbuf->frag_lst = sbf;
-   sbuf->strtimage = sbf->s;
-   s2 = sbuf->strtimage;
-   while (s1 < sbuf->endimage)
-      *s2++ = *s1++;
-   sbuf->endimage = s2;
+   if (sbuf->end != sbuf->endimage) {
+      /* str_buf discarded prematurely */
+      fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+      exit(1);
+      }
+
+   g_grow_count++;
+   g_wasted_space += (waste = sbuf->end - sbuf->strtimage);
+
+   newsz = sbuf->size * SBUF_GROW_FACTOR;
+   newfrag = alloc(sizeof(*newfrag) + newsz);
+   if (newfrag == NULL) {
+      fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+      exit(1);
+      }
+
+   newfrag->next = sbuf->frag_lst;
+   memcpy(newfrag + 1, sbuf->strtimage, waste);
+
+   sbuf->frag_lst = newfrag;
+   sbuf->strtimage = (void*)(newfrag + 1);
+   sbuf->endimage = sbuf->strtimage + waste;
    sbuf->end = sbuf->strtimage + sbuf->size;
+   sbuf->size = newsz;
+   }
+
+/* donating an uninitialized sbuf is harmless
+ */
+void donate_sbuf(sbuf)
+struct str_buf *sbuf;
+{
+   if (sbuf->frag_lst == NULL)
+      return;
+   g_sbuf_donate_count++;
+   g_wasted_space += sbuf->end - sbuf->strtimage;
+   sbuf->frag_lst = NULL;
+   sbuf->strtimage = NULL;
+   sbuf->endimage = NULL;
+   sbuf->end = NULL;
    }
 
 /*
@@ -120,9 +154,8 @@ char *spec_str(s)
 char *s;
    {
    struct str_entry *se;
-   register char *s1;
-   register int l;
-   register int h;
+   char *s1;
+   int l, h;
 
    h = 0;
    l = 1;
@@ -133,7 +166,7 @@ char *s;
    h %= StrTblSz;
    for (se = str_tbl[h]; se != NULL; se = se->next)
       if (l == se->length && streq(l, s, se->s))
-         return se->s;
+	 return se->s;
    se = NewStruct(str_entry);
    se->s = s;
    se->length = l;
@@ -150,13 +183,11 @@ char *s;
 char *str_install(sbuf)
 struct str_buf *sbuf;
    {
-   int h;
+   int l, h;
    struct str_entry *se;
-   register char *s;
-   register char *e;
-   int l;
+   char *s, *e;
 
-   AppChar(*sbuf, '\0');   /* null terminate the buffered copy of the string */
+   AppChar(sbuf, '\0');   /* null terminate the buffered copy of the string */
    s = sbuf->strtimage;
    e = sbuf->endimage;
 
@@ -171,13 +202,13 @@ struct str_buf *sbuf;
    l = e - s;
    for (se = str_tbl[h]; se != NULL; se = se->next)
       if (l == se->length && streq(l, s, se->s)) {
-         /*
-          * A copy of the string is already in the table. Delete the copy
-          *  in the buffer.
-          */
-         sbuf->endimage = s;
-         return se->s;
-         }
+	 /*
+	  * A copy of the string is already in the table. Delete the copy
+	  *  in the buffer.
+	  */
+	 sbuf->endimage = s;
+	 return se->s;
+	 }
 
    /*
     * The string is not in the table. Add the copy from the buffer to the
@@ -197,11 +228,19 @@ struct str_buf *sbuf;
  *  0 for not equal.
  */
 static int streq(len, s1, s2)
-register int len;
-register char *s1, *s2;
+int len;
+char *s1, *s2;
    {
    while (len--)
       if (*s1++ != *s2++)
-         return 0;
+	 return 0;
    return 1;
+   }
+
+void report_waste()
+   {
+   fprintf(stderr, "WASTE REPORT, wasted space: %lu\n", (unsigned long)g_wasted_space);
+   fprintf(stderr, "WASTE REPORT, grow count: %lu\n", (unsigned long)g_grow_count);
+   fprintf(stderr, "WASTE REPORT, init count: %lu\n", (unsigned long)g_sbuf_init_count);
+   fprintf(stderr, "WASTE REPORT, donate count: %lu\n", (unsigned long)g_sbuf_donate_count);
    }

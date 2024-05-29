@@ -5,6 +5,9 @@
 #include "../preproc/preproc.h"
 #include "../preproc/pproto.h"
 
+static struct str_buf sbuf_files[1];
+#define sbuf sbuf_files
+
 #define IsRelPath(fname) (fname[0] != '/')
 
 static void file_src (char *fname, FILE *f);
@@ -53,7 +56,6 @@ struct token *trigger;
 char *fname;
 int system;
    {
-   struct str_buf *sbuf;
    char *s;
    char *path = NULL;
    char *end_prfx;
@@ -62,11 +64,11 @@ int system;
    char **prefix;
    FILE *f;
 
+   init_sbuf(sbuf);
    /*
     * See if this is an absolute path name.
     */
    if (IsRelPath(fname)) {
-      sbuf = get_sbuf();
       f = NULL;
       if (!system) {
 	 /*
@@ -87,9 +89,9 @@ int system;
 			end_prfx = s;
 		  if (end_prfx != NULL)
 		     for (s = cs->fname; s <= end_prfx; ++s)
-			AppChar(*sbuf, *s);
+			AppChar(sbuf, *s);
 		  for (s = fname; *s != '\0'; ++s)
-		     AppChar(*sbuf, *s);
+		     AppChar(sbuf, *s);
 		  path = str_install(sbuf);
 		  f = fopen(path, "r");
 		  }
@@ -103,22 +105,20 @@ int system;
       prefix = incl_search;
       while (f == NULL && *prefix != NULL) {
 	 for (s = *prefix; *s != '\0'; ++s)
-	    AppChar(*sbuf, *s);
+	    AppChar(sbuf, *s);
 	 if (s > *prefix && s[-1] != '/')
-	    AppChar(*sbuf, '/');
+	    AppChar(sbuf, '/');
 	 for (s = fname; *s != '\0'; ++s)
-	    AppChar(*sbuf, *s);
+	    AppChar(sbuf, *s);
 	 path = str_install(sbuf);
 	 f = fopen(path, "r");
 	 ++prefix;
 	 }
-      rel_sbuf(sbuf);
       }
    else {                               /* The path is absolute. */
       path = fname;
       f = fopen(path, "r");
       }
-
    if (f == NULL)
       errt2(trigger, "cannot open include file ", fname);
    file_src(path, f);

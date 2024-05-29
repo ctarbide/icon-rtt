@@ -5,6 +5,9 @@
 #include "../preproc/ptoken.h"
 #include "../preproc/pproto.h"
 
+static struct str_buf sbuf_macro[1];
+#define sbuf sbuf_macro
+
 /*
  * Prototypes for static functions.
  */
@@ -75,8 +78,7 @@ struct id_lst *lst2;
  *  in the same order. All white space tokens are considered equal.
  */
 static int eq_tok_lst(lst1, lst2)
-struct tok_lst *lst1;
-struct tok_lst *lst2;
+struct tok_lst *lst1, *lst2;
    {
    if (lst1 == lst2)
       return 1;
@@ -302,25 +304,25 @@ struct macro *m;
 /*
  * cpy_str - copy a string into a string buffer, adding delimiters.
  */
-static void cpy_str(ldelim, image, rdelim, sbuf)
+static void cpy_str(ldelim, image, rdelim, buf)
 char *ldelim;
 char *image;
 char *rdelim;
-struct str_buf *sbuf;
+struct str_buf *buf;
    {
    char *s;
 
    for (s = ldelim; *s != '\0'; ++s)
-      AppChar(*sbuf, *s);
+      AppChar(buf, *s);
 
    for (s = image; *s != '\0'; ++s) {
       if (*s == '\\' || *s == '"')
-	 AppChar(*sbuf, '\\');
-      AppChar(*sbuf, *s);
+	 AppChar(buf, '\\');
+      AppChar(buf, *s);
       }
 
    for (s = rdelim; *s != '\0'; ++s)
-      AppChar(*sbuf, *s);
+      AppChar(buf, *s);
    }
 
 /*
@@ -332,7 +334,6 @@ struct mac_expand *me;
    {
    struct token *t;
    struct tok_lst *arg;
-   struct str_buf *sbuf;
    char *s;
    int indx;
 
@@ -357,11 +358,11 @@ struct mac_expand *me;
     *  that the images of string and character literals lack quotes; these
     *  must be escaped in the stringized value.
     */
-   sbuf = get_sbuf();
+   init_sbuf(sbuf);
    while (arg != NULL) {
       t = arg->t;
       if (t->tok_id == WhiteSpace)
-	 AppChar(*sbuf, ' ');
+	 AppChar(sbuf, ' ');
       else if (t->tok_id == StrLit)
 	 cpy_str("\\\"", t->image, "\\\"", sbuf);
       else if (t->tok_id == LStrLit)
@@ -372,7 +373,7 @@ struct mac_expand *me;
 	 cpy_str("L'", t->image, "'", sbuf);
       else
 	 for (s = t->image; *s != '\0'; ++s)
-	    AppChar(*sbuf, *s);
+	    AppChar(sbuf, *s);
       arg = arg->next;
       }
 
@@ -381,7 +382,6 @@ struct mac_expand *me;
     */
    t = new_token(StrLit, str_install(sbuf), trigger->fname, trigger->line);
    t->flag |= trigger->flag & LineChk;
-   rel_sbuf(sbuf);
    return t;
    }
 
@@ -501,13 +501,10 @@ int *s;          /* the string buffer can contain EOF */
  */
 struct token *paste()
    {
-   struct token *t;
-   struct token *t1;
-   struct token *trigger;
+   struct token *t, *t1, *trigger;
    struct paste_lsts *plst;
    union src_ref ref;
-   int i;
-   int *s;
+   int i, *s;
 
    plst = g_src_stack->u.plsts;
 
@@ -570,9 +567,7 @@ struct token *mac_tok()
    struct token *t, *t1;
    struct paste_lsts *plst;
    union src_ref ref;
-   int line_check;
-   int indx;
-   int line;
+   int line_check, indx, line;
    char *fname;
 
    me = g_src_stack->u.me; /* macro, current position, and arguments */
@@ -620,36 +615,39 @@ struct token *mac_tok()
 	 }
       return t1;
       }
-   else if (t->tok_id == Identifier &&
-     (indx = parm_indx(t->image, me->m)) != -1) {
-      /*
-       * We have found a parameter. Push a token source for the corresponding
-       *  argument, that is, replace the parameter with its definition.
-       */
-      ref.tlst = me->exp_args[indx];
-      push_src(TokLst, &ref);
-      if (t->flag & LineChk) {
-	 line = t->line;
-	 fname = t->fname;
-	 t1 = next_tok();
-	 if (!(t1->flag & LineChk)) {
-	    /*
-	     * The parameter name token is significant with respect to
-	     *  outputting #line directives but the first argument token
-	     *  is not. Pretend the argument has the same line number as the
-	     *  parameter name.
-	     */
-	    t1->flag |= LineChk;
-	    t1->line = line;
-	    t1->fname = fname;
+   else if (t->tok_id == Identifier) {
+      if ((indx = parm_indx(t->image, me->m)) != -1) {
+	 /*
+	  * We have found a parameter. Push a token source for the corresponding
+	  *  argument, that is, replace the parameter with its definition.
+	  */
+	 ref.tlst = me->exp_args[indx];
+	 push_src(TokLst, &ref);
+	 if (t->flag & LineChk) {
+	    line = t->line;
+	    fname = t->fname;
+	    t1 = next_tok();
+	    if (!(t1->flag & LineChk)) {
+	       /*
+		* The parameter name token is significant with respect to
+		*  outputting #line directives but the first argument token
+		*  is not. Pretend the argument has the same line number as the
+		*  parameter name.
+		*/
+	       t1->flag |= LineChk;
+	       t1->line = line;
+	       t1->fname = fname;
+	       }
+	    free_t(t);
+	    return t1;
 	    }
-	 free_t(t);
-	 return t1;
+	 else {
+	    free_t(t);
+	    return next_tok();
+	    }
 	 }
-      else {
-	 free_t(t);
-	 return next_tok();
-	 }
+      else
+	 return t;
       }
    else {
       /*

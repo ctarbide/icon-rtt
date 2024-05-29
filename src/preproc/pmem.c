@@ -15,8 +15,7 @@ int g_tk_flg = 0;
  */
 struct macro *new_macro(mname, category, multi_line, prmlst, body)
 char *mname;
-int category;
-int multi_line;
+int category, multi_line;
 struct id_lst *prmlst;
 struct tok_lst *body;
    {
@@ -38,10 +37,8 @@ struct tok_lst *body;
  * new_token - allocate a new token.
  */
 struct token *new_token(id, image, fname, line)
-int id;
-char *image;
-char *fname;
-int line;
+int id, line;
+char *image, *fname;
    {
    struct token *t;
 
@@ -128,8 +125,7 @@ int bufsize;
  */
 struct mac_expand *new_me(m, args, exp_args)
 struct macro *m;
-struct tok_lst **args;
-struct tok_lst **exp_args;
+struct tok_lst **args, **exp_args;
    {
    struct mac_expand *me;
 
@@ -158,18 +154,6 @@ struct paste_lsts *plst;
    plsts->tlst = tlst;
    plsts->next = plst;
    return plsts;
-   }
-
-/*
- * get_sbuf - dynamically allocate a string buffer.
- */
-struct str_buf *get_sbuf()
-   {
-   struct str_buf *sbuf;
-
-   sbuf = NewStruct(str_buf);
-   init_sbuf(sbuf);
-   return sbuf;
    }
 
 /*
@@ -270,15 +254,6 @@ void free_plsts(plsts)
 struct paste_lsts *plsts;
    {
    free((char *)plsts);
-   }
-
-/*
- * rel_sbuf - free a string buffer.
- */
-void rel_sbuf(sbuf)
-struct str_buf *sbuf;
-   {
-   free((char *)sbuf);
    }
 
 /*

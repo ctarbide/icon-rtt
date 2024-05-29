@@ -5,6 +5,9 @@
 #include "../preproc/ptoken.h"
 #include "../preproc/pproto.h"
 
+static struct str_buf sbuf_gettok[1];
+#define sbuf sbuf_gettok
+
 /*
  * next_tok - get the next raw token. No macros are expanded here (although
  *  the tokens themselves may be the result of a macro expansion initiated
@@ -15,7 +18,6 @@ struct token *next_tok()
    struct token *t = NULL, *t1;
    struct tok_lst *tlst;
    struct char_src *cs;
-   struct str_buf *sbuf;
    char *s;
    char *fname;
    int n;
@@ -65,14 +67,13 @@ struct token *next_tok()
 	    advance_tok(&t1);
 	    fname = NULL;
 	    if (t1->tok_id == StrLit) {
-	       sbuf = get_sbuf();
+	       init_sbuf(sbuf);
 	       for (s = t1->image; *s != '\0'; ++s) {
 		  if (s[0] == '\\' && (s[1] == '\\' || s[1] == '"'))
 		     ++s;
-		  AppChar(*sbuf, *s);
+		  AppChar(sbuf, *s);
 		  }
 	       fname = str_install(sbuf);
-	       rel_sbuf(sbuf);
 	       advance_tok(&t1);
 	       }
 	    if (t1->tok_id != PpDirEnd)
@@ -119,7 +120,6 @@ struct token *next_tok()
 	  */
 	 return paste();
       }
-
    if (t == NULL) {
       /*
        * We have exhausted this entry on the source stack without finding
@@ -178,12 +178,10 @@ struct token **tp;
  *  processed tokens depends on the token source function, t_src.
  */
 void merge_whsp(whsp, next_t, t_src)
-struct token **whsp;
-struct token **next_t;
+struct token **whsp, **next_t;
 struct token *(*t_src)(void);
    {
    struct token *t1;
-   struct str_buf *sbuf;
    int line = -1;
    char *fname = "";
    char *s;
@@ -215,13 +213,13 @@ struct token *(*t_src)(void);
 	     *  name is important for generating #line directives in
 	     *  the output.
 	     */
-	    sbuf = get_sbuf();
+	    init_sbuf(sbuf);
 	    if ((*whsp)->flag & LineChk) {
 	       line = (*whsp)->line;
 	       fname = (*whsp)->fname;
 	       }
 	    for (s = (*whsp)->image; *s != '\0'; ++s) {
-	       AppChar(*sbuf, *s);
+	       AppChar(sbuf, *s);
 	       if (*s == '\n' && line != -1)
 		  ++line;
 	       }
@@ -231,7 +229,7 @@ struct token *(*t_src)(void);
 		  fname = t1->fname;
 		  }
 	       for (s = t1->image; *s != '\0'; ++s) {
-		  AppChar(*sbuf, *s);
+		  AppChar(sbuf, *s);
 		  if (*s == '\n' && line != -1)
 		     ++line;
 		  }
@@ -239,7 +237,6 @@ struct token *(*t_src)(void);
 	       t1 = (*t_src)();
 	       }
 	    (*whsp)->image = str_install(sbuf);
-	    rel_sbuf(sbuf);
 	    if (t1 != NULL && !(t1->flag & LineChk) && line != -1) {
 	       t1->flag |= LineChk;
 	       t1->line = line;

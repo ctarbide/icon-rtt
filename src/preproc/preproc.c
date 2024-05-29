@@ -6,6 +6,13 @@
 #include "../preproc/ptoken.h"
 #include "../preproc/pproto.h"
 
+static struct str_buf sbuf_preproc[1];
+#define sbuf sbuf_preproc
+
+#define MAX_SYMS 16
+
+static int g_sym_counter = 0;
+
 /*
  * Prototypes for static functions.
  */
@@ -14,7 +21,7 @@ static void end_select   (struct token *t);
 static void incl_file    (struct token *t);
 static void define       (struct token *t);
 static int  expand       (struct token *t, struct macro *m);
-static void toks_to_str  (struct str_buf *sbuf, struct token *t);
+static void toks_to_str  (struct str_buf *buf, struct token *t);
 
 /*
  * start_select - handle #if, #ifdef, #ifndef
@@ -194,7 +201,6 @@ static void incl_file(t)
 struct token *t;
    {
    struct token *file_tok, *t1;
-   struct str_buf *sbuf;
    char *s;
    char *fname;
    int line;
@@ -222,43 +228,43 @@ struct token *t;
        *  until the closing '>' is found, then create a "header" token
        *  from it.
        */
-      sbuf = get_sbuf();
+      init_sbuf(sbuf);
       while (*s != '>') {
 	 while (*s != '\0' && *s != '>')
-	    AppChar(*sbuf, *s++);
+	    AppChar(sbuf, *s++);
 	 if (*s == '\0') {
 	    switch (t1->tok_id) {
 	       case StrLit:
 	       case LStrLit:
-		  AppChar(*sbuf, '"');
+		  AppChar(sbuf, '"');
 		  break;
 	       case CharConst:
 	       case LCharConst:
-		  AppChar(*sbuf, '\'');
+		  AppChar(sbuf, '\'');
 		  break;
 	       }
 	    free_t(t1);
 	    t1 = interp_dir();
 	    switch (t1->tok_id) {
 	       case StrLit:
-		  AppChar(*sbuf, '"');
+		  AppChar(sbuf, '"');
 		  break;
 	       case LStrLit:
-		  AppChar(*sbuf, 'L');
-		  AppChar(*sbuf, '"');
+		  AppChar(sbuf, 'L');
+		  AppChar(sbuf, '"');
 		  break;
 	       case CharConst:
-		  AppChar(*sbuf, '\'');
+		  AppChar(sbuf, '\'');
 		  break;
 	       case LCharConst:
-		  AppChar(*sbuf, 'L');
-		  AppChar(*sbuf, '\'');
+		  AppChar(sbuf, 'L');
+		  AppChar(sbuf, '\'');
 		  break;
 	       case PpDirEnd:
 		  errt1(t1, "invalid include file syntax");
 	       }
 	    if (t1->tok_id == WhiteSpace)
-	       AppChar(*sbuf, ' ');
+	       AppChar(sbuf, ' ');
 	    else
 	       s = t1->image;
 	    }
@@ -267,7 +273,6 @@ struct token *t;
 	 errt1(t1, "invalid include file syntax");
       free_t(t1);
       file_tok = new_token(PpHeader, str_install(sbuf), fname, line);
-      rel_sbuf(sbuf);
       }
 
    t1 = interp_dir();
@@ -282,6 +287,7 @@ struct token *t;
       include(t, file_tok->image, 0);
    else
       include(t, file_tok->image, 1);
+
    free_t(file_tok);
    free_t(t);
    }
@@ -376,6 +382,10 @@ struct token *t;
       /*
        *  #begdef
        */
+      char *syms[MAX_SYMS];
+      int symids[MAX_SYMS];
+      int syms_tally = 0;
+
       multi_line = 1;
       if (t1->tok_id != PpDirEnd)
 	 errt1(t1, "expecting new-line at end of #begdef");
@@ -395,6 +405,20 @@ struct token *t;
 	 (*ptlst) = new_t_lst(t1);
 	 ptlst = &(*ptlst)->next;
 	 t1 = next_tok();
+	 if (t1->tok_id == Identifier && strncmp(t1->image, "__sym_", 6) == 0) {
+	    int i;
+	    for (i=0; i<syms_tally && syms[i] != t1->image; i++);
+	    if (i == syms_tally) {
+	       if (syms_tally >= MAX_SYMS) {
+		  fprintf(stderr, "Exhaustion %s:%d, syms_tally=%d\n",
+		     __FILE__, __LINE__, syms_tally);
+		  exit(1);
+		  }
+	       symids[syms_tally] = g_sym_counter++;
+	       syms[syms_tally] = t1->image;
+	       syms_tally++;
+	       }
+	    }
 	 }
       if (t1 == NULL)
 	 errt1(t, "unexpected end-of-file in #begdef");
@@ -402,6 +426,30 @@ struct token *t;
       t1 = next_tok();
       if (t1->tok_id != PpDirEnd)
 	 errt1(t1, "expecting new-line at end of #enddef");
+      if (syms_tally) {
+	 /* replace __sym_ prefixed token images
+	  */
+	 struct tok_lst *tmp = body;
+	 init_sbuf(sbuf);
+	 for (; tmp; tmp = tmp->next) {
+	    struct token *tt = tmp->t;
+	    if (tt->tok_id == Identifier) {
+	       int i;
+	       for (i=0; i<syms_tally && syms[i] != tt->image; i++);
+	       if (i == syms_tally)
+		  continue;
+	       do {
+		  char buf[30], *s = buf;
+		  snprintf(buf, sizeof(buf), "_g%ld", symids[i]);
+		  while (*s != '\0') {
+		     AppChar(sbuf, *s);
+		     s++;
+		     }
+		  tt->image = str_install(sbuf);
+		  } while (0);
+	       }
+	    }
+	 }
       }
    free_t(t1);
    free_t(t);
@@ -420,17 +468,12 @@ static int expand(t, m)
 struct token *t;
 struct macro *m;
    {
-   struct token *t1 = NULL;
-   struct token *t2;
-   struct token *whsp = NULL;
+   struct token *t1 = NULL, *t2, *whsp = NULL;
    union src_ref ref;
    struct tok_lst **args, **exp_args;
    struct tok_lst **tlp, **trail_whsp;
    struct src *stack_sav;
-   int nparm;
-   int narg;
-   int paren_nest;
-   int line;
+   int nparm, narg, paren_nest, line;
    char *fname;
 
    ++m->ref_cnt;
@@ -585,28 +628,28 @@ struct macro *m;
  * toks_to_str - put in a buffer the string image of tokens up to the end of
  *    of a preprocessor directive.
  */
-static void toks_to_str(sbuf, t)
-struct str_buf *sbuf;
+static void toks_to_str(buf, t)
+struct str_buf *buf;
 struct token *t;
    {
    char *s;
 
    while (t->tok_id != PpDirEnd) {
       if (t->tok_id == WhiteSpace)
-	 AppChar(*sbuf, ' ');
+	 AppChar(sbuf, ' ');
       else {
 	 if (t->tok_id == LCharConst || t->tok_id == LStrLit)
-	    AppChar(*sbuf, 'L');
+	    AppChar(sbuf, 'L');
 	 if (t->tok_id == CharConst || t->tok_id == LCharConst)
-	    AppChar(*sbuf, '\'');
+	    AppChar(sbuf, '\'');
 	 else if (t->tok_id == StrLit || t->tok_id == LStrLit)
-	    AppChar(*sbuf, '"');
+	    AppChar(sbuf, '"');
 	 for (s = t->image; *s != '\0'; ++s)
-	    AppChar(*sbuf, *s);
+	    AppChar(sbuf, *s);
 	 if (t->tok_id == CharConst || t->tok_id == LCharConst)
-	    AppChar(*sbuf, '\'');
+	    AppChar(sbuf, '\'');
 	 else if (t->tok_id == StrLit || t->tok_id == LStrLit)
-	    AppChar(*sbuf, '"');
+	    AppChar(sbuf, '"');
 	 }
       free_t(t);
       t = next_tok();
@@ -621,7 +664,6 @@ struct token *interp_dir()
    {
    struct token *t, *t1;
    struct macro *m;
-   struct str_buf *sbuf;
    char *s;
 
    /*
@@ -686,7 +728,7 @@ struct token *interp_dir()
 	     * Create an error message out of the rest of the tokens
 	     *  in this directive.
 	     */
-	    sbuf = get_sbuf();
+	    init_sbuf(sbuf);
 	    t1 = NULL;
 	    nxt_non_wh(&t1);
 	    toks_to_str(sbuf, t1);
@@ -694,7 +736,6 @@ struct token *interp_dir()
 	    break;
 
 	 case PpPragma:       /* #pragma */
-	 /* case PpSkip: deprecated? TODO: remove */
 	    /*
 	     * Ignore all pragmas and all non-ANSI directives that need not
 	     *   be passed to the caller.
@@ -713,13 +754,12 @@ struct token *interp_dir()
 	     * This is a directive special to an application using
 	     *  this preprocessor. Pass it on to the application.
 	     */
-	    sbuf = get_sbuf();
-	    AppChar(*sbuf, '#');
+	    init_sbuf(sbuf);
+	    AppChar(sbuf, '#');
 	    for (s = t->image; *s != '\0'; ++s)
-	       AppChar(*sbuf, *s);
+	       AppChar(sbuf, *s);
 	    toks_to_str(sbuf, next_tok());
 	    t->image = str_install(sbuf);
-	    rel_sbuf(sbuf);
 	    return t;
 
 	 case PpNull:         /* # */
@@ -731,10 +771,8 @@ struct token *interp_dir()
 	    t1 = NULL;
 	    advance_tok(&t1);
 
-	    if (t1->tok_id != StrLit) {
-	       fprintf(stderr, "/""*%d,%d*""/\n", __LINE__, t1->tok_id);
+	    if (t1->tok_id != StrLit)
 	       errt1(t1, "#output requires a file path argument");
-	       }
 
 	    free_t(t);
 	    t = t1;
@@ -793,16 +831,16 @@ struct token *interp_dir()
 
       sbuf = get_sbuf();
       while (*s != '\0') {
-	 AppChar(*sbuf, *s);
+	 AppChar(sbuf, *s);
 	 if (*s == '\\') {
 	    ++s;
 	    if (*s == 'a') {
-	       AppChar(*sbuf, '0' + ((Bell >> 6) & 7));
-	       AppChar(*sbuf, '0' + ((Bell >> 3) & 7));
-	       AppChar(*sbuf, '0' + (Bell & 7));
+	       AppChar(sbuf, '0' + ((Bell >> 6) & 7));
+	       AppChar(sbuf, '0' + ((Bell >> 3) & 7));
+	       AppChar(sbuf, '0' + (Bell & 7));
 	       }
 	    else
-	       AppChar(*sbuf, *s);
+	       AppChar(sbuf, *s);
 	    }
 	 ++s;
 	 }
@@ -853,12 +891,8 @@ struct token *interp_dir()
 struct token *preproc()
    {
    struct token *t1, *whsp, *t2, *str;
-   struct str_buf *sbuf;
-   int i;
-   char *escape_seq;
-   char *s;
-   char hex_char;
-   int is_hex_char;
+   char *escape_seq, *s, hex_char;
+   int i, is_hex_char;
 
    t1 = TokSrc();
    if (t1 == NULL)
@@ -884,13 +918,13 @@ struct token *preproc()
 	 /*
 	  * There are at least two adjacent string literals, concatenate them.
 	  */
-	 sbuf = get_sbuf();
+	 init_sbuf(sbuf);
 	 str = copy_t(t1);
 	 while (t2 != NULL && (t2->tok_id == StrLit || t2->tok_id == LStrLit)) {
 	    s = t1->image;
 	    while (*s != '\0') {
 	       if (*s == '\\') {
-		  AppChar(*sbuf, *s);
+		  AppChar(sbuf, *s);
 		  ++s;
 		  if (*s == 'x') {
 		     /*
@@ -934,13 +968,13 @@ struct token *preproc()
 		      *  use it as is.
 		      */
 		     if (*s == '\0' && C_isxdigit(t2->image[0])) {
-			AppChar(*sbuf, ((hex_char >> 6) & 03) + '0');
-			AppChar(*sbuf, ((hex_char >> 3) & 07) + '0');
-			AppChar(*sbuf, (hex_char        & 07) + '0');
+			AppChar(sbuf, ((hex_char >> 6) & 03) + '0');
+			AppChar(sbuf, ((hex_char >> 3) & 07) + '0');
+			AppChar(sbuf, (hex_char        & 07) + '0');
 			}
 		     else
 			while (escape_seq != s)
-			   AppChar(*sbuf, *escape_seq++);
+			   AppChar(sbuf, *escape_seq++);
 		     }
 		  else if (*s >= '0' && *s <= '7') {
 		     /*
@@ -960,12 +994,12 @@ struct token *preproc()
 		      */
 		     if (*s == '\0' && t2->image[0] >= '0' &&
 			   t2->image[0] <= '7' && i <= 3) {
-			AppChar(*sbuf, '0');
+			AppChar(sbuf, '0');
 			if (i <= 2)
-			   AppChar(*sbuf, '0');
+			   AppChar(sbuf, '0');
 			}
 		     while (escape_seq != s)
-			AppChar(*sbuf, *escape_seq++);
+			AppChar(sbuf, *escape_seq++);
 		     }
 		  }
 	       else {
@@ -973,7 +1007,7 @@ struct token *preproc()
 		   * Not an escape sequence, just copy the character to the
 		   *  buffer.
 		   */
-		  AppChar(*sbuf, *s);
+		  AppChar(sbuf, *s);
 		  ++s;
 		  }
 	       }
@@ -992,11 +1026,10 @@ struct token *preproc()
 	  *  the image for the concatenated token.
 	  */
 	 for (s = t1->image; *s != '\0'; ++s)
-	    AppChar(*sbuf, *s);
+	    AppChar(sbuf, *s);
 	 str->image = str_install(sbuf);
 	 free_t(t1);
 	 t1 = str;
-	 rel_sbuf(sbuf);
 	 }
 
       /*
@@ -1008,4 +1041,9 @@ struct token *preproc()
 	 g_src_stack->toks[g_src_stack->ntoks++] = whsp;
       }
    return t1;
+   }
+
+void finish_preproc()
+   {
+   finish_tok();
    }

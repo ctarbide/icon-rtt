@@ -5,6 +5,9 @@
 #include "../preproc/preproc.h"
 #include "../preproc/ptoken.h"
 
+static struct str_buf sbuf_bldtok[1];
+#define sbuf sbuf_bldtok
+
 /*
  * Prototypes for static functions.
  */
@@ -35,7 +38,6 @@ struct token *one_tok;          /* token for literal 1 */
 
 static int line;                   /* current line number */
 static char *fname;                /* current file name */
-static struct str_buf tknize_sbuf; /* string buffer */
 
 /*
  * List of preprocessing directives and the corresponding token ids.
@@ -68,7 +70,7 @@ void init_tok()
 
    if (first_time) {
       first_time = 0;
-      init_sbuf(&tknize_sbuf); /* initialize string buffer */
+      init_sbuf(sbuf); /* initialize string buffer */
       /*
        * install reserved words into the string table
        */
@@ -78,6 +80,10 @@ void init_tok()
       zero_tok = new_token(PpNumber, spec_str("0"), "", 0);
       one_tok = new_token(PpNumber, spec_str("1"), "", 0);
       }
+   }
+
+void finish_tok()
+   {
    }
 
 /*
@@ -146,7 +152,7 @@ struct char_src *cs;
 	  */
 	 AdvChar();
 	 if (whsp_image != NoSpelling)
-	    AppChar(tknize_sbuf, c1);
+	    AppChar(sbuf, c1);
 	 if (c1 == '\n') {
 	    if (cs->dir_state == Within)
 	       tok_id = PpDirEnd;
@@ -161,8 +167,8 @@ struct char_src *cs;
 	  *  copy the characters into the string buffer.
 	  */
 	 if (whsp_image == FullImage) {
-	    AppChar(tknize_sbuf, '/');
-	    AppChar(tknize_sbuf, '*');
+	    AppChar(sbuf, '/');
+	    AppChar(sbuf, '*');
 	    }
 	 AdvChar();
 	 AdvChar();
@@ -177,7 +183,7 @@ struct char_src *cs;
 		errfl1(fname, line, "eof encountered in comment");
 	    AdvChar();
 	    if (whsp_image == FullImage)
-	       AppChar(tknize_sbuf, c1);
+	       AppChar(sbuf, c1);
 	    c1 = c2;
 	    c2 = next_char[1];
 	    }
@@ -187,11 +193,11 @@ struct char_src *cs;
 	  *  a comment by one space character, or ignoring comments.
 	  */
 	 if (whsp_image == FullImage) {
-	    AppChar(tknize_sbuf, '*');
-	    AppChar(tknize_sbuf, '/');
+	    AppChar(sbuf, '*');
+	    AppChar(sbuf, '/');
 	    }
 	 else if (whsp_image == NoComment)
-	    AppChar(tknize_sbuf, ' ');
+	    AppChar(sbuf, ' ');
 	 AdvChar();
 	 AdvChar();
 	 }
@@ -205,9 +211,9 @@ struct char_src *cs;
     *  with one space character.
     */
    if (whsp_image == NoSpelling)
-      AppChar(tknize_sbuf, ' ');
+      AppChar(sbuf, ' ');
 
-   t = new_token(tok_id, str_install(&tknize_sbuf), fname, line);
+   t = new_token(tok_id, str_install(sbuf), fname, line);
 
    /*
     * Look ahead to see if a ## operator is next.
@@ -237,22 +243,22 @@ static struct token *pp_number()
    c = *next_char;
    for (;;) {
       if (c == 'e' || c == 'E') {
-	 AppChar(tknize_sbuf, c);
+	 AppChar(sbuf, c);
 	 AdvChar();
 	 c = *next_char;
 	 if (c == '+' || c == '-') {
-	    AppChar(tknize_sbuf, c);
+	    AppChar(sbuf, c);
 	    AdvChar();
 	    c = *next_char;
 	    }
 	 }
       else if (C_isdigit(c) || c == '.' || C_islower(c) || C_isupper(c) || c == '_') {
-	 AppChar(tknize_sbuf, c);
+	 AppChar(sbuf, c);
 	 AdvChar();
 	 c = *next_char;
 	 }
       else {
-	 return new_token(PpNumber, str_install(&tknize_sbuf), fname, line);
+	 return new_token(PpNumber, str_install(sbuf), fname, line);
 	 }
       }
    }
@@ -267,13 +273,13 @@ int tok_id;
    int c;
 
    for (c = *next_char; c != EOF && c != '\n' &&  c != delim; c = *next_char) {
-      AppChar(tknize_sbuf, c);
+      AppChar(sbuf, c);
       if (c == '\\') {
 	 c = next_char[1];
 	 if (c == EOF || c == '\n')
 	    break;
 	 else {
-	    AppChar(tknize_sbuf, c);
+	    AppChar(sbuf, c);
 	    AdvChar();
 	    }
 	 }
@@ -284,7 +290,7 @@ int tok_id;
    if (c == '\n')
       errfl1(fname, line, "New-line encountered within a literal");
    AdvChar();
-   return new_token(tok_id, str_install(&tknize_sbuf), fname, line);
+   return new_token(tok_id, str_install(sbuf), fname, line);
    }
 
 /*
@@ -308,11 +314,11 @@ struct char_src *cs;
       if (c == '\n')
 	 errfl1(fname, line,
 	    "New-line encountered within a header name");
-      AppChar(tknize_sbuf, c);
+      AppChar(sbuf, c);
       AdvChar();
       }
    AdvChar();
-   return new_token(tok_id, str_install(&tknize_sbuf), fname, line);
+   return new_token(tok_id, str_install(sbuf), fname, line);
    }
 
 /*
@@ -372,8 +378,8 @@ struct token *tokenize()
 		* We found a new-line, this is a null preprocessor directive.
 		*/
 	       cs->tok_sav = t1;
-	       AppChar(tknize_sbuf, '#');
-	       return new_token(PpNull, str_install(&tknize_sbuf), fname, line);
+	       AppChar(sbuf, '#');
+	       return new_token(PpNull, str_install(sbuf), fname, line);
 	       }
 	    else
 	       free_t(t1);  /* discard white space */
@@ -391,8 +397,8 @@ struct token *tokenize()
 		*/
 	       cs->dir_state = Reset;
 	       cs->tok_sav = t1;
-	       AppChar(tknize_sbuf, '#');
-	       return new_token('#', str_install(&tknize_sbuf), fname, line);
+	       AppChar(sbuf, '#');
+	       return new_token('#', str_install(sbuf), fname, line);
 	       }
 	    else {
 	       t1->tok_id = tok_id;
@@ -447,21 +453,21 @@ struct token *tokenize()
     * Check for identifier.
     */
    if (C_islower(c) || C_isupper(c) || c == '_') {
-      AppChar(tknize_sbuf, c);
+      AppChar(sbuf, c);
       c = *next_char;
       while (C_islower(c) || C_isupper(c) || C_isdigit(c) || c == '_') {
-	 AppChar(tknize_sbuf, c);
+	 AppChar(sbuf, c);
 	 AdvChar();
 	 c = *next_char;
 	 }
-      return new_token(Identifier, str_install(&tknize_sbuf), fname, line);
-     }
+      return new_token(Identifier, str_install(sbuf), fname, line);
+      }
 
    /*
     * Check for number.
     */
    if (C_isdigit(c)) {
-      AppChar(tknize_sbuf, c);
+      AppChar(sbuf, c);
       return pp_number();
       }
 
@@ -485,7 +491,7 @@ struct token *tokenize()
     * Check for operators and punctuation. Anything that does not fit these
     *  categories is a single character token.
     */
-   AppChar(tknize_sbuf, c);
+   AppChar(sbuf, c);
    switch (c) {
       case '.':
 	 c = *next_char;
@@ -493,7 +499,7 @@ struct token *tokenize()
 	    /*
 	     * Number
 	     */
-	    AppChar(tknize_sbuf, c);
+	    AppChar(sbuf, c);
 	    AdvChar();
 	    return pp_number();
 	    }
@@ -503,12 +509,12 @@ struct token *tokenize()
 	     */
 	    AdvChar();
 	    AdvChar();
-	    AppChar(tknize_sbuf, '.');
-	    AppChar(tknize_sbuf, '.');
-	    return new_token(Ellipsis, str_install(&tknize_sbuf), fname, line);
+	    AppChar(sbuf, '.');
+	    AppChar(sbuf, '.');
+	    return new_token(Ellipsis, str_install(sbuf), fname, line);
 	    }
 	 else
-	    return new_token('.', str_install(&tknize_sbuf), fname, line);
+	    return new_token('.', str_install(sbuf), fname, line);
 
       case '+':
 	 c = *next_char;
@@ -516,20 +522,20 @@ struct token *tokenize()
 	    /*
 	     *  ++
 	     */
-	    AppChar(tknize_sbuf, '+');
+	    AppChar(sbuf, '+');
 	    AdvChar();
-	    return new_token(Incr, str_install(&tknize_sbuf), fname, line);
+	    return new_token(Incr, str_install(sbuf), fname, line);
 	    }
 	 else if (c == '=') {
 	    /*
 	     *  +=
 	     */
-	    AppChar(tknize_sbuf, '=');
+	    AppChar(sbuf, '=');
 	    AdvChar();
-	    return new_token(PlusAsgn, str_install(&tknize_sbuf), fname, line);
+	    return new_token(PlusAsgn, str_install(sbuf), fname, line);
 	    }
 	 else
-	    return new_token('+', str_install(&tknize_sbuf), fname, line);
+	    return new_token('+', str_install(sbuf), fname, line);
 
       case '-':
 	 c = *next_char;
@@ -537,115 +543,115 @@ struct token *tokenize()
 	    /*
 	     *  ->
 	     */
-	    AppChar(tknize_sbuf, '>');
+	    AppChar(sbuf, '>');
 	    AdvChar();
-	    return new_token(Arrow, str_install(&tknize_sbuf), fname, line);
+	    return new_token(Arrow, str_install(sbuf), fname, line);
 	    }
 	 else if (c == '-') {
 	    /*
 	     *  --
 	     */
-	    AppChar(tknize_sbuf, '-');
+	    AppChar(sbuf, '-');
 	    AdvChar();
-	    return new_token(Decr, str_install(&tknize_sbuf), fname, line);
+	    return new_token(Decr, str_install(sbuf), fname, line);
 	    }
 	 else if (c == '=') {
 	    /*
 	     *  -=
 	     */
-	    AppChar(tknize_sbuf, '=');
+	    AppChar(sbuf, '=');
 	    AdvChar();
-	    return new_token(MinusAsgn, str_install(&tknize_sbuf), fname,
+	    return new_token(MinusAsgn, str_install(sbuf), fname,
 	       line);
 	    }
 	 else
-	    return new_token('-', str_install(&tknize_sbuf), fname, line);
+	    return new_token('-', str_install(sbuf), fname, line);
 
       case '<':
 	 c = *next_char;
 	 if (c == '<') {
-	    AppChar(tknize_sbuf, '<');
+	    AppChar(sbuf, '<');
 	    AdvChar();
 	    if (*next_char == '=') {
 	       /*
 		*  <<=
 		*/
-	       AppChar(tknize_sbuf, '=');
+	       AppChar(sbuf, '=');
 	       AdvChar();
-	       return new_token(LShftAsgn, str_install(&tknize_sbuf), fname,
+	       return new_token(LShftAsgn, str_install(sbuf), fname,
 		  line);
 	       }
 	    else
 	       /*
 		*  <<
 		*/
-	       return new_token(LShft, str_install(&tknize_sbuf), fname, line);
+	       return new_token(LShft, str_install(sbuf), fname, line);
 	    }
 	 else if (c == '=') {
 	    /*
 	     *  <=
 	     */
-	    AppChar(tknize_sbuf, '=');
+	    AppChar(sbuf, '=');
 	    AdvChar();
-	    return new_token(Leq, str_install(&tknize_sbuf), fname, line);
+	    return new_token(Leq, str_install(sbuf), fname, line);
 	    }
 	 else
-	    return new_token('<', str_install(&tknize_sbuf), fname, line);
+	    return new_token('<', str_install(sbuf), fname, line);
 
       case '>':
 	 c = *next_char;
 	 if (c == '>') {
-	    AppChar(tknize_sbuf, '>');
+	    AppChar(sbuf, '>');
 	    AdvChar();
 	    if (*next_char == '=') {
 	       /*
 		*  >>=
 		*/
-	       AppChar(tknize_sbuf, '=');
+	       AppChar(sbuf, '=');
 	       AdvChar();
-	       return new_token(RShftAsgn, str_install(&tknize_sbuf), fname,
+	       return new_token(RShftAsgn, str_install(sbuf), fname,
 		  line);
 	       }
 	    else
 	       /*
 		*  >>
 		*/
-	       return new_token(RShft, str_install(&tknize_sbuf), fname, line);
+	       return new_token(RShft, str_install(sbuf), fname, line);
 	    }
 	 else if (c == '=') {
 	    /*
 	     *  >=
 	     */
-	    AppChar(tknize_sbuf, '=');
+	    AppChar(sbuf, '=');
 	    AdvChar();
-	    return new_token(Geq, str_install(&tknize_sbuf), fname, line);
+	    return new_token(Geq, str_install(sbuf), fname, line);
 	    }
 	 else
-	    return new_token('>', str_install(&tknize_sbuf), fname, line);
+	    return new_token('>', str_install(sbuf), fname, line);
 
       case '=':
 	 if (*next_char == '=') {
 	    /*
 	     *  ==
 	     */
-	    AppChar(tknize_sbuf, '=');
+	    AppChar(sbuf, '=');
 	    AdvChar();
-	    return new_token(Equal, str_install(&tknize_sbuf), fname, line);
+	    return new_token(Equal, str_install(sbuf), fname, line);
 	    }
 	 else
-	    return new_token('=', str_install(&tknize_sbuf), fname, line);
+	    return new_token('=', str_install(sbuf), fname, line);
 
       case '!':
 	 if (*next_char == '=') {
 	    /*
 	     *  !=
 	     */
-	    AppChar(tknize_sbuf, '=');
+	    AppChar(sbuf, '=');
 	    AdvChar();
-	    return new_token(Neq, str_install(&tknize_sbuf), fname, line);
+	    return new_token(Neq, str_install(sbuf), fname, line);
 	    }
 	 else
-	    return new_token('!', str_install(&tknize_sbuf), fname, line);
+	    return new_token('!', str_install(sbuf), fname, line);
 
       case '&':
 	 c = *next_char;
@@ -653,20 +659,20 @@ struct token *tokenize()
 	    /*
 	     *  &&
 	     */
-	    AppChar(tknize_sbuf, '&');
+	    AppChar(sbuf, '&');
 	    AdvChar();
-	    return new_token(And, str_install(&tknize_sbuf), fname, line);
+	    return new_token(And, str_install(sbuf), fname, line);
 	    }
 	 else if (c == '=') {
 	    /*
 	     *  &=
 	     */
-	    AppChar(tknize_sbuf, '=');
+	    AppChar(sbuf, '=');
 	    AdvChar();
-	    return new_token(AndAsgn, str_install(&tknize_sbuf), fname, line);
+	    return new_token(AndAsgn, str_install(sbuf), fname, line);
 	    }
 	 else
-	    return new_token('&', str_install(&tknize_sbuf), fname, line);
+	    return new_token('&', str_install(sbuf), fname, line);
 
       case '|':
 	 c = *next_char;
@@ -674,68 +680,68 @@ struct token *tokenize()
 	    /*
 	     *  ||
 	     */
-	    AppChar(tknize_sbuf, '|');
+	    AppChar(sbuf, '|');
 	    AdvChar();
-	    return new_token(Or, str_install(&tknize_sbuf), fname, line);
+	    return new_token(Or, str_install(sbuf), fname, line);
 	    }
 	 else if (c == '=') {
 	    /*
 	     *  |=
 	     */
-	    AppChar(tknize_sbuf, '=');
+	    AppChar(sbuf, '=');
 	    AdvChar();
-	    return new_token(OrAsgn, str_install(&tknize_sbuf), fname, line);
+	    return new_token(OrAsgn, str_install(sbuf), fname, line);
 	    }
 	 else
-	    return new_token('|', str_install(&tknize_sbuf), fname, line);
+	    return new_token('|', str_install(sbuf), fname, line);
 
       case '*':
 	 if (*next_char == '=') {
 	    /*
 	     *  *=
 	     */
-	    AppChar(tknize_sbuf, '=');
+	    AppChar(sbuf, '=');
 	    AdvChar();
-	    return new_token(MultAsgn, str_install(&tknize_sbuf), fname, line);
+	    return new_token(MultAsgn, str_install(sbuf), fname, line);
 	    }
 	 else
-	    return new_token('*', str_install(&tknize_sbuf), fname, line);
+	    return new_token('*', str_install(sbuf), fname, line);
 
       case '/':
 	 if (*next_char == '=') {
 	    /*
 	     *  /=
 	     */
-	    AppChar(tknize_sbuf, '=');
+	    AppChar(sbuf, '=');
 	    AdvChar();
-	    return new_token(DivAsgn, str_install(&tknize_sbuf), fname, line);
+	    return new_token(DivAsgn, str_install(sbuf), fname, line);
 	    }
 	 else
-	    return new_token('/', str_install(&tknize_sbuf), fname, line);
+	    return new_token('/', str_install(sbuf), fname, line);
 
       case '%':
 	 if (*next_char == '=') {
 	    /*
 	     *  &=
 	     */
-	    AppChar(tknize_sbuf, '=');
+	    AppChar(sbuf, '=');
 	    AdvChar();
-	    return new_token(ModAsgn, str_install(&tknize_sbuf), fname, line);
+	    return new_token(ModAsgn, str_install(sbuf), fname, line);
 	    }
 	 else
-	    return new_token('%', str_install(&tknize_sbuf), fname, line);
+	    return new_token('%', str_install(sbuf), fname, line);
 
       case '^':
 	 if (*next_char == '=') {
 	    /*
 	     *  ^=
 	     */
-	    AppChar(tknize_sbuf, '=');
+	    AppChar(sbuf, '=');
 	    AdvChar();
-	    return new_token(XorAsgn, str_install(&tknize_sbuf), fname, line);
+	    return new_token(XorAsgn, str_install(sbuf), fname, line);
 	    }
 	 else
-	    return new_token('^', str_install(&tknize_sbuf), fname, line);
+	    return new_token('^', str_install(sbuf), fname, line);
 
       case '#':
 	 /*
@@ -745,12 +751,12 @@ struct token *tokenize()
 	    /*
 	     *  ##
 	     */
-	    AppChar(tknize_sbuf, '#');
+	    AppChar(sbuf, '#');
 	    AdvChar();
-	    t1 =  new_token(PpPaste, str_install(&tknize_sbuf), fname, line);
+	    t1 =  new_token(PpPaste, str_install(sbuf), fname, line);
 	    }
 	 else
-	    t1 = new_token('#', str_install(&tknize_sbuf), fname, line);
+	    t1 = new_token('#', str_install(sbuf), fname, line);
 
 	 /*
 	  * The operand must be in the same preprocessing directive.
@@ -765,6 +771,6 @@ struct token *tokenize()
 	 return t1;
 
       default:
-	 return new_token(c, str_install(&tknize_sbuf), fname, line);
+	 return new_token(c, str_install(sbuf), fname, line);
       }
    }

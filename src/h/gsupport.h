@@ -2,6 +2,7 @@
  * Group of include files for translators, etc.
  */
 
+#include "../h/sassert.h"
 #include "../h/define.h"
 
 #include "../h/arch.h"

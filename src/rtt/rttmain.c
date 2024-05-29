@@ -294,6 +294,8 @@ char *src_file;
       if (fclose(g_out_file) != 0)
 	 err1("cannot close output file");
       }
+   finish_preproc();
+   /* report_waste(); */
    }
 
 /*

@@ -33,7 +33,7 @@ long	longwrite	(char *s, long len, FILE *file);
 char	*makename	(char *dest, size_t sz, char *d, char *name, char *e);
 long	millisec	(void);
 struct il_code *new_il	(int il_type, int size);
-void	new_sbuf	(struct str_buf *sbuf);
+void	grow_sbuf	(struct str_buf *sbuf);
 void	nxt_pre		(char *pre, char *nxt, int n);
 char	*pathfind	(char *buf, size_t sz, char *path, char *name, char *extn);
 int	ppch		(void);
@@ -54,6 +54,8 @@ void	lear_sbuf	(struct str_buf *sbuf);
 #endif					/* NoSysOpt */
 
 void (*fdlsym(void *handle, const char *symbol))(void);
+void report_waste(void);
+void donate_sbuf(struct str_buf *sbuf);
 
 /*
  * nofake -Rprotos ../common/\*.nw > nwprotos.h

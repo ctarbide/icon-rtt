@@ -7,6 +7,9 @@
  */
 #include "rtt.h"
 
+static struct str_buf sbuf_rttlex[1];
+#define sbuf sbuf_rttlex
+
 int               yylex     (void);
 
 /*
@@ -208,7 +211,6 @@ int yylex()
    struct sym_entry *sym;
    struct token *lk_ahead = NULL;
    int is_float;
-   struct str_buf *sbuf;
 
    /*
     * See if the last call to yylex() left a token from looking ahead.
@@ -335,19 +337,18 @@ int yylex()
        *  declaration. Concatenate all operator symbols into one token
        *  of type OpSym.
        */
-      sbuf = get_sbuf();
+      init_sbuf(sbuf);
       for (s = yylval.t->image; *s != '\0'; ++s)
-	 AppChar(*sbuf, *s);
+	 AppChar(sbuf, *s);
       lk_ahead = preproc();
       while (lk_ahead != NULL && GoodChar((int)lk_ahead->image[0])) {
 	 for (s = lk_ahead->image; *s != '\0'; ++s)
-	    AppChar(*sbuf, *s);
+	    AppChar(sbuf, *s);
 	 free_t(lk_ahead);
 	 lk_ahead = preproc();
 	 }
       yylval.t->tok_id = OpSym;
       yylval.t->image = str_install(sbuf);
-      rel_sbuf(sbuf);
       }
    else if (yylval.t->tok_id < 256) {
       /*

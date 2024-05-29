@@ -35,8 +35,7 @@
 #define PpEnddef   1019   /* #enddef */
 #define PpNull     1020   /* # */
 #define PpKeep     1021   /* #passthru */
-#define PpSkip     1022   /* not used? deprecated? TODO: remove */
-#define PpOutput   1023   /* decide output file name */
+#define PpOutput   1022   /* decide output file name */
 #define Invalid    9999   /* marker */
 
 extern char *g_progname; /* name of this program: for error messages */
@@ -108,7 +107,7 @@ struct id_lst {
  * a macro, m, falls into one of several categores:
  *   those with arguments                - m.category = # args >= 0
  *   those with no arguments             - m.category = NoArgs
- *   those that may not be chaged        - m.category = FixedMac
+ *   those that may not be changed       - m.category = FixedMac
  *   those that require special handling - m.category = SpecMac
  */
 #define NoArgs   -1

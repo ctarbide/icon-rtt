@@ -10,6 +10,7 @@
  * Include files.
  */
 
+#include "../h/sassert.h"
 #include "../h/define.h"
 #include "../h/arch.h"
 #include "../h/config.h"

@@ -20,7 +20,7 @@ static int escape               (char **str_ptr, int *nchars_ptr);
  */
 #define NextChar(c) ((*nchars_ptr)--, c = *(*str_ptr)++)
 #define isoctal(c) ((c)>='0'&&(c)<='7')	/* macro to test for octal digit */
-
+
 /*
  * escape - translate the character sequence following a '\' into the
  *   single character it represents.
@@ -29,7 +29,7 @@ static int escape(str_ptr, nchars_ptr)
 char **str_ptr;
 int *nchars_ptr;
    {
-   register int c, nc, i;
+   int c, nc, i;
 
    /*
     * Note, it is impossible to have a character string ending with a '\',
@@ -43,9 +43,9 @@ int *nchars_ptr;
        */
       c -= '0';
       for (i = 2; *nchars_ptr > 0 && isoctal(**str_ptr) && i <= 3; ++i) {
-         NextChar(nc);
-         c = (c << 3) | (nc - '0');
-         }
+	 NextChar(nc);
+	 c = (c << 3) | (nc - '0');
+	 }
       return (c & 0377);
       }
    else if (c == 'x') {
@@ -55,15 +55,15 @@ int *nchars_ptr;
        */
       c = 0;
       for (i = 1; *nchars_ptr > 0 && C_isxdigit(**str_ptr) && i <= 2; ++i) {
-         NextChar(nc);
-         if (nc >= 'a' && nc <= 'f')
-            nc -= 'a' - 10;
-         else if (nc >= 'A' && nc <= 'F')
-            nc -= 'A' - 10;
-         else if (C_isdigit(nc))
-            nc -= '0';
-         c = (c << 4) | nc;
-         }
+	 NextChar(nc);
+	 if (nc >= 'a' && nc <= 'f')
+	    nc -= 'a' - 10;
+	 else if (nc >= 'A' && nc <= 'F')
+	    nc -= 'A' - 10;
+	 else if (C_isdigit(nc))
+	    nc -= '0';
+	 c = (c << 4) | nc;
+	 }
       return c;
       }
    else if (c == '^') {
@@ -72,14 +72,14 @@ int *nchars_ptr;
        *  character.
        */
       if (*nchars_ptr <= 0)
-         return 0;           /* could only happen in a keyword */
+	 return 0;           /* could only happen in a keyword */
       NextChar(c);
       return (c & 037);
       }
    else
       return esctab[c];
    }
-
+
 /*
  * bitvect - convert cset literal into a bitvector
  */
@@ -87,9 +87,9 @@ unsigned short *bitvect(image, len)
 char *image;
 int len;
    {
-   register int c;
-   register unsigned short *bv;
-   register int i;
+   int c;
+   unsigned short *bv;
+   int i;
 
    bv = alloc(BVectSize * sizeof(unsigned short));
    for (i = 0; i < BVectSize; ++i)
@@ -97,12 +97,12 @@ int len;
    while (len-- > 0) {
       c = *image++;
       if (c == '\\')
-         c = escape(&image, &len);
+	 c = escape(&image, &len);
       bv[BVectIndx(c)] |= BitInShrt(c);
       }
    return bv;
    }
-
+
 /*
  * cset_init - use bitvector for a cset to write an initialization for
  *    a cset block.
@@ -113,19 +113,19 @@ unsigned short *bv;
    {
    int size;
    unsigned short n;
-   register int j;
+   int j;
 
    size = 0;
    for (j = 0; j < BVectSize; ++j)
       for (n = bv[j]; n != 0; n >>= 1)
-         size += n & 1;
+	 size += n & 1;
    fprintf(f, "{T_Cset, %d,\n", size);
    fprintf(f, "   cset_display(0x%x", bv[0]);
    for (j = 1; j < BVectSize; ++j)
       fprintf(f, ",0x%x", bv[j]);
    fprintf(f, ")\n    };\n");
    }
-
+
 /*
  * prtstr - print an Icon string literal as a C string literal.
  */
@@ -142,38 +142,38 @@ int len;
       ++n_chars;
       c = *s++;
       if (c == '\\')
-         c = escape(&s, &len);
+	 c = escape(&s, &len);
       switch (c) {
-         case '\n':
-            fprintf(f, "\\n");
-            break;
-         case '\t':
-            fprintf(f, "\\t");
-            break;
-         case '\v':
-            fprintf(f, "\\v");
-            break;
-         case '\b':
-            fprintf(f, "\\b");
-            break;
-         case '\r':
-            fprintf(f, "\\r");
-            break;
-         case '\f':
-            fprintf(f, "\\f");
-            break;
-         case '\\':
-            fprintf(f, "\\\\");
-            break;
-         case '\"':
-            fprintf(f, "\\\"");
-            break;
-         default:
-            if (C_isprint(c))
-               fprintf(f, "%c", c);
-            else
-               fprintf(f, "\\%03o", (int)c);
-         }
+	 case '\n':
+	    fprintf(f, "\\n");
+	    break;
+	 case '\t':
+	    fprintf(f, "\\t");
+	    break;
+	 case '\v':
+	    fprintf(f, "\\v");
+	    break;
+	 case '\b':
+	    fprintf(f, "\\b");
+	    break;
+	 case '\r':
+	    fprintf(f, "\\r");
+	    break;
+	 case '\f':
+	    fprintf(f, "\\f");
+	    break;
+	 case '\\':
+	    fprintf(f, "\\\\");
+	    break;
+	 case '\"':
+	    fprintf(f, "\\\"");
+	    break;
+	 default:
+	    if (C_isprint(c))
+	       fprintf(f, "%c", c);
+	    else
+	       fprintf(f, "\\%03o", (int)c);
+	 }
       }
    return n_chars;
    }
