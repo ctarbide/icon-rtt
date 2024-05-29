@@ -952,6 +952,18 @@ struct sym_entry *sym;
    return sym ? sym->image : "nullsym";
    }
 
+/* [a]ny token
+ */
+int
+is_a(n, nd_id)
+struct node *n;
+int nd_id;
+   {
+   return n && n->nd_id == nd_id;
+   }
+
+/* [n]ull token
+ */
 int
 is_n(n, nd_id)
 struct node *n;
@@ -960,6 +972,8 @@ int nd_id;
    return n && n->nd_id == nd_id && n->tok == NULL;
    }
 
+/* has [t]oken
+ */
 int
 is_t(n, nd_id, tok_id)
 struct node *n;

@@ -1,4 +1,5 @@
 
+/* fprintf(stderr, "/""*%d,%s*""/\n", __LINE__, node_name(n)); */
 /* fprintf(stderr, "/""*%d,%d,%s*""/\n", __LINE__, n->gln, node_name(n)); */
 /* fprintf(g_out_file, "\n/""*%d,%d*""/\n", __LINE__, n->gln); */
 /* fprintf(g_out_file, "\n/""*%d,%d,%s*""/\n", __LINE__, n->gln, node_name(n)); */
@@ -1257,7 +1258,8 @@ int indent, brace, may_force_nl;
 	       /*
 		* Initializer list.
 		*/
-	       ForceNl();
+	       if (!is_a(n->u[0].child, PrimryNd))
+		  ForceNl();
 	       prt_tok(t, indent + IndentInc);     /* { */
 	       c_walk(n->u[0].child, indent + IndentInc, 0);
 	       prt_str("}", indent + IndentInc);

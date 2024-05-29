@@ -111,6 +111,11 @@ const char *node_name(struct node *nd);
 const char *
 sym_name(struct sym_entry *sym);
 
+/* is_a(...): [a]ny token
+ * is_n(...): [n]ull token
+ * is_t(...): has [t]oken
+ */
+int is_a(struct node *n, int nd_id);
 int is_n(struct node *n, int nd_id);
 int is_t(struct node *n, int nd_id, int tok_id);
 
