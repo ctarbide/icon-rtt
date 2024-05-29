@@ -397,7 +397,7 @@ struct token *t;
        */
       nesting = 0;
       t1 = next_tok();
-      while (t1 != NULL && (nesting > 0 || t1->tok_id != PpEnddef)) {
+      while (t1 && (nesting > 0 || t1->tok_id != PpEnddef)) {
 	 if (t1->tok_id == PpBegdef)
 	    ++nesting;
 	 else if (t1->tok_id == PpEnddef)
@@ -405,7 +405,7 @@ struct token *t;
 	 (*ptlst) = new_t_lst(t1);
 	 ptlst = &(*ptlst)->next;
 	 t1 = next_tok();
-	 if (t1->tok_id == Identifier && strncmp(t1->image, "__sym_", 6) == 0) {
+	 if (t1 && t1->tok_id == Identifier && strncmp(t1->image, "__sym_", 6) == 0) {
 	    int i;
 	    for (i=0; i<syms_tally && syms[i] != t1->image; i++);
 	    if (i == syms_tally) {
