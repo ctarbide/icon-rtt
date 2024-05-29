@@ -405,18 +405,23 @@ struct token *t;
 	 (*ptlst) = new_t_lst(t1);
 	 ptlst = &(*ptlst)->next;
 	 t1 = next_tok();
-	 if (t1 && t1->tok_id == Identifier && strncmp(t1->image, "__sym_", 6) == 0) {
-	    int i;
-	    for (i=0; i<syms_tally && syms[i] != t1->image; i++);
-	    if (i == syms_tally) {
-	       if (syms_tally >= MAX_SYMS) {
-		  fprintf(stderr, "Exhaustion %s:%d, syms_tally=%d\n",
-		     __FILE__, __LINE__, syms_tally);
-		  exit(1);
+	 if (t1 && t1->tok_id == Identifier) {
+	    if (strncmp(t1->image, "__sym_", 6) == 0) {
+	       int i;
+	       for (i=0; i<syms_tally && syms[i] != t1->image; i++);
+	       if (i == syms_tally) {
+		  if (syms_tally >= MAX_SYMS) {
+		     fprintf(stderr, "Exhaustion %s:%d, syms_tally=%d\n",
+			__FILE__, __LINE__, syms_tally);
+		     exit(1);
+		     }
+		  symids[syms_tally] = g_sym_counter++;
+		  syms[syms_tally] = t1->image;
+		  syms_tally++;
 		  }
-	       symids[syms_tally] = g_sym_counter++;
-	       syms[syms_tally] = t1->image;
-	       syms_tally++;
+	       }
+	    else if (strncmp(t1->image, "_sym_", 5) == 0) {
+	       errt2(t1, "found \"_sym_\" prefix, is this a typo? ", t1->image);
 	       }
 	    }
 	 }
