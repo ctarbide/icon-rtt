@@ -210,6 +210,9 @@ FILE *out_file;
 	    case LCharConst:
 	       fprintf(out_file, "L'%s'", t->image);
 	       break;
+	    case Output:
+	       fprintf(out_file, "/* output to \"%s\" */", t->image);
+	       break;
 	    default:
 	       fprintf(out_file, "%s", t->image);
 	    }

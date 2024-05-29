@@ -4133,7 +4133,7 @@ struct token *t;
    }
 
 /*
- * outputdir - sets output file name
+ * outputdir - sets output file name, #output directive
  */
 void outputdir(t)
 struct token *t;
