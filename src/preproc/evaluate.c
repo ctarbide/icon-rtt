@@ -8,6 +8,14 @@
 #include "../preproc/preproc.h"
 #include "../preproc/ptoken.h"
 
+#ifdef __SIZEOF_LONG_LONG__
+typedef long long expr_t;
+typedef unsigned long long uexpr_t;
+#else
+typedef long expr_t;
+typedef unsigned long uexpr_t;
+#endif
+
 /*
  * Prototypes for static functions.
  */
@@ -40,7 +48,7 @@ struct token *trigger;
    {
    struct token *t = NULL;
    struct token *id = NULL;
-   long e1;
+   expr_t e1;
    int i;
    int is_hex_char;
    char *s;
@@ -150,8 +158,16 @@ struct token *trigger;
 	       ++s;
 	       if (*s == '\0')
 		  return e1;
-	       else if ((*s == 'l' || *s == 'L') && *++s == '\0')
-		  return e1;
+	       else if (*s == 'l' || *s == 'L') {
+		  ++s;
+		  if (*s == '\0')
+		     return e1;
+		  else if (*s == 'l' || *s == 'L') {
+		     ++s;
+		     if (*s == '\0')
+			return e1;
+		     }
+		  }
 	       }
 	    else if (*s == 'l' || *s == 'L') {
 	       ++s;

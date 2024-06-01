@@ -181,14 +181,28 @@ char *s;
       ++s;
       if (*s == 'l' || *s == 'L') {
 	 ++s;
-	 tok_id = ULIntConst;  /* unsigned long */
+	 if (*s == 'l' || *s == 'L') {
+	    ++s;
+	    tok_id = ULLIntConst;  /* unsigned long long */
+	    }
+	 else
+	    tok_id = ULIntConst;  /* unsigned long */
 	 }
       else
 	 tok_id  = UIntConst;  /* unsigned */
       }
    else if (*s == 'l' || *s == 'L') {
       ++s;
-      if (*s == 'u' || *s == 'U') {
+      if (*s == 'l' || *s == 'L') {
+	 ++s;
+	 if (*s == 'u' || *s == 'U') {
+	    ++s;
+	    tok_id = ULLIntConst;  /* unsigned long long */
+	    }
+	 else
+	    tok_id = LLIntConst;  /* long long */
+	 }
+      else if (*s == 'u' || *s == 'U') {
 	 ++s;
 	 tok_id = ULIntConst;  /* unsigned long */
 	 }

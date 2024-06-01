@@ -30,6 +30,8 @@ CFLAGS := $(CFLAGS) -Wpointer-arith
 CFLAGS := $(CFLAGS) -Wno-unused-parameter
 CFLAGS := $(CFLAGS) -Wno-unknown-pragmas
 CFLAGS := $(CFLAGS) -Wno-strict-aliasing
+# '-Wno-long-long' allow use of 64-bit constants (ll/ull suffix) with ansi
+CFLAGS := $(CFLAGS) -Wno-long-long
 CFLAGS := $(CFLAGS) -Werror -fmax-errors=3
 
 CFDYN = -fPIC

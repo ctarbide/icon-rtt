@@ -5,7 +5,8 @@
 
 %{
 #include "rtt1.h"
-#define YYMAXDEPTH 250
+/* 10000 is the default for "yacc - 2.0 20240109" */
+#define YYMAXDEPTH 5000
 %}
 
 /* %debug */
@@ -18,6 +19,7 @@
 
 %token <t> Identifier StrLit LStrLit FltConst DblConst LDblConst
 %token <t> CharConst LCharConst IntConst UIntConst LIntConst ULIntConst
+%token <t> LLIntConst ULLIntConst
 %token <t> Arrow Incr Decr LShft RShft Leq Geq Equal Neq
 %token <t> And Or MultAsgn DivAsgn ModAsgn PlusAsgn
 %token <t> MinusAsgn LShftAsgn RShftAsgn AndAsgn
@@ -95,7 +97,9 @@ primary_expr
    | IntConst     {$$ = node0ex(__LINE__, PrimryNd, $1);}
    | UIntConst    {$$ = node0ex(__LINE__, PrimryNd, $1);}
    | LIntConst    {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | LLIntConst   {$$ = node0ex(__LINE__, PrimryNd, $1);}
    | ULIntConst   {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | ULLIntConst  {$$ = node0ex(__LINE__, PrimryNd, $1);}
    | '(' expr ')' {$$ = node1(PrefxNd, $1, $2); free_t($3);}
    ;
 
