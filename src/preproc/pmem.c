@@ -173,7 +173,7 @@ union src_ref *ref;
    sp->ntoks = 0;
 
    if (g_src_stack->flag == CharSrc)
-      g_src_stack->u.cs->next_char = next_char;
+      g_src_stack->u.cs->next_char = g_next_char;
    sp->next = g_src_stack;
    g_src_stack = sp;
    }
@@ -277,9 +277,9 @@ void pop_src()
     *  variables used in tokenizing the characters.
     */
    if (g_src_stack->flag == CharSrc) {
-      first_char = g_src_stack->u.cs->char_buf;
-      next_char = g_src_stack->u.cs->next_char;
-      last_char = g_src_stack->u.cs->last_char;
+      g_first_char = g_src_stack->u.cs->char_buf;
+      g_next_char = g_src_stack->u.cs->next_char;
+      g_last_char = g_src_stack->u.cs->last_char;
       }
 
    /*

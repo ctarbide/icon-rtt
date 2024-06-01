@@ -86,8 +86,8 @@ struct token *next_tok()
 	     */
 	    if (fname != NULL)
 	       cs->fname = fname;
-	    cs->line_adj = n - cs->line_buf[next_char - first_char + 1];
-	    if (*next_char == '\n')
+	    cs->line_adj = n - cs->line_buf[g_next_char - g_first_char + 1];
+	    if (*g_next_char == '\n')
 	       ++cs->line_adj;  /* the next lines contains no characters */
 
 	    t = next_tok();     /* the caller does not see #line directives */
@@ -142,7 +142,7 @@ struct token **tp;
    struct token *t;
 
    t = next_tok();
-   while (t != NULL && t->tok_id == WhiteSpace) {
+   while (t && t->tok_id == WhiteSpace) {
       free_t(t);
       t = next_tok();
       }
@@ -183,8 +183,7 @@ struct token *(*t_src)(void);
    {
    struct token *t1;
    int line = -1;
-   char *fname = "";
-   char *s;
+   char *fname = "", *s;
 
    free_t(*whsp);
    t1 = (*t_src)();
@@ -193,13 +192,13 @@ struct token *(*t_src)(void);
    else {
       *whsp = t1;
       t1 = (*t_src)();
-      if (t1 != NULL && t1->tok_id == WhiteSpace) {
-	 if (whsp_image == NoSpelling) {
+      if (t1 && t1->tok_id == WhiteSpace) {
+	 if (g_whsp_image == NoSpelling) {
 	    /*
 	     * We don't care what the white space looks like, so
 	     *  discard the rest of it.
 	     */
-	    while (t1 != NULL && t1->tok_id == WhiteSpace) {
+	    while (t1 && t1->tok_id == WhiteSpace) {
 	       free_t(t1);
 	       t1 = (*t_src)();
 	       }

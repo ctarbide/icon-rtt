@@ -26,7 +26,7 @@ FILE *f;
 
    ref.cs = new_cs(fname, f, CBufSize);
    push_src(CharSrc, &ref);
-   next_char = NULL;
+   g_next_char = NULL;
    fill_cbuf();
    }
 

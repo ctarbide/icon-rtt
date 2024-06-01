@@ -165,7 +165,6 @@ char *new_fname;
 	 fprintf(g_out_file, "\"*/");
       else
 	 fprintf(g_out_file, "\"*/\n");
-      /*fprintf(g_out_file, "/""*147*""/");*/
       g_nl = 1;
       --nxt_line;
       }
@@ -176,7 +175,6 @@ char *new_fname;
        */
       if (nxt_line > g_line + 1 || g_fname != new_fname)
 	 fprintf(g_out_file, "\n");
-      /* fprintf(g_out_file, "/""*158[%d][%d],g_line=%d,nxt_line=%d*""/", nxt_line > g_line + 1, g_fname != new_fname, g_line, nxt_line); */
       g_nl = 1;
       --nxt_line;
       }

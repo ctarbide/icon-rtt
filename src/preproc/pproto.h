@@ -61,3 +61,5 @@ void            show_usage   (void);
 void            source       (char *fname);
 void            str_src      (char *src_name, char *s, int len);
 struct token      *tokenize     (void);
+
+void src_line_updt(int ln, char *fn);

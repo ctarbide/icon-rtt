@@ -126,10 +126,6 @@
    #define DBSuffix ".db"
 #endif					/* DBSuffix */
 
-#ifndef PPDirectives
-   #define PPDirectives {"passthru", PpKeep}, {"output", PpOutput},
-#endif					/* PPDirectives */
-
 #ifndef ExecSuffix
    #define ExecSuffix ""
 #endif					/* ExecSuffix */

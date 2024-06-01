@@ -574,7 +574,7 @@ struct macro *m;
 	    tlp = &exp_args[narg]; /* location of expanded token list for arg */
 	    *tlp = NULL;
 	    if (g_src_stack->flag == CharSrc)
-	       g_src_stack->u.cs->next_char = next_char; /* save state */
+	       g_src_stack->u.cs->next_char = g_next_char; /* save state */
 	    stack_sav = g_src_stack;
 	    g_src_stack = &dummy;
 	    ref.tlst = args[narg];
@@ -591,9 +591,9 @@ struct macro *m;
 	       /*
 		* Restore global state for tokenizing.
 		*/
-	       first_char = g_src_stack->u.cs->char_buf;
-	       next_char = g_src_stack->u.cs->next_char;
-	       last_char = g_src_stack->u.cs->last_char;
+	       g_first_char = g_src_stack->u.cs->char_buf;
+	       g_next_char = g_src_stack->u.cs->next_char;
+	       g_last_char = g_src_stack->u.cs->last_char;
 	       }
 	    }
 	 }
@@ -777,7 +777,7 @@ struct token *interp_dir()
 	    advance_tok(&t1);
 
 	    if (t1->tok_id != StrLit)
-	       errt1(t1, "#output requires a file path argument");
+	       errt1(t1, "#output requires a string literal pointing to a file path");
 
 	    free_t(t);
 	    t = t1;
@@ -1048,6 +1048,8 @@ struct token *preproc()
    return t1;
    }
 
+/* Cleanup.
+ */
 void finish_preproc()
    {
    finish_tok();

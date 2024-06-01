@@ -8,6 +8,11 @@
 static struct str_buf sbuf_macro[1];
 #define sbuf sbuf_macro
 
+/* g_line is for the output, g_line_for___LINE__ is for the input
+ */
+int g_line_for___LINE__ = 0;
+char *g_fname_for___FILE__ = "";
+
 /*
  * Prototypes for static functions.
  */
@@ -273,14 +278,14 @@ struct token *id;
 
    m = *m_find(id->image);
    if (m != NULL && m->category == SpecMac) {
+      int ln = g_line_for___LINE__;
+      char *fn = g_fname_for___FILE__;
       if (m->mname == line_mac) {  /* __LINE___ */
-	 sprintf(buf, "%d", id->line);
-	 m->body = new_t_lst(new_token(PpNumber, buf, id->fname,
-	    id->line));
+	 sprintf(buf, "%d", ln);
+	 m->body = new_t_lst(new_token(PpNumber, buf, fn, ln));
 	 }
       else if (m->mname == file_mac) /* __FILE__ */
-	 m->body = new_t_lst(new_token(StrLit, id->fname, id->fname,
-	    id->line));
+	 m->body = new_t_lst(new_token(StrLit, fn, fn, ln));
       }
    return m;
    }
@@ -551,9 +556,9 @@ struct token *paste()
       *(ref.cs->line_buf) = trigger->line;
    ref.cs->last_char = s;
    ref.cs->dir_state = Reset;
-   first_char = ref.cs->char_buf;
-   next_char = first_char;
-   last_char = ref.cs->last_char;
+   g_first_char = ref.cs->char_buf;
+   g_next_char = g_first_char;
+   g_last_char = ref.cs->last_char;
 
    return next_tok(); /* first token from pasted images */
    }
@@ -655,4 +660,14 @@ struct token *mac_tok()
        */
       return t;
       }
+   }
+
+/* Update input/source info for special macros __LINE__ and __FILE__.
+ */
+void src_line_updt(ln, fn)
+int ln;
+char *fn;
+   {
+   g_line_for___LINE__ = ln;
+   g_fname_for___FILE__ = fn;
    }

@@ -93,9 +93,9 @@ int len;
    *ip2 = 0;
    ref.cs->next_char = ref.cs->char_buf;
    ref.cs->last_char = ip1;
-   first_char = ref.cs->char_buf;
-   next_char = first_char;
-   last_char = ref.cs->last_char;
+   g_first_char = ref.cs->char_buf;
+   g_next_char = g_first_char;
+   g_last_char = ref.cs->last_char;
    }
 
 /*

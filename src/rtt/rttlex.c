@@ -331,7 +331,7 @@ int yylex()
       yylval.t->tok_id = Output;
       }
    else if (lex_state == OpHead && yylval.t->tok_id != '}' &&
-     GoodChar((int)yylval.t->image[0])) {
+	 GoodChar((int)yylval.t->image[0])) {
       /*
        * This should be the operator symbol in the header of an operation
        *  declaration. Concatenate all operator symbols into one token

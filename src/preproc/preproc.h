@@ -10,6 +10,9 @@
 
 #define CBufSize 256  /* size of buffer for file input */
 
+/* Tokens defined by the grammar (IDs <= 1000) are defined in ptoken.h
+ */
+
 /*
  * Identification numbers for tokens for which there are no definitions
  *   generated from a C grammar by yacc.
@@ -42,7 +45,7 @@ extern char *g_progname; /* name of this program: for error messages */
 extern int line_cntrl; /* flag: are line directives needed in the output */
 
 /*
- * whsp_image determines whether the spelling of white space is not retained,
+ * g_whsp_image determines whether the spelling of white space is not retained,
  *   is retained with each comment replaced by a space, or the full spelling
  *   of white space and comments is retained.
  */
@@ -50,15 +53,18 @@ extern int line_cntrl; /* flag: are line directives needed in the output */
 #define NoComment  1
 #define FullImage  2
 
-extern int whsp_image;
+extern int g_line_for___LINE__;      /* __LINE__ is a special case */
+extern char *g_fname_for___FILE__;   /* __FILE__ is a special case */
+
+extern int g_whsp_image;
 
 extern int max_recurse;        /* how much recursion is allows in macros */
 extern struct token *zero_tok; /* token "0" */
 extern struct token *one_tok;  /* token "1" */
 
-extern int *first_char;        /* first character in tokenizing buffer */
-extern int *next_char;         /* next character in tokenizing buffer */
-extern int *last_char;         /* last character in tokenizing buffer */
+extern int *g_first_char;        /* first character in tokenizing buffer */
+extern int *g_next_char;         /* next character in tokenizing buffer */
+extern int *g_last_char;         /* last character in tokenizing buffer */
 
 extern int g_tk_flg;
 

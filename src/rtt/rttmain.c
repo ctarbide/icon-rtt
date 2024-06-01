@@ -95,7 +95,7 @@ char **argv;
     *  only be significant with the -E option) and #line directives
     *  are required in the output.
     */
-   whsp_image = NoSpelling;
+   g_whsp_image = NoSpelling;
    line_cntrl = 1;
 
    /*
@@ -114,11 +114,11 @@ char **argv;
       switch (c) {
 	 case 'E': /* run preprocessor only */
 	    pp_only = 1;
-	    if (whsp_image == NoSpelling)
-	       whsp_image = NoComment;
+	    if (g_whsp_image == NoSpelling)
+	       g_whsp_image = NoComment;
 	    break;
 	 case 'C':  /* retain spelling of white space, only effective with -E */
-	    whsp_image = FullImage;
+	    g_whsp_image = FullImage;
 	    break;
 	  case 'P': /* do not produce #line directives in output */
 	    line_cntrl = 0;
