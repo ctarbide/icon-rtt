@@ -88,6 +88,7 @@ static struct node *defining_identifier(struct node *n);
 static char top_level_chunk_name_buffer[100];
 static int c_walk_cat(struct node *n, int indent, int brace);
 static int c_walk_nl(struct node *n, int indent, int brace, int may_force_nl);
+static struct node *has_primry(struct node *n, int p);
 
 int op_type = OrdFunc;  /* type of operation */
 char lc_letter;         /* f = function, o = operator, k = keyword */
@@ -1191,16 +1192,6 @@ int indent, brace, may_force_nl;
       return 1;
 
    t = n->tok;
-
-#ifdef TRACE_C_WALK
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: c_walk(%s)\n", __FILE__, __LINE__, trace_count,
-	    node_name(n));
-      /* trace correlation */
-      /*fprintf(g_out_file, "/""*%d,g=%d,t=%lu,nl=%d*""/", __LINE__, n->gln, trace_count, g_nl);*/
-   }
-#endif
-
    switch (n->nd_id) {
       case PrimryNd: /* simply a token */
 	 switch (t->tok_id) {
@@ -1532,7 +1523,6 @@ int indent, brace, may_force_nl;
 		* function call or declaration: <expr> ( <expr-list> )
 		*/
 	       if (n->u[0].child == NULL) {
-		  fprintf(g_out_file, "\n/""*%d,%d,%s*""/\n", __LINE__, n->gln, node_name(n));
 		  fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
 		  exit(1);
 		  }
@@ -1822,8 +1812,6 @@ int indent, brace, may_force_nl;
 			IndentInc);
 		     break;
 		  }
-	       fprintf(stderr, "\n/""*%d,%d,TODO*""/\n", __LINE__, n->gln);
-	       exit(1);
 	       c_walk(sym->u.tnd_var.init, 2 * IndentInc, 0);
 	       prt_str(";", 2 * IndentInc);
 	       ForceNl();
@@ -3264,29 +3252,45 @@ struct node *n;
    free_tree(n);
    }
 
+static struct node *has_primry(n, p)
+struct node *n;
+int p;
+   {
+   if (n == NULL)
+      return NULL;
+   if (is_n(n, LstNd)) {
+      struct node *r;
+      if ((r = has_primry(n->u[0].child, p)))
+	 return r;
+      return has_primry(n->u[1].child, p);
+      }
+   return is_t(n, PrimryNd, p);
+   }
+
 static int is_static_function(head)
 struct node *head;
    {
-   if (head->nd_id == LstNd) {
-      struct node *u0 = head->u[0].child;
-      if (u0->nd_id == LstNd) {
-	 struct node *u00 = u0->u[0].child;
-	 if (u00->nd_id == PrimryNd && strcmp(u00->tok->image, "static") == 0) {
-	    return 1;
-	    }
-	 else {
-	    fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
-	    exit(1);
+   struct node *nd1;
+   if ((nd1 = nav_n_n(head, LstNd, 0, LstNd, 0))) {
+      if (is_a(nd1, PrimryNd)) {
+	 switch (nd1->tok->tok_id) {
+	    case Static:
+	       return 1;
+	    case Unsigned:
+	       return 0;
+	    default:
+	       fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	       exit(1);
 	    }
 	 }
-      else
-	 return 0;
+      else if (is_n(nd1, LstNd))
+	 return has_primry(nd1, Static) != NULL;
+      else {
+	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	 exit(1);
+	 }
       }
-   else {
-      fprintf(stderr, "Exhaustion %d.\n", __LINE__);
-      exit(1);
-      }
-   return 0; /* never reached */
+   return 0;
    }
 
 static struct node *fnc_head_args(head)
@@ -3303,11 +3307,11 @@ struct node **out;
 int start, len;
 struct node *n;
    {
-   if (n->nd_id == CommaNd) {
+   if (is_a(n, CommaNd)) {
       start = get_args_names(out, start, len, n->u[0].child);
       start = get_args_names(out, start, len, n->u[1].child);
       }
-   else if (n->nd_id == PrimryNd && n->tok->tok_id == Identifier) {
+   else if (is_t(n, PrimryNd, Identifier)) {
       if (start >= len) {
 	 fprintf(stderr, "Exhaustion %s:%d, too many arguments, more than %d.\n", __FILE__, __LINE__, len);
 	 exit(1);
@@ -3469,21 +3473,32 @@ struct node *head, *prm_dcl;
 
       for (i=0; i<argc; i++) {
 	 int j;
-	 struct token *identifier;
-	 struct node *found;
-	 identifier = names[i]->tok;
-	 found = NULL;
+	 struct node *found = NULL;
+	 char *id;
+	 id = names[i]->tok->image;
 	 for (j=0; j<argc; j++) {
-	    struct node *decl, *nd;
+	    struct node *decl, *nd, *nd2;
 	    decl = decls[j];
 	    if ((nd = nav_n_n(decl, LstNd, 1, ConCatNd, 1))) {
 	       if (nd->tok == NULL) {
 		  fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
 		  exit(1);
 		  }
-	       if (nd->tok->tok_id == identifier->tok_id && strcmp(nd->tok->image, identifier->image) == 0) {
-		  found = decl;
-		  break;
+	       if (is_t(nd, PrimryNd, Identifier)) {
+		  if (nd->tok->image == id) {
+		     found = decl;
+		     break;
+		     }
+		  }
+	       else if ((nd2 = nav_t_is_t(nd, BinryNd, '[', 0, PrimryNd, Identifier))) {
+		  if (nd2->tok->image == id) {
+		     found = decl;
+		     break;
+		     }
+		  }
+	       else {
+		  fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+		  exit(1);
 		  }
 	       }
 	    else {
@@ -3493,7 +3508,7 @@ struct node *head, *prm_dcl;
 	    }
 	 if (found == NULL) {
 	    fprintf(stderr, "Exhaustion %s:%d, declaration for identifier \"%s\" not found.\n",
-	       __FILE__, __LINE__, identifier->image);
+	       __FILE__, __LINE__, id);
 	    exit(1);
 	    }
 	 if (decl_lst == NULL) {

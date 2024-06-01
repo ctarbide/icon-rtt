@@ -115,9 +115,9 @@ sym_name(struct sym_entry *sym);
  * is_n(...): [n]ull token
  * is_t(...): has [t]oken
  */
-int is_a(struct node *n, int nd_id);
-int is_n(struct node *n, int nd_id);
-int is_t(struct node *n, int nd_id, int tok_id);
+struct node *is_a(struct node *n, int nd_id);
+struct node *is_n(struct node *n, int nd_id);
+struct node *is_t(struct node *n, int nd_id, int tok_id);
 
 struct node *
 nav_n(struct node *n, int nd_id, int child);
@@ -133,3 +133,6 @@ nav_n_t(struct node *n, int nd_id1, int child1, int nd_id2, int tok_id2, int chi
 
 struct node *
 nav_n_n_t(struct node *n, int nd_id1, int child1, int nd_id2, int child2, int nd_id3, int tok_id3, int child3);
+
+struct node *
+nav_t_is_t(struct node *n, int nd_id1, int tok_id1, int child1, int nd_id2, int tok_id2);

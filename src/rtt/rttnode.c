@@ -53,22 +53,15 @@ struct token *tok;
    {
    struct node *n;
 
-#ifdef TRACE_NODE
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: node0(id=%s, tok=\"%s\" (%d)) from %s:%d\n", __FILE__, __LINE__, trace_count,
-	 node_id_name(id), tok->image, tok->tok_id, tok->fname, tok->line);
-      }
-#endif
-
    n = NewNode(0);
    n->nd_id = id;
    n->tok = tok;
 #if defined(TRACE_NODE_MEMBER) && defined(TRACE_NODE_ADD_INFO)
-   {
+   do {
       char buf[100];
       token_name(tok, buf, sizeof(buf));
       n->trace = concat(node_id_name(id), ":", buf, NULL);
-      }
+      } while (0);
 #endif
    return n;
    }
@@ -82,23 +75,16 @@ struct token *tok;
    {
    struct node *n;
 
-#ifdef TRACE_NODE
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: node0(id=%s, tok=\"%s\" (%d)) from %s:%d\n", __FILE__, __LINE__, trace_count,
-	 node_id_name(id), tok->image, tok->tok_id, tok->fname, tok->line);
-      }
-#endif
-
    n = NewNode(0);
    n->gln = gln;
    n->nd_id = id;
    n->tok = tok;
 #if defined(TRACE_NODE_MEMBER) && defined(TRACE_NODE_ADD_INFO)
-   {
+   do {
       char buf[100];
       token_name(tok, buf, sizeof(buf));
       n->trace = concat(node_id_name(id), ":", buf, NULL);
-      }
+      } while (0);
 #endif
    return n;
    }
@@ -113,19 +99,12 @@ struct node *n1;
    {
    struct node *n;
 
-#ifdef TRACE_NODE
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: node1(id=%s) [n1=%s]\n", __FILE__, __LINE__, trace_count,
-	 node_id_name(id), node_name(n1));
-      }
-#endif
-
    n = NewNode(1);
    n->nd_id = id;
    n->tok = tok;
    n->u[0].child = n1;
 #if defined(TRACE_NODE_MEMBER) && defined(TRACE_NODE_ADD_INFO)
-   {
+   do {
       char buf[100];
       token_name(tok, buf, sizeof(buf));
       n->trace = concat(
@@ -133,7 +112,7 @@ struct node *n1;
 	 ":", buf, ":[",
 	 node_name(n1), "]",
 	 NULL);
-      }
+      } while (0);
 #endif
    return n;
    }
@@ -148,20 +127,13 @@ struct node *n1;
    {
    struct node *n;
 
-#ifdef TRACE_NODE
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: node1(id=%s) [n1=%s]\n", __FILE__, __LINE__, trace_count,
-	 node_id_name(id), node_name(n1));
-      }
-#endif
-
    n = NewNode(1);
    n->gln = gln;
    n->nd_id = id;
    n->tok = tok;
    n->u[0].child = n1;
 #if defined(TRACE_NODE_MEMBER) && defined(TRACE_NODE_ADD_INFO)
-   {
+   do {
       char buf[100];
       token_name(tok, buf, sizeof(buf));
       n->trace = concat(
@@ -169,7 +141,7 @@ struct node *n1;
 	 ":", buf, ":[",
 	 node_name(n1), "]",
 	 NULL);
-      }
+      } while (0);
 #endif
    return n;
    }
@@ -183,13 +155,6 @@ struct token *tok;
 struct node *n1, *n2;
    {
    struct node *n;
-
-#ifdef TRACE_NODE
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: node2(id=%s) [n1=%s, n2=%s]\n", __FILE__, __LINE__, trace_count,
-	 node_id_name(id), node_name(n1), node_name(n2));
-   }
-#endif
 
    n = NewNode(2);
    n->nd_id = id;
@@ -253,13 +218,6 @@ struct token *tok;
 struct node *n1, *n2;
    {
    struct node *n;
-
-#ifdef TRACE_NODE
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: node2(id=%s,gln=%d) [n1=%s, n2=%s]\n", __FILE__, __LINE__, trace_count,
-	 node_id_name(id), gln, node_name(n1), node_name(n2));
-   }
-#endif
 
    n = NewNode(2);
    n->gln = gln;
@@ -325,13 +283,6 @@ struct node *n1, *n2, *n3;
    {
    struct node *n;
 
-#ifdef TRACE_NODE
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: node3(id=%s) [n1=%s, n2=%s, n3=%s]\n", __FILE__, __LINE__, trace_count,
-	 node_id_name(id), node_name(n1), node_name(n2), node_name(n3));
-   }
-#endif
-
    n = NewNode(3);
    n->nd_id = id;
    n->tok = tok;
@@ -372,13 +323,6 @@ struct token *tok;
 struct node *n1, *n2, *n3;
    {
    struct node *n;
-
-#ifdef TRACE_NODE
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: node3(id=%s) [n1=%s, n2=%s, n3=%s]\n", __FILE__, __LINE__, trace_count,
-	 node_id_name(id), node_name(n1), node_name(n2), node_name(n3));
-   }
-#endif
 
    n = NewNode(3);
    n->gln = gln;
@@ -422,13 +366,6 @@ struct node *n1, *n2, *n3, *n4;
    {
    struct node *n;
 
-#ifdef TRACE_NODE
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: node4(id=%s) [n1=%s, n2=%s, n3=%s, n4=%s]\n", __FILE__, __LINE__, trace_count,
-	 node_id_name(id), node_name(n1), node_name(n2), node_name(n3), node_name(n4));
-   }
-#endif
-
    n = NewNode(4);
    n->nd_id = id;
    n->tok = tok;
@@ -448,13 +385,6 @@ struct token *tok;
 struct node *n1, *n2, *n3, *n4;
    {
    struct node *n;
-
-#ifdef TRACE_NODE
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: node4(id=%s) [n1=%s, n2=%s, n3=%s, n4=%s]\n", __FILE__, __LINE__, trace_count,
-	 node_id_name(id), node_name(n1), node_name(n2), node_name(n3), node_name(n4));
-   }
-#endif
 
    n = NewNode(4);
    n->gln = gln;
@@ -478,13 +408,6 @@ struct token *tok;
    struct sym_entry *sym;
    struct node *n;
 
-#ifdef TRACE_NODE
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: sym_node(tok=%d \"%s\")\n", __FILE__, __LINE__, trace_count,
-	 tok->tok_id, tok->image);
-   }
-#endif
-
    sym = sym_lkup(tok->image);
    if (sym != NULL) {
       n = NewNode(1);
@@ -499,11 +422,11 @@ struct token *tok;
       if (sym->id_type == RsltLoc)
          sym->u.referenced = 1;
 #if defined(TRACE_NODE_MEMBER) && defined(TRACE_NODE_ADD_INFO)
-      {
+      do {
 	 char buf[100];
 	 token_name(tok, buf, sizeof(buf));
 	 n->trace = concat("sym:", buf, NULL);
-	 }
+	 } while (0);
 #endif
       return n;
       }
@@ -522,13 +445,6 @@ struct node *stmts;
    {
    struct node *n;
 
-#ifdef TRACE_NODE
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: comp_nd(tok=%d \"%s\") [dcls=%s, stmts=%s]\n", __FILE__, __LINE__, trace_count,
-	 tok->tok_id, tok->image, node_name(dcls), node_name(stmts));
-   }
-#endif
-
    n = NewNode(3);
    n->gln = gln;
    n->nd_id = CompNd;
@@ -538,7 +454,7 @@ struct node *stmts;
    n->u[2].child = stmts;
 
 #if defined(TRACE_NODE_MEMBER) && defined(TRACE_NODE_ADD_INFO)
-   {
+   do {
       char buf[100];
       token_name(tok, buf, sizeof(buf));
       n->trace = concat(
@@ -547,7 +463,7 @@ struct node *stmts;
 	 sym_name(g_dcl_stk->tended), "]:[",
 	 node_name(stmts), "]",
 	 NULL);
-      }
+      } while (0);
 #endif
    return n;
    }
@@ -563,13 +479,6 @@ struct node *intgr, *i_act;
 struct node *dbl, *d_act;
    {
    struct node *n;
-
-#ifdef TRACE_NODE
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: arith_nd(tok=%d \"%s\")\n", __FILE__, __LINE__, trace_count,
-	 tok->tok_id, tok->image);
-   }
-#endif
 
    /*
     * Ensure the cases are what we expect.
@@ -606,13 +515,6 @@ struct token *tok;
    {
    struct node *n;
    int typcd;
-
-#ifdef TRACE_NODE
-   if (can_output_trace()) {
-      fprintf(stderr, "TRACE:%s:%d:%lu: dest_node(tok=%d \"%s\")\n", __FILE__, __LINE__, trace_count,
-	 tok->tok_id, tok->image);
-   }
-#endif
 
    n = sym_node(tok);
    typcd = n->u[0].sym->u.typ_indx;
@@ -793,9 +695,8 @@ struct node *nd;
    {
    if (nd) {
 #ifdef TRACE_NODE_MEMBER
-      if (nd->trace) {
+      if (nd->trace)
 	 return nd->trace;
-	 }
 #endif
       return node_id_name(nd->nd_id);
       }
@@ -954,32 +855,38 @@ struct sym_entry *sym;
 
 /* [a]ny token
  */
-int
+struct node *
 is_a(n, nd_id)
 struct node *n;
 int nd_id;
    {
-   return n && n->nd_id == nd_id;
+   if (n && n->nd_id == nd_id)
+      return n;
+   return NULL;
    }
 
 /* [n]ull token
  */
-int
+struct node *
 is_n(n, nd_id)
 struct node *n;
 int nd_id;
    {
-   return n && n->nd_id == nd_id && n->tok == NULL;
+   if (n && n->nd_id == nd_id && n->tok == NULL)
+      return n;
+   return NULL;
    }
 
 /* has [t]oken
  */
-int
+struct node *
 is_t(n, nd_id, tok_id)
 struct node *n;
 int nd_id, tok_id;
    {
-   return n && n->nd_id == nd_id && n->tok && n->tok->tok_id == tok_id;
+   if (n && n->nd_id == nd_id && n->tok && n->tok->tok_id == tok_id)
+      return n;
+   return NULL;
    }
 
 struct node *
@@ -1034,5 +941,16 @@ int child1, child2, child3;
    if ((nd1 = nav_n(n, nd_id1, child1)))
       if ((nd2 = nav_n_t(nd1, nd_id2, child2, nd_id3, tok_id3, child3)))
 	 return nd2;
+   return NULL;
+   }
+
+struct node *
+nav_t_is_t(n, nd_id1, tok_id1, child1, nd_id2, tok_id2)
+struct node *n;
+int nd_id1, tok_id1, child1, nd_id2, tok_id2;
+   {
+   struct node *nd;
+   if ((nd = nav_t(n, nd_id1, tok_id1, child1)))
+      return is_t(nd, nd_id2, tok_id2);
    return NULL;
    }
