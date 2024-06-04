@@ -17,12 +17,10 @@ struct src dummy;
  * init_preproc - initialize all parts of the preprocessor, establishing
  *  the primary file as the current source of tokens.
  */
-void init_preproc(fname, opt_lst, opt_args)
-char *fname;
+void init_preproc(opt_lst, opt_args)
 char *opt_lst;
 char **opt_args;
    {
-
    init_str();                      /* initialize string table */
    init_tok();                      /* initialize tokenizer */
    init_macro();                    /* initialize macro table */
@@ -31,7 +29,6 @@ char **opt_args;
    dummy.ntoks = 0;
    g_src_stack = &dummy;
    mac_opts(opt_lst, opt_args);     /* process options for predefined macros */
-   source(fname);                   /* establish primary source file */
    }
 
 /*
@@ -71,8 +68,7 @@ char **opt_args;
  *  as the current source of tokens.
  */
 void str_src(src_name, s, len)
-char *src_name;
-char *s;
+char *src_name, *s;
 int len;
    {
    union src_ref ref;

@@ -39,6 +39,7 @@ char *fname;
    {
    FILE *f;
 
+   assert(fname);
    if (strcmp(fname, "-") == 0)
       file_src("<stdin>", stdin);
    else {

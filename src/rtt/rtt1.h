@@ -59,9 +59,13 @@ extern int g_switch_level; /* let nodes be aware of their existence in a switch 
 
 extern int lex_state;      /* state of operator recognition */
 extern char *compiler_def; /* #define for COMPILER */
-extern FILE *g_out_file;     /* output file */
-extern int def_fnd;        /* C input defines something concrete */
+extern FILE *g_out_file;   /* output file */
+extern int g_def_fnd;      /* C input defines something concrete */
+
+#if 0
 extern char *inclname;     /* include file to be included by C compiler */
+#endif
+
 extern int iconx_flg;      /* flag: indicate that iconx style code is needed */
 extern char *largeints;    /* "Largeints" or "NoLargeInts" */
 

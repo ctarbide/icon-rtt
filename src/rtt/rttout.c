@@ -1581,15 +1581,18 @@ int indent, brace, may_force_nl;
 		* <type-specs> <declarator> ;
 		*/
 	       if (indent == 0) {
-		  prt_str(top_level_chunk_name(n), indent);
-		  ForceNl();
-		  c_walk(n->u[0].child, indent, 0);
-		  if (n->u[1].child) {
-		     prt_str(" ", indent);
-		     c_walk(n->u[1].child, indent, 0);
+		  char *chunk_name = top_level_chunk_name(n);
+		  if (chunk_name) {
+		     prt_str(chunk_name, indent);
+		     ForceNl();
+		     c_walk(n->u[0].child, indent, 0);
+		     if (n->u[1].child) {
+			prt_str(" ", indent);
+			c_walk(n->u[1].child, indent, 0);
+			}
+		     prt_tok(t, indent);  /* ; */
+		     prt_str("\n@", indent);
 		     }
-		  prt_tok(t, indent);  /* ; */
-		  prt_str("\n@", indent);
 		  }
 	       else {
 		  c_walk(n->u[0].child, indent, 0);
@@ -3246,9 +3249,16 @@ struct node *n;
 void dclout(n)
 struct node *n;
    {
-   if (real_def(n))
-      def_fnd = 1;   /* this declaration defines a run-time object */
+   int is_concrete;
+
+   assert(g_def_fnd >= 0);
+
+   /* this declaration defines a run-time object */
+   is_concrete = real_def(n);
+
+   g_def_fnd += is_concrete;
    c_walk(n, 0, 0);
+   g_def_fnd -= is_concrete;
    free_tree(n);
    }
 
@@ -3552,7 +3562,8 @@ struct node *head, *prm_dcl, *block;
    {
    struct node *head_ansi;
 
-   def_fnd = 1;     /* this declaration defines a run-time object */
+   assert(g_def_fnd >= 0);
+   ++g_def_fnd;       /* this declaration defines a run-time object */
 
    g_nxt_sbuf = 0;    /* clear number of string buffers */
    g_nxt_cbuf = 0;    /* clear number of cset buffers */
@@ -3610,6 +3621,8 @@ struct node *head, *prm_dcl, *block;
    free_tree(block);
    pop_cntxt();
    clr_def();
+
+   --g_def_fnd;
    }
 
 /*
@@ -4172,8 +4185,14 @@ void prologue()
    {
    id_comment(g_out_file);
    fprintf(g_out_file, "<<preamble>>=\n");
+#if 0
    fprintf(g_out_file, "%s", compiler_def);
    fprintf(g_out_file, "#include \"%s\"\n", inclname);
+#else
+   /* TODO: evaluate the need for prologue() */
+   fprintf(g_out_file, "/* %s */\n", "compiler_def");
+   fprintf(g_out_file, "#include \"%s\"\n", "inclname");
+#endif
    fprintf(g_out_file, "#include \"protos.h\"\n@");
    ForceNl();
    }
@@ -4299,7 +4318,7 @@ struct node *n;
 	 return "<<typedefs>>=";
 	 }
       }
-   return "<<globals>>=";
+   return g_def_fnd ? "<<globals>>=" : NULL;
    }
 
 static int c_walk_cat(n, indent, brace)

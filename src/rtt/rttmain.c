@@ -21,13 +21,18 @@ static char *options =
    "[-E] [-C] [-P] [-Dname[=[text]]] [-Uname] [-Ipath] [-dfile]\n    \
 [-rpath] [-tname] [-x] [files]";
 
+#if 0
 /*
  * The relative path to grttin.h and rt.h depends on whether they are
  *  interpreted as relative to where rtt.exe is or where rtt.exe is
  *  invoked.
  */
-char *grttin_path = "../h/grttin.h";
-char *rt_path = "../h/rt.h";
+static char *grttin_path = "../h/grttin.h";
+#endif
+
+#if 0
+static char *rt_path = "../h/rt.h";
+#endif
 
 /*
  *  Note: rtt presently does not process system include files. If this
@@ -39,8 +44,12 @@ char *rt_path = "../h/rt.h";
 char *g_progname = "rtt";
 char *compiler_def;
 FILE *g_out_file;
+
+#if 0
 char *inclname;
-int def_fnd;
+#endif
+
+int g_def_fnd = 0;
 char *largeints = "LargeInts";
 
 int iconx_flg = 0;
@@ -62,7 +71,11 @@ static char *dbname = "rt.db";
 static int pp_only = 0;
 static char *opt_lst;
 static char **opt_args;
+
+#if 0
 static char *in_header;
+#endif
+
 static struct tdefnm *tdefnm_lst = NULL;
 
 int main(argc, argv)
@@ -83,12 +96,9 @@ char **argv;
    else
       refpath = relfile(argv[0], "/../");
 
-   /*
-    * Initialize the string table and indicate that File must be treated
-    *  as a typedef name.
+   /* Initialize the string table.
     */
    init_str();
-   add_tdef("FILE");
 
    /*
     * By default, the spelling of white space in unimportant (it can
@@ -162,12 +172,18 @@ char **argv;
       compiler_def = "#define COMPILER 0\n";
    else
       compiler_def = "#define COMPILER 1\n";
+
+#if 0
    in_header = alloc(strlen(refpath) + strlen(grttin_path) + 1);
    strcpy(in_header, refpath);
    strcat(in_header, grttin_path);
+#endif
+
+#if 0
    inclname = alloc(strlen(refpath) + strlen(rt_path) + 1);
    strcpy(inclname, refpath);
    strcat(inclname, rt_path);
+#endif
 
    opt_lst[nopts] = '\0';
 
@@ -236,7 +252,6 @@ char *src_file;
    {
    char buf[MaxPath];		/* file name construction buffer */
    struct fileparts *fp;
-   struct tdefnm *td;
 
    if (g_out_file == NULL) {
       if ((g_out_file = fopen("/dev/null", "w")) == NULL)
@@ -249,11 +264,23 @@ char *src_file;
     * Read standard header file for preprocessor directives and
     * typedefs, but don't write anything to output.
     */
-   init_preproc(in_header, opt_lst, opt_args);
+   init_preproc(opt_lst, opt_args);
+#if 0
+   source(in_header);
    str_src("<rtt initialization>", compiler_def, (int)strlen(compiler_def));
+#endif
+
    init_sym();
-   for (td = tdefnm_lst; td != NULL; td = td->next)
-      sym_add(TypeDefName, td->name, OtherDcl, 1);
+
+   /* FILE must be treated as a typedef name.
+    */
+   add_tdef("FILE");
+   do {
+      struct tdefnm *td;
+      for (td = tdefnm_lst; td != NULL; td = td->next)
+	 sym_add(TypeDefName, td->name, OtherDcl, 1);
+   } while (0);
+
    init_lex();
    yyparse();
 
@@ -285,10 +312,10 @@ char *src_file;
    else {
       /*
        * For the compiler, non-RTL code is put in a file whose name
-       *  is derived from input file name. The flag def_fnd indicates
+       *  is derived from input file name. The flag g_def_fnd indicates
        *  if anything interesting is put in the file.
        */
-      def_fnd = 0;
+      g_def_fnd = 0;
       yyparse();  /* translate the input */
       prt_str("", 0); /* ensure last LF */
       if (fclose(g_out_file) != 0)

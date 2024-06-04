@@ -21,7 +21,7 @@ void            free_t_lst   (struct tok_lst *tlst);
 void            include      (struct token *trigger, char *fname, int start);
 void	init_files	(char *opt_lst,char * *opt_args);
 void            init_macro   (void);
-void            init_preproc (char *fname, char *opt_lst, char **opt_args);
+void            init_preproc (char *opt_lst, char **opt_args);
 void            init_sys     (char *fname, int argc, char *argv[]);
 void            init_tok     (void);
 void            finish_tok   (void);
