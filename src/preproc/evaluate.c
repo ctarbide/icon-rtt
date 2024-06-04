@@ -19,18 +19,19 @@ typedef unsigned long uexpr_t;
 /*
  * Prototypes for static functions.
  */
-static long primary        (struct token **tp, struct token *trigger);
-static long unary          (struct token **tp, struct token *trigger);
-static long multiplicative (struct token **tp, struct token *trigger);
-static long additive       (struct token **tp, struct token *trigger);
-static long shift          (struct token **tp, struct token *trigger);
-static long relation       (struct token **tp, struct token *trigger);
-static long equality       (struct token **tp, struct token *trigger);
-static long and            (struct token **tp, struct token *trigger);
-static long excl_or        (struct token **tp, struct token *trigger);
-static long incl_or        (struct token **tp, struct token *trigger);
-static long log_and        (struct token **tp, struct token *trigger);
-static long log_or         (struct token **tp, struct token *trigger);
+static expr_t primary        (struct token **tp, struct token *trigger);
+static expr_t unary          (struct token **tp, struct token *trigger);
+static expr_t multiplicative (struct token **tp, struct token *trigger);
+static expr_t additive       (struct token **tp, struct token *trigger);
+static expr_t shift          (struct token **tp, struct token *trigger);
+static expr_t relation       (struct token **tp, struct token *trigger);
+static expr_t equality       (struct token **tp, struct token *trigger);
+static expr_t and            (struct token **tp, struct token *trigger);
+static expr_t excl_or        (struct token **tp, struct token *trigger);
+static expr_t incl_or        (struct token **tp, struct token *trigger);
+static expr_t log_and        (struct token **tp, struct token *trigger);
+static expr_t log_or         (struct token **tp, struct token *trigger);
+static expr_t conditional    (struct token **tp, struct token *trigger);
 
 #include "../preproc/pproto.h"
 
@@ -42,15 +43,12 @@ static long log_or         (struct token **tp, struct token *trigger);
  *               <character-constant>
  *               '(' <conditional> ')'
  */
-static long primary(tp, trigger)
-struct token **tp;
-struct token *trigger;
+static expr_t primary(tp, trigger)
+struct token **tp, *trigger;
    {
-   struct token *t = NULL;
-   struct token *id = NULL;
+   struct token *t = NULL, *id = NULL;
    expr_t e1;
-   int i;
-   int is_hex_char;
+   int i, is_hex_char;
    char *s;
 
    switch ((*tp)->tok_id) {
@@ -173,6 +171,8 @@ struct token *trigger;
 	       ++s;
 	       if (*s == '\0')
 		  return e1;
+	       else if ((*s == 'l' || *s == 'L') && *++s == '\0')
+		  return e1;
 	       else if ((*s == 'u' || *s == 'U') && *++s == '\0')
 		  return e1;
 	       }
@@ -187,7 +187,7 @@ struct token *trigger;
 	  */
 	 s = (*tp)->image;
 	 if (*s != '\\')
-	    e1 = (long)*s;
+	    e1 = (expr_t)*s;
 	 else {
 	    /*
 	     * Escape sequence.
@@ -197,22 +197,22 @@ struct token *trigger;
 	    if (*s >= '0' && *s <= '7') {
 		for (i = 1; i <= 3 && *s >= '0' && *s <= '7'; ++i, ++s)
 		   e1 = (e1 << 3) | (*s - '0');
-		if (e1 != (long)(unsigned char)e1)
+		if (e1 != (expr_t)(unsigned char)e1)
 		   errt1(*tp, "octal escape sequece larger than a character");
-		e1 = (long)(char)e1;
+		e1 = (expr_t)(char)e1;
 		}
 	    else switch (*s) {
-	       case '\'': e1 = (long) '\''; break;
-	       case '"':  e1 = (long) '"';  break;
-	       case '?':  e1 = (long) '?';  break;
-	       case '\\': e1 = (long) '\\'; break;
-	       case 'a':  e1 = (long) Bell; break;
-	       case 'b':  e1 = (long) '\b'; break;
-	       case 'f':  e1 = (long) '\f'; break;
-	       case 'n':  e1 = (long) '\n'; break;
-	       case 'r':  e1 = (long) '\r'; break;
-	       case 't':  e1 = (long) '\t'; break;
-	       case 'v':  e1 = (long) '\v'; break;
+	       case '\'': e1 = (expr_t) '\''; break;
+	       case '"':  e1 = (expr_t) '"';  break;
+	       case '?':  e1 = (expr_t) '?';  break;
+	       case '\\': e1 = (expr_t) '\\'; break;
+	       case 'a':  e1 = (expr_t) Bell; break;
+	       case 'b':  e1 = (expr_t) '\b'; break;
+	       case 'f':  e1 = (expr_t) '\f'; break;
+	       case 'n':  e1 = (expr_t) '\n'; break;
+	       case 'r':  e1 = (expr_t) '\r'; break;
+	       case 't':  e1 = (expr_t) '\t'; break;
+	       case 'v':  e1 = (expr_t) '\v'; break;
 
 	       case 'x':
 		  ++s;
@@ -231,14 +231,14 @@ struct token *trigger;
 			}
 		     if (is_hex_char)
 			++s;
-		     if (e1 != (long)(unsigned char)e1)
+		     if (e1 != (expr_t)(unsigned char)e1)
 			errt1(*tp,"hex escape sequece larger than a character");
 		     }
-		  e1 = (long)(char)e1;
+		  e1 = (expr_t)(char)e1;
 		  break;
 
 	       default:
-		  e1 = (long) *s;
+		  e1 = (expr_t) *s;
 	       }
 	    }
 	 advance_tok(tp);
@@ -266,9 +266,8 @@ struct token *trigger;
  *             '~' <unary> |
  *             '!' <unary>
  */
-static long unary(tp, trigger)
-struct token **tp;
-struct token *trigger;
+static expr_t unary(tp, trigger)
+struct token **tp, *trigger;
    {
    switch ((*tp)->tok_id) {
       case '+':
@@ -294,11 +293,10 @@ struct token *trigger;
  *                      <multiplicative> '/' <unary> |
  *                      <multiplicative> '%' <unary>
  */
-static long multiplicative(tp, trigger)
-struct token **tp;
-struct token *trigger;
+static expr_t multiplicative(tp, trigger)
+struct token **tp, *trigger;
    {
-   long e1, e2;
+   expr_t e1, e2;
    int tok_id;
 
    e1 = unary(tp, trigger);
@@ -327,11 +325,10 @@ struct token *trigger;
  *                <additive> '+' <multiplicative> |
  *                <additive> '-' <multiplicative>
  */
-static long additive(tp, trigger)
-struct token **tp;
-struct token *trigger;
+static expr_t additive(tp, trigger)
+struct token **tp, *trigger;
    {
-   long e1, e2;
+   expr_t e1, e2;
    int tok_id;
 
    e1 = multiplicative(tp, trigger);
@@ -353,11 +350,10 @@ struct token *trigger;
  *             <shift> '<<' <additive> |
  *             <shift> '>>' <additive>
  */
-static long shift(tp, trigger)
-struct token **tp;
-struct token *trigger;
+static expr_t shift(tp, trigger)
+struct token **tp, *trigger;
    {
-   long e1, e2;
+   expr_t e1, e2;
    int tok_id;
 
    e1 = additive(tp, trigger);
@@ -381,11 +377,10 @@ struct token *trigger;
  *                <relation> '>' <shift> |
  *                <relation> '>=' <shift>
  */
-static long relation(tp, trigger)
-struct token **tp;
-struct token *trigger;
+static expr_t relation(tp, trigger)
+struct token **tp, *trigger;
    {
-   long e1, e2;
+   expr_t e1, e2;
    int tok_id;
 
    e1 = shift(tp, trigger);
@@ -417,11 +412,10 @@ struct token *trigger;
  *                <equality> '==' <relation> |
  *                <equality> '!=' <relation>
  */
-static long equality(tp, trigger)
-struct token **tp;
-struct token *trigger;
+static expr_t equality(tp, trigger)
+struct token **tp, *trigger;
    {
-   long e1, e2;
+   expr_t e1, e2;
    int tok_id;
 
    e1 = relation(tp, trigger);
@@ -442,11 +436,10 @@ struct token *trigger;
  * <and> ::= <equality> |
  *           <and> '&' <equality>
  */
-static long and(tp, trigger)
-struct token **tp;
-struct token *trigger;
+static expr_t and(tp, trigger)
+struct token **tp, *trigger;
    {
-   long e1, e2;
+   expr_t e1, e2;
 
    e1 = equality(tp, trigger);
    while ((*tp)->tok_id == '&') {
@@ -461,11 +454,10 @@ struct token *trigger;
  * <excl_or> ::= <and> |
  *               <excl_or> '^' <and>
  */
-static long excl_or(tp, trigger)
-struct token **tp;
-struct token *trigger;
+static expr_t excl_or(tp, trigger)
+struct token **tp, *trigger;
    {
-   long e1, e2;
+   expr_t e1, e2;
 
    e1 = and(tp, trigger);
    while ((*tp)->tok_id == '^') {
@@ -480,11 +472,10 @@ struct token *trigger;
  * <incl_or> ::= <excl_or> |
  *               <incl_or> '|' <excl_or>
  */
-static long incl_or(tp, trigger)
-struct token **tp;
-struct token *trigger;
+static expr_t incl_or(tp, trigger)
+struct token **tp, *trigger;
    {
-   long e1, e2;
+   expr_t e1, e2;
 
    e1 = excl_or(tp, trigger);
    while ((*tp)->tok_id == '|') {
@@ -499,11 +490,10 @@ struct token *trigger;
  * <log_and> ::= <incl_or> |
  *               <log_and> '&&' <incl_or>
  */
-static long log_and(tp, trigger)
-struct token **tp;
-struct token *trigger;
+static expr_t log_and(tp, trigger)
+struct token **tp, *trigger;
    {
-   long e1, e2;
+   expr_t e1, e2;
 
    e1 = incl_or(tp, trigger);
    while ((*tp)->tok_id == And) {
@@ -518,11 +508,10 @@ struct token *trigger;
  * <log_or> ::= <log_and> |
  *              <log_or> '||' <log_and>
  */
-static long log_or(tp, trigger)
-struct token **tp;
-struct token *trigger;
+static expr_t log_or(tp, trigger)
+struct token **tp, *trigger;
    {
-   long e1, e2;
+   expr_t e1, e2;
 
    e1 = log_and(tp, trigger);
    while ((*tp)->tok_id == Or) {
@@ -537,11 +526,10 @@ struct token *trigger;
  * <conditional> ::= <log_or> |
  *                   <log_or> '?' <conditional> ':' <conditional>
  */
-long conditional(tp, trigger)
-struct token **tp;
-struct token *trigger;
+static expr_t conditional(tp, trigger)
+struct token **tp, *trigger;
    {
-   long e1, e2, e3;
+   expr_t e1, e2, e3;
 
    e1 = log_or(tp, trigger);
    if ((*tp)->tok_id == '?') {
@@ -569,7 +557,7 @@ struct token *trigger;
    int result;
 
    advance_tok(&t);
-   result = (conditional(&t, trigger) != 0L);
+   result = conditional(&t, trigger) != 0L;
    if (t->tok_id != PpDirEnd)
       errt2(t, "expected end of condition of #", trigger->image);
    free_t(t);
