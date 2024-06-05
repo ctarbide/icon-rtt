@@ -1190,6 +1190,7 @@ int indent, brace, may_force_nl;
    static int does_break = 0;
    static int may_brnchto;  /* may reach end of code by branching into middle */
    static int found_switch = 0;
+   int ind;    /* auxiliary indentation */
 
    if (n == NULL)
       return 1;
@@ -1766,8 +1767,15 @@ int indent, brace, may_force_nl;
 	  *
 	  * Various lists of code parts that do not need space between them.
 	  */
-	 if (c_walk(n->u[0].child, indent, 0))
-	    return c_walk(n->u[1].child, indent, 0);
+	 ind = indent;
+	 if (is_t(n->u[0].child, CompNd, '{'))
+	    ind += IndentInc;
+	 if (c_walk(n->u[0].child, ind, 0)) {
+	    ind = indent;
+	    if (is_t(n->u[1].child, CompNd, '{'))
+	       ind += IndentInc;
+	    return c_walk(n->u[1].child, ind, 0);
+	    }
 	 else {
 	    /*
 	     * Cannot directly reach the second piece of code, see if
@@ -3617,7 +3625,12 @@ struct node *head, *prm_dcl, *block;
    c_walk(block->u[0].child, IndentInc, 0); /* non-tended declarations */
    spcl_dcls(NULL);                         /* tended declarations */
    no_ret_val = 1;
-   c_walk(block->u[2].child, IndentInc, 0); /* statement list */
+   do {
+      int ind = IndentInc;
+      if (is_t(block->u[2].child, CompNd, '{'))
+	 ind += IndentInc;
+      c_walk(block->u[2].child, ind, 0); /* statement list */
+   } while (0);
    if (ntend != 0 && no_ret_val) {
       /*
        * This function contains no return statements with values, assume
