@@ -89,6 +89,9 @@ static char top_level_chunk_name_buffer[100];
 static int c_walk_cat(struct node *n, int indent, int brace);
 static int c_walk_nl(struct node *n, int indent, int brace, int may_force_nl);
 static struct node *has_primry(struct node *n, int p);
+static int count_commas(struct node *n);
+static void c_walk_comma(struct node *n, int indent, int brace,
+   int may_force_nl, int *counter, int when_nl);
 
 int op_type = OrdFunc;  /* type of operation */
 char lc_letter;         /* f = function, o = operator, k = keyword */
@@ -1174,7 +1177,7 @@ int indent, brace;
    {
    return c_walk_nl(n, indent, brace, 1);
    }
-
+
 static int c_walk_nl(n, indent, brace, may_force_nl)
 struct node *n;
 int indent, brace, may_force_nl;
@@ -1247,7 +1250,23 @@ int indent, brace, may_force_nl;
 	       /*
 		* Initializer list.
 		*/
-	       if (!is_a(n->u[0].child, PrimryNd))
+	       if (is_a(n->u[0].child, PrimryNd))
+		  ; /* just one item, skip nl */
+	       else if (is_t(n->u[0].child, CommaNd, ',')) {
+		  int how_many = count_commas(n->u[0].child);
+		  if (how_many > 15) {
+		     /* got a big one */
+		     int counter = 0;
+		     prt_tok(t, indent + IndentInc);     /* { */
+		     ForceNl();
+		     c_walk_comma(n->u[0].child, indent + IndentInc, brace,
+			may_force_nl, &counter, 16);
+		     ForceNl();
+		     prt_str("}", indent + IndentInc * 2);
+		     return 1;
+		     }
+		  }
+	       else
 		  ForceNl();
 	       prt_tok(t, indent + IndentInc);     /* { */
 	       c_walk(n->u[0].child, indent + IndentInc, 0);
@@ -4320,7 +4339,7 @@ struct node *n;
       }
    return g_def_fnd ? "<<globals>>=" : NULL;
    }
-
+
 static int c_walk_cat(n, indent, brace)
 struct node *n;
 int indent, brace;
@@ -4334,4 +4353,37 @@ int indent, brace;
    if (!is_t(n, BinryNd, Case) && !is_t(n, PrefxNd, Default))
       indent += IndentInc;
    return c_walk(n, indent, brace);
+   }
+
+static int count_commas(n)
+struct node *n;
+   {
+   if (is_t(n, CommaNd, ','))
+      return 1 + count_commas(n->u[0].child);
+   return 0;
+   }
+
+/* 'counter' behaves like a "global" variable
+ */
+static void c_walk_comma(n, indent, brace, may_force_nl, counter, when_nl)
+struct node *n;
+int indent, brace, may_force_nl, *counter, when_nl;
+   {
+   if (is_t(n, CommaNd, ',')) {
+      c_walk_comma(n->u[0].child, indent, brace, may_force_nl, counter, when_nl);
+      prt_str(",", indent + IndentInc);
+      c_walk_comma(n->u[1].child, indent, brace, may_force_nl, counter, when_nl);
+      }
+   else {
+      if (*counter == when_nl) {
+	 ForceNl();
+	 *counter = 1;
+	 }
+      else {
+	 if (*counter)
+	    prt_str(" ", indent + IndentInc);
+	 (*counter)++;
+	 }
+      c_walk_nl(n, indent + IndentInc, 0, may_force_nl);
+      }
    }
