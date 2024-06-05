@@ -119,6 +119,7 @@ struct node *is_a(struct node *n, int nd_id);
 struct node *is_n(struct node *n, int nd_id);
 struct node *is_t(struct node *n, int nd_id, int tok_id);
 struct node *is_tt(struct node *n, int nd_id, int tok_id1, int tok_id2);
+struct node *is_ttt(struct node *n, int nd_id, int tok_id1, int tok_id2, int tok_id3);
 
 struct node *
 nav_n(struct node *n, int nd_id, int child);

@@ -1892,6 +1892,8 @@ int indent, brace, may_force_nl;
 	       prt_str(" (", indent);
 	       c_walk(n->u[0].child, indent + IndentInc, 0);
 	       prt_str(") ", indent);
+	       if (is_ttt(n->u[1].child, BinryNd, Switch, While, Do))
+		  ForceNl();
 	       fall_thru = c_walk(n->u[1].child, indent + IndentInc, 0);
 	       n1 = n->u[2].child;
 	       if (n1 == NULL)
@@ -1903,10 +1905,12 @@ int indent, brace, may_force_nl;
 		   */
 		  ForceNl();
 		  prt_str("else ", indent);
-		  if (is_t(n1, TrnryNd, If))
-		     fall_thru |= c_walk(n1, indent, 0);
-		  else
-		     fall_thru |= c_walk(n1, indent + IndentInc, 0);
+		  if (is_ttt(n1, BinryNd, Switch, While, Do))
+		     ForceNl();
+		  ind = indent;
+		  if (is_t(n1, TrnryNd, If) == NULL)
+		     ind += IndentInc;
+		  fall_thru |= c_walk(n1, ind, 0);
 		  }
 	       return fall_thru;
 	    case Type_case:

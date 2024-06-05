@@ -888,7 +888,6 @@ int nd_id, tok_id;
       return n;
    return NULL;
    }
-#if 0
 
 struct node *
 is_tt(n, nd_id, tok_id1, tok_id2)
@@ -900,7 +899,20 @@ int nd_id, tok_id1, tok_id2;
       return n;
    return NULL;
    }
-#endif
+
+struct node *
+is_ttt(n, nd_id, tok_id1, tok_id2, tok_id3)
+struct node *n;
+int nd_id, tok_id1, tok_id2, tok_id3;
+   {
+   int id;
+   if (n && n->nd_id == nd_id && n->tok) {
+      id = n->tok->tok_id;
+      if (id == tok_id1 || id == tok_id2 || id == tok_id3)
+	 return n;
+      }
+   return NULL;
+   }
 
 struct node *
 nav_n(n, nd_id, child)
