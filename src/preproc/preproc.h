@@ -66,8 +66,6 @@ extern int *g_first_char;        /* first character in tokenizing buffer */
 extern int *g_next_char;         /* next character in tokenizing buffer */
 extern int *g_last_char;         /* last character in tokenizing buffer */
 
-extern int g_tk_flg;
-
 /*
  * Entry in array of preprocessor directive names.
  */

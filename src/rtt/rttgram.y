@@ -71,7 +71,7 @@
 %type <n> simple_check_conj simple_check len_select_lst len_select
 %type <n> type_computations side_effect_lst side_effect
 %type <n> type basic_type type_lst
-%type <n> passthru passthru_args comma_lst anything_lst anything
+%type <n> passthru
 
 %type <i> opt_plus length
 
@@ -123,32 +123,12 @@ postfix_expr
    | Def ':' dest_type   '(' assign_expr ',' assign_expr ',' assign_expr ')'
       {$$ = node4ex(GLN_POSTFIX_EXPR_DEF, QuadNd, $1, $3, $5, $7, $9), free_t($2); free_t($4);
        free_t($6); free_t($8); free_t($10);}
-   | passthru {g_tk_flg |= NoExpand;} '(' passthru_args ')' {g_tk_flg &= ~NoExpand;}
-      {$$ = node2ex(__LINE__, BinryNd, $5, $1, $4); free_t($3);}
+   | passthru '(' arg_expr_lst ')'
+      {$$ = node2ex(__LINE__, BinryNd, $4, $1, $3); free_t($2);}
    ;
 
 passthru
    : PassThru     {$$ = node0ex(__LINE__, PrimryNd, $1);}
-   ;
-
-passthru_args
-   : comma_lst
-   | anything_lst '(' passthru_args ')'
-      {$$ = node2ex(__LINE__, BinryNd, $4, $1, $3); free_t($2);}
-   ;
-
-comma_lst
-   : anything_lst
-   | comma_lst ',' anything_lst    {$$ = node2ex(__LINE__, CommaNd, $2, $1, $3);}
-   ;
-
-anything_lst
-   : anything
-   | anything_lst anything   {$$ = node2ex(__LINE__, LstNd, NULL, $1, $2);}
-   ;
-
-anything
-   : op_name             {$$ = node0ex(__LINE__, PrimryNd, $1);}
    ;
 
 arg_expr_lst

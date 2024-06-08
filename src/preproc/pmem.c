@@ -6,7 +6,6 @@
 #include "../preproc/ptoken.h"
 
 struct src *g_src_stack = NULL;  /* stack of token sources */
-int g_tk_flg = 0;
 
 #include "../preproc/pproto.h"
 
@@ -47,7 +46,7 @@ char *image, *fname;
    t->image = image;
    t->fname = fname;
    t->line = line;
-   t->flag = g_tk_flg;
+   t->flag = 0;
    return t;
    }
 

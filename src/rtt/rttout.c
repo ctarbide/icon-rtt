@@ -3318,6 +3318,7 @@ struct node *head;
 	    case Static:
 	       return 1;
 	    case Unsigned:
+	    case Const:
 	       return 0;
 	    default:
 	       fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
