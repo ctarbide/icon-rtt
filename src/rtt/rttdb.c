@@ -17,7 +17,7 @@ static int     name_cmp  (char *p1, char *p2);
 static int     op_cmp    (char *p1, char *p2);
 static void prt_dpnd  (FILE *db);
 static void prt_impls (FILE *db, char *sect, struct implement **tbl,
-			   int num, struct implement **sort_ary, int (*com)());
+			   int num, struct implement **sort_ary, int (*com)(char *, char *));
 static int     prt_c_fl  (FILE *db, struct cfile *clst, int line_left);
 static int     put_case  (FILE *db, struct il_code *il);
 static void put_ilc   (FILE *db, struct il_c *ilc);
@@ -315,7 +315,7 @@ char *sect;
 struct implement **tbl;
 int num;
 struct implement **sort_ary;
-int (*cmp)();
+int (*cmp)(char *, char *);
    {
    int i;
    int j;
@@ -335,7 +335,8 @@ int (*cmp)();
       for (hashval = 0; hashval < IHSize; ++hashval)
 	 for (ip = tbl[hashval]; ip != NULL; ip = ip->blink)
 	    sort_ary[i++] = ip;
-      qsort((char *)sort_ary, num, sizeof(struct implement *), cmp);
+      qsort((char *)sort_ary, num, sizeof(struct implement *),
+	 (int (*)(const void *, const void *))cmp);
       }
 
    /*
@@ -1120,7 +1121,7 @@ FILE *db;
 	 for (sfile = dhash[hashval]; sfile != NULL; sfile = sfile->next)
 	    sort_ary[num++] = sfile;
       qsort((char *)sort_ary, num, sizeof(struct srcfile *),
-	 (int (*)())src_cmp);
+	 (int (*)(const void *, const void *))src_cmp);
       }
 
    /*

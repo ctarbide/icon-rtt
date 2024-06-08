@@ -24,7 +24,7 @@ struct descrip {		/* descriptor */
       char *sptr;		/*   pointer to character string */
       union block *bptr;	/*   pointer to a block */
       dptr descptr;		/*   pointer to a descriptor */
-      int(*fptr)();
+      int(*fptr)(void);
       } vword;
    };
 
@@ -86,7 +86,7 @@ struct b_proc {			/* procedure block */
    word title;			/*   T_Proc */
    word blksize;		/*   size of block */
    union {			/*   entry points for */
-      int (*ccode)();		/*     C routines */
+      int (*ccode)(void);	/*     C routines */
       uword ioff;		/*     and icode as offset */
       pointer icode;		/*     and icode as absolute pointer */
       } entryp;
@@ -345,7 +345,7 @@ struct gf_smallmarker {		/* generator frame marker */
 struct b_iproc {		/* procedure block */
    word ip_title;		/*   T_Proc */
    word ip_blksize;		/*   size of block */
-   int (*ip_entryp)();		/*   entry point (code) */
+   int (*ip_entryp)(void);	/*   entry point (code) */
    word ip_nparam;		/*   number of parameters */
    word ip_ndynam;		/*   number of dynamic locals */
    word ip_nstatic;		/*   number of static locals */

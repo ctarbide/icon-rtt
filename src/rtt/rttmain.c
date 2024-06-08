@@ -76,6 +76,8 @@ static char **opt_args;
 static char *in_header;
 #endif
 
+int main(int argc, char **argv);
+
 static struct tdefnm *tdefnm_lst = NULL;
 
 int main(argc, argv)
