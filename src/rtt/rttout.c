@@ -1819,8 +1819,13 @@ int indent, brace, may_force_nl;
 	  */
 	 if (brace)
 	    tok_line(t, indent); /* just synch. file name and line number */
-	 else
-	    prt_tok(t, indent);  /* { */
+	 else {
+	    if (g_nl && indent) { /* probably anonymous */
+	       prt_tok(t, indent - IndentInc);  /* { */
+	       }
+	    else
+	       prt_tok(t, indent);  /* { */
+	    }
 	 ForceNl();
 	 c_walk(n->u[0].child, indent, 0);
 	 /*
@@ -1892,9 +1897,13 @@ int indent, brace, may_force_nl;
 	       prt_tok(t, indent);  /* if */
 	       prt_str(" (", indent);
 	       c_walk(n->u[0].child, indent + IndentInc, 0);
-	       prt_str(") ", indent);
-	       if (is_ttt(n->u[1].child, BinryNd, Switch, While, Do))
+	       n1 = n->u[1].child;
+	       if (is_ttt(n1, BinryNd, Switch, While, Do) || is_t(n1, PstfxNd, ';')) {
+		  prt_str(")", indent);
 		  ForceNl();
+		  }
+	       else
+		  prt_str(") ", indent);
 	       fall_thru = c_walk(n->u[1].child, indent + IndentInc, 0);
 	       n1 = n->u[2].child;
 	       if (n1 == NULL)
@@ -1943,11 +1952,15 @@ int indent, brace, may_force_nl;
 	       c_walk(n->u[1].child, indent, 0);
 	       prt_str("; ", indent);
 	       c_walk(n->u[2].child, indent, 0);
-	       prt_str(") ", indent);
 	       save_break = does_break;
-	       if (is_tt(n->u[3].child, BinryNd, While, Do))
+	       n1 = n->u[3].child;
+	       if (is_ttt(n1, BinryNd, Switch, While, Do) || is_t(n1, TrnryNd, If)) {
+		  prt_str(")", indent);
 		  ForceNl();
-	       c_walk(n->u[3].child, indent + IndentInc, 0);
+		  }
+	       else
+		  prt_str(") ", indent);
+	       c_walk(n1, indent + IndentInc, 0);
 	       if (n->u[1].child == NULL && !does_break)
 		  fall_thru = 0;
 	       else
@@ -4396,18 +4409,20 @@ int indent, brace, *counter, may_force_nl, when_nl;
       c_walk_comma(n->u[1].child, n->tok, indent, brace, may_force_nl, counter, when_nl);
       return;
       }
-   if (t) {
-      prt_tok(t, indent);  /* , */
-      if (*counter == when_nl) {
-	 *counter = 1;
-	 ForceNl();
+   if (n) {
+      if (t) {
+	 prt_tok(t, indent);  /* , */
+	 if (*counter == when_nl) {
+	    *counter = 1;
+	    ForceNl();
+	    }
+	 else {
+	    prt_str(" ", indent);
+	    (*counter)++;
+	    }
 	 }
-      else {
-	 prt_str(" ", indent);
-	 (*counter)++;
-	 }
+      c_walk_nl(n, indent, brace, may_force_nl);
       }
-   c_walk_nl(n, indent, brace, may_force_nl);
    return;
    }
 
