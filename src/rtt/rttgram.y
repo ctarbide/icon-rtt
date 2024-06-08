@@ -9,6 +9,7 @@
 #define YYMAXDEPTH 5000
 %}
 
+/* YYDEBUG=1 to activate */
 /* %debug */
 
 %union {
@@ -71,7 +72,7 @@
 %type <n> simple_check_conj simple_check len_select_lst len_select
 %type <n> type_computations side_effect_lst side_effect
 %type <n> type basic_type type_lst
-%type <n> passthru
+%type <n> passthru arg_anything_lst anything_expr
 
 %type <i> opt_plus length
 
@@ -116,19 +117,28 @@ postfix_expr
    | postfix_expr Incr                 {$$ = node1ex(GLN_POSTFIX_EXPR_INCR, PstfxNd, $2, $1);}
    | postfix_expr Decr                 {$$ = node1ex(GLN_POSTFIX_EXPR_DECR, PstfxNd, $2, $1);}
    | Is  ':' i_type_name '(' assign_expr ')'
-      {$$ = node2ex(GLN_POSTFIX_EXPR_IS, BinryNd, $1, $3, $5); free_t($2); free_t($4); free_t($6);}
+      {$$ = node2ex(GLN_POSTFIX_EXPR_IS, BinryNd, $1, $3, $5); free_ttt($2, $4, $6);}
    | Cnv ':' dest_type   '(' assign_expr ',' assign_expr ')'
-      {$$ = node3ex(GLN_POSTFIX_EXPR_CNV, TrnryNd, $1, $3, $5, $7), free_t($2); free_t($4); free_t($6);
-       free_t($8);}
+      {$$ = node3ex(GLN_POSTFIX_EXPR_CNV, TrnryNd, $1, $3, $5, $7), free_tttt($2, $4, $6, $8);}
    | Def ':' dest_type   '(' assign_expr ',' assign_expr ',' assign_expr ')'
-      {$$ = node4ex(GLN_POSTFIX_EXPR_DEF, QuadNd, $1, $3, $5, $7, $9), free_t($2); free_t($4);
-       free_t($6); free_t($8); free_t($10);}
-   | passthru '(' arg_expr_lst ')'
+      {$$ = node4ex(GLN_POSTFIX_EXPR_DEF, QuadNd, $1, $3, $5, $7, $9), free_ttttt($2, $4, $6, $8, $10);}
+   | passthru '(' arg_anything_lst ')'
       {$$ = node2ex(__LINE__, BinryNd, $4, $1, $3); free_t($2);}
    ;
 
 passthru
    : PassThru     {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   ;
+
+arg_anything_lst                        /* based on arg_expr_lst */
+   : anything_expr
+   | arg_anything_lst ',' anything_expr {$$ = node2ex(__LINE__, CommaNd, $2, $1, $3);}
+   ;
+
+anything_expr                           /* based on assign_expr */
+   : conditional_expr
+   | typ_dcltion_specs opt_pointer      {$$ = node2ex(__LINE__, LstNd, NULL, $1, $2);}
+   | unary_expr assign_op anything_expr {$$ = node2ex(__LINE__, BinryNd, $2, $1, $3);}
    ;
 
 arg_expr_lst
@@ -586,9 +596,9 @@ non_lbl_stmt
    | iteration_stmt
    | jump_stmt
    | Runerr '(' assign_expr ')' ';'
-      {$$ = node2ex(__LINE__, BinryNd, $1, $3, NULL); free_t($2); free_t($4);}
+      {$$ = node2ex(__LINE__, BinryNd, $1, $3, NULL); free_tt($2, $4);}
    | Runerr '(' assign_expr ',' assign_expr ')' ';'
-      {$$ = node2ex(__LINE__, BinryNd, $1, $3, $5); free_t($2); free_t($4); free_t($6);}
+      {$$ = node2ex(__LINE__, BinryNd, $1, $3, $5); free_ttt($2, $4, $6);}
    | Keep {$$ = node0ex(__LINE__, PrimryNd, $1);}
    ;
 

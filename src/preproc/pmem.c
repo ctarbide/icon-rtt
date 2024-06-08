@@ -195,6 +195,52 @@ struct token *t;
    }
 
 /*
+ * free_tt - free two tokens.
+ */
+void free_tt(t1, t2)
+struct token *t1, *t2;
+   {
+   free_t(t1);
+   free_t(t2);
+   }
+
+/*
+ * free_ttt - free three tokens.
+ */
+void free_ttt(t1, t2, t3)
+struct token *t1, *t2, *t3;
+   {
+   free_t(t1);
+   free_t(t2);
+   free_t(t3);
+   }
+
+/*
+ * free_tttt - free four tokens.
+ */
+void free_tttt(t1, t2, t3, t4)
+struct token *t1, *t2, *t3, *t4;
+   {
+   free_t(t1);
+   free_t(t2);
+   free_t(t3);
+   free_t(t4);
+   }
+
+/*
+ * free_ttttt - free five tokens.
+ */
+void free_ttttt(t1, t2, t3, t4, t5)
+struct token *t1, *t2, *t3, *t4, *t5;
+   {
+   free_t(t1);
+   free_t(t2);
+   free_t(t3);
+   free_t(t4);
+   free_t(t5);
+   }
+
+/*
  * free_t_lst - free a token list.
  */
 void free_t_lst(tlst)
