@@ -7,6 +7,12 @@
 
 #include "rtt.h"
 
+#define WHEN_NL_ENUM_LIST 1
+#define WHEN_NL_INITIALIZER_LIST 16
+#define WHEN_NL_PRIMARY_DECLARATOR_LIST 8
+#define WHEN_NL_DECLARATOR_LIST 1
+#define WHEN_NL_ARG_LIST 8
+
 #define NotId 0  /* declarator is not simple identifier */
 #define IsId  1  /* declarator is simple identifier */
 
@@ -1256,22 +1262,28 @@ int indent, brace, may_force_nl;
 	       if (is_a(n->u[0].child, PrimryNd))
 		  ; /* just one item, skip nl */
 	       else if ((n1 = is_t(n->u[0].child, CommaNd, ','))) {
-		  int counter = 1;
+		  int counter;
 		  prt_tok(t, indent + IndentInc);     /* { */
 		  ForceNl();
+		  counter = 1;
 		  c_walk_comma(n1->u[0].child, NULL, indent + IndentInc * 2,
-		     brace, may_force_nl, &counter, 16);
+		     brace, may_force_nl, &counter, WHEN_NL_INITIALIZER_LIST);
 		  c_walk_comma(n1->u[1].child, n1->tok, indent + IndentInc * 2,
-		     brace, may_force_nl, &counter, 16);
+		     brace, may_force_nl, &counter, WHEN_NL_INITIALIZER_LIST);
 		  ForceNl();
 		  prt_str("}", indent + IndentInc * 2);
-		  return 1;
 		  }
-	       else
+	       else if ((n1 = is_t(n->u[0].child, PrefxNd, '{'))) {
+		  prt_tok(t, indent);     /* { */
+		  c_walk(n1, indent, 0);
+		  prt_str("}", indent);
+		  }
+	       else {
 		  ForceNl();
-	       prt_tok(t, indent + IndentInc);     /* { */
-	       c_walk(n->u[0].child, indent + IndentInc, 0);
-	       prt_str("}", indent + IndentInc);
+		  prt_tok(t, indent + IndentInc);     /* { */
+		  c_walk(n->u[0].child, indent + IndentInc, 0);
+		  prt_str("}", indent + IndentInc);
+		  }
 	       return 1;
 	    case Default:
 	       ForceNl();
@@ -1510,7 +1522,7 @@ int indent, brace, may_force_nl;
 	  */
 	 prt_tok(t, indent);
 	 c_walk(n->u[0].child, indent, 0);
-	 prt_str(" /*1511*/ ", indent);
+	 prt_str(" ", indent);
 	 return 1;
       case SymNd: /* a symbol (identifier) node */
 	 /*
@@ -1542,15 +1554,19 @@ int indent, brace, may_force_nl;
 	       /*
 		* function call or declaration: <expr> ( <expr-list> )
 		*/
-	       if (n->u[0].child == NULL) {
-		  fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
-		  exit(1);
-		  }
 	       if (n->u[0].child->tok->tok_id == PassThru)
 		  return c_walk(n->u[1].child, indent, 0);
 	       c_walk(n->u[0].child, indent, 0);
 	       prt_str("(", indent);
-	       c_walk(n->u[1].child, indent, 0);
+	       if ((n1 = is_t(n->u[1].child, CommaNd, ','))) {
+		  int counter = 1;
+		  c_walk_comma(n1->u[0].child, NULL, indent + IndentInc,
+		     brace, may_force_nl, &counter, WHEN_NL_ARG_LIST);
+		  c_walk_comma(n1->u[1].child, n1->tok, indent + IndentInc,
+		     brace, may_force_nl, &counter, WHEN_NL_ARG_LIST);
+		  }
+	       else
+		  c_walk(n->u[1].child, indent, 0);
 	       prt_tok(t, indent);   /* ) */
 	       return call_ret(n->u[0].child);
 	    case Struct:
@@ -1573,7 +1589,7 @@ int indent, brace, may_force_nl;
 		  c_walk_struct_items(n->u[1].child, indent + IndentInc,
 		     0, may_force_nl);
 		  ForceNl();
-		  prt_str("}", indent);
+		  prt_str("}", indent + IndentInc);
 		  }
 	       return 1;
 	    case Enum:
@@ -1592,33 +1608,54 @@ int indent, brace, may_force_nl;
 		   */
 		  prt_str(" {", indent);
 		  ForceNl();
-		  c_walk(n->u[1].child, indent + IndentInc, 0);
+
+		  if ((n1 = is_t(n->u[1].child, CommaNd, ','))) {
+		     int counter = 1;
+		     c_walk_comma(n1->u[0].child, NULL, indent + IndentInc,
+			brace, may_force_nl, &counter, WHEN_NL_ENUM_LIST);
+		     c_walk_comma(n1->u[1].child, n1->tok, indent + IndentInc,
+			brace, may_force_nl, &counter, WHEN_NL_ENUM_LIST);
+		     }
+		  else
+		     c_walk(n->u[1].child, indent + IndentInc, 0);
+
 		  ForceNl();
-		  prt_str("}", indent);
+		  prt_str("}", indent + IndentInc);
 		  }
 	       return 1;
 	    case ';':
 	       /*
 		* <type-specs> <declarator> ;
 		*/
-	       if (indent == 0) {
-		  char *chunk_name = top_level_chunk_name(n);
-		  if (chunk_name) {
-		     prt_str(chunk_name, indent);
+	       if ((n1 = is_t(n->u[1].child, CommaNd, ','))) {
+		  /*
+		   * a list of declarators
+		   */
+		  int counter = 1, when_nl = 1;
+
+		  c_walk(n->u[0].child, indent, 0);
+		  if (is_ttt(n->u[0].child, BinryNd, Struct, Union, Enum)) {
 		     ForceNl();
-		     c_walk(n->u[0].child, indent, 0);
-		     if (n->u[1].child) {
-			prt_str(" ", indent);
-			c_walk(n->u[1].child, indent, 0);
-			}
-		     prt_tok(t, indent);  /* ; */
-		     prt_str("\n@", indent);
+		     when_nl = WHEN_NL_DECLARATOR_LIST;
 		     }
+		  else if (is_a(n->u[0].child, PrimryNd)) {
+		     prt_str(" ", indent);
+		     when_nl = WHEN_NL_PRIMARY_DECLARATOR_LIST;
+		     }
+		  else
+		     ForceNl();
+		  c_walk_comma(n1->u[0].child, NULL, indent + IndentInc,
+		     brace, may_force_nl, &counter, when_nl);
+		  c_walk_comma(n1->u[1].child, n1->tok, indent + IndentInc,
+		     brace, may_force_nl, &counter, when_nl);
+		  prt_tok(t, indent);  /* ; */
 		  }
 	       else {
 		  c_walk(n->u[0].child, indent, 0);
-		  prt_str(" ", indent);
-		  c_walk(n->u[1].child, indent, 0);
+		  if (n->u[1].child) {
+		     prt_str(" ", indent);
+		     c_walk(n->u[1].child, indent, 0);
+		     }
 		  prt_tok(t, indent);  /* ; */
 		  }
 	       ForceNl();
@@ -1786,22 +1823,6 @@ int indent, brace, may_force_nl;
 	    fall_thru = c_walk(n->u[1].child, indent, 0);
 	    return may_brnchto & fall_thru;
 	    }
-      case CommaNd: /* arg lst, declarator lst, or init lst, not comma op */
-	 /*
-	  * <expr> , <expr>
-	  */
-	 c_walk(n->u[0].child, indent, 0);
-	 if (n->gln == GLN_ENUMERATOR) {
-	    prt_tok(t, indent);
-	    ForceNl();
-	    }
-	 else {
-	    no_nl = 1;
-	    prt_tok(t, indent);
-	    no_nl = 0;
-	    prt_str(" ", indent);
-	    }
-	 return c_walk(n->u[1].child, indent, 0);
       case StrDclNd: /* structure field declaration */
 	 /*
 	  * Structure field declaration. Bit field declarations have
@@ -1898,7 +1919,12 @@ int indent, brace, may_force_nl;
 	       prt_str(" (", indent);
 	       c_walk(n->u[0].child, indent + IndentInc, 0);
 	       n1 = n->u[1].child;
-	       if (is_ttt(n1, BinryNd, Switch, While, Do) || is_t(n1, PstfxNd, ';')) {
+	       if (is_ttt(n1, BinryNd, Switch, While, Do)
+		     || is_t(n1, PstfxNd, ';')
+		     || is_t(n1, PrefxNd, Return)
+		     || is_t(n1, TrnryNd, If)
+		     || is_t(n1, QuadNd, For)
+		     ) {
 		  prt_str(")", indent);
 		  ForceNl();
 		  }
@@ -1914,9 +1940,12 @@ int indent, brace, may_force_nl;
 		   *  "else if"
 		   */
 		  ForceNl();
-		  prt_str("else ", indent);
-		  if (is_ttt(n1, BinryNd, Switch, While, Do))
+		  if (is_ttt(n1, BinryNd, Switch, While, Do)) {
+		     prt_str("else", indent);
 		     ForceNl();
+		     }
+		  else
+		     prt_str("else ", indent);
 		  ind = indent;
 		  if (is_t(n1, TrnryNd, If) == NULL)
 		     ind += IndentInc;
@@ -1954,7 +1983,12 @@ int indent, brace, may_force_nl;
 	       c_walk(n->u[2].child, indent, 0);
 	       save_break = does_break;
 	       n1 = n->u[3].child;
-	       if (is_ttt(n1, BinryNd, Switch, While, Do) || is_t(n1, TrnryNd, If)) {
+
+	       if (is_ttt(n1, BinryNd, Switch, While, Do)
+		     || is_t(n1, PstfxNd, ';')
+		     || is_t(n1, TrnryNd, If)
+		     || is_t(n1, QuadNd, For)
+		     ) {
 		  prt_str(")", indent);
 		  ForceNl();
 		  }
@@ -1975,6 +2009,12 @@ int indent, brace, may_force_nl;
 		  n->u[3].child, indent);
 	       return 1;
 	    }
+      case CommaNd:
+	 /*
+	  *  see usages of 'c_walk_comma'
+	  */
+	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	 exit(1);
       }
    /*NOTREACHED*/
    return 0;			/* avoid gcc warning */
@@ -3297,15 +3337,26 @@ void dclout(n)
 struct node *n;
    {
    int is_concrete;
-
-   assert(g_def_fnd >= 0);
+   char *chunk_name;
 
    /* this declaration defines a run-time object */
    is_concrete = real_def(n);
-
    g_def_fnd += is_concrete;
+
+   if ((chunk_name = top_level_chunk_name(n))) {
+      prt_str(chunk_name, 0);
+      ForceNl();
+      }
+
    c_walk(n, 0, 0);
    g_def_fnd -= is_concrete;
+
+   if (chunk_name) {
+      ForceNl();
+      prt_str("@", 0);
+      ForceNl();
+      }
+
    free_tree(n);
    }
 
@@ -4421,7 +4472,12 @@ int indent, brace, *counter, may_force_nl, when_nl;
 	    (*counter)++;
 	    }
 	 }
-      c_walk_nl(n, indent, brace, may_force_nl);
+      if (is_t(n, PrefxNd, '{')) {
+	 ForceNl();
+	 c_walk_nl(n, indent - IndentInc * !!indent, brace, may_force_nl);
+	 }
+      else
+	 c_walk_nl(n, indent, brace, may_force_nl);
       }
    return;
    }
@@ -4443,8 +4499,10 @@ int indent, brace, may_force_nl;
       prt_str(" ", indent);
 
       counter = 1;
-      c_walk_comma(nd1->u[0].child, NULL, indent + IndentInc, brace, may_force_nl, &counter, 8);
-      c_walk_comma(nd1->u[1].child, nd1->tok, indent + IndentInc, brace, may_force_nl, &counter, 8);
+      c_walk_comma(nd1->u[0].child, NULL, indent + IndentInc, brace,
+	 may_force_nl, &counter, WHEN_NL_PRIMARY_DECLARATOR_LIST);
+      c_walk_comma(nd1->u[1].child, nd1->tok, indent + IndentInc, brace,
+	 may_force_nl, &counter, WHEN_NL_PRIMARY_DECLARATOR_LIST);
 
       prt_tok(n->tok, indent);  /* ; */
       ForceNl();
