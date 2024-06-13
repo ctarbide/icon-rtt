@@ -381,6 +381,9 @@ char *s;
    t = yylval.t;
    if (t == NULL)
       err2(s, " at end of file");
-   else
+   else {
+      fprintf(stderr, "ERROR: %s:%d: last line read\n",
+	 g_fname_for___FILE__, g_line_for___LINE__);
       errt1(t, s);
+      }
    }

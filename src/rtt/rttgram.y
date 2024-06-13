@@ -41,7 +41,7 @@
 %token <t> Operator Underef Declare Suspend Fail Inline Abstract Store
 %token <t> Type New All_fields Then Type_case Of Len_case Constant Errorfail
 
-%token <t> Keep PassThru Output
+%token <t> PassThru
 
 %type <t> unary_op assign_op struct_or_union typedefname
 %type <t> identifier op_name key_const union attrb_name
@@ -151,9 +151,9 @@ postfix_expr
    | Is  ':' i_type_name '(' assign_expr ')'
       {$$ = node2ex(GLN_POSTFIX_EXPR_IS, BinryNd, $1, $3, $5); free_ttt($2, $4, $6);}
    | Cnv ':' dest_type   '(' assign_expr ',' assign_expr ')'
-      {$$ = node3ex(GLN_POSTFIX_EXPR_CNV, TrnryNd, $1, $3, $5, $7), free_tttt($2, $4, $6, $8);}
+      {$$ = node3ex(GLN_POSTFIX_EXPR_CNV, TrnryNd, $1, $3, $5, $7), free_ttt($2, $4, $6); free_t($8);}
    | Def ':' dest_type   '(' assign_expr ',' assign_expr ',' assign_expr ')'
-      {$$ = node4ex(GLN_POSTFIX_EXPR_DEF, QuadNd, $1, $3, $5, $7, $9), free_ttttt($2, $4, $6, $8, $10);}
+      {$$ = node4ex(GLN_POSTFIX_EXPR_DEF, QuadNd, $1, $3, $5, $7, $9), free_ttt($2, $4, $6); free_tt($8, $10);}
    | PassThru '(' arg_anything_lst ')'
       {$$ = node1ex(__LINE__, PrefxNd, $1, $3); free_tt($2, $4);}
    ;
@@ -633,7 +633,6 @@ non_lbl_stmt
       {$$ = node2ex(__LINE__, BinryNd, $1, $3, NULL); free_tt($2, $4);}
    | Runerr '(' assign_expr ',' assign_expr ')' ';'
       {$$ = node2ex(__LINE__, BinryNd, $1, $3, $5); free_ttt($2, $4, $6);}
-   | Keep {$$ = node0ex(__LINE__, PrimryNd, $1);}
    ;
 
 labeled_stmt
@@ -750,8 +749,6 @@ external_dcltion
    : function_definition
    | dcltion                {dclout($1);}
    | definition
-   | Keep                   {keepdir($1); free_t($1);}
-   | Output                 {outputdir($1); free_t($1);}
    ;
 
 function_definition

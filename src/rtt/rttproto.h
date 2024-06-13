@@ -32,7 +32,7 @@ void           free_tend (void);
 void           full_lst  (char *fname);
 void           func_def  (struct node *dcltor);
 void           id_def    (struct node *dcltor, struct node *x);
-void           keepdir   (struct token *s);
+void           keepdir   (struct token *n, struct token *v);
 void           outputdir (struct token *s);
 int               icn_typ   (struct node *n);
 struct il_c      *ilc_dcl   (struct node *tqual, struct node *dcltor,

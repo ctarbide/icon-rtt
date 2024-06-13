@@ -19,8 +19,6 @@ void            free_m_lst   (struct macro *m);
 void            free_t       (struct token *t);
 void            free_tt      (struct token *t1, struct token *t2);
 void            free_ttt     (struct token *t1, struct token *t2, struct token *t3);
-void            free_tttt    (struct token *t1, struct token *t2, struct token *t3, struct token *t4);
-void            free_ttttt   (struct token *t1, struct token *t2, struct token *t3, struct token *t4, struct token *t5);
 void            free_t_lst   (struct tok_lst *tlst);
 void            include      (struct token *trigger, char *fname, int start);
 void	init_files	(char *opt_lst,char * *opt_args);

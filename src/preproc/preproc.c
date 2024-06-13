@@ -31,8 +31,7 @@ struct token *t;
    {
    struct token *t1;
    struct tok_lst *tlst;
-   int condition;
-   int nesting;
+   int condition, nesting;
 
    /*
     * determine if condition is true.
@@ -201,8 +200,7 @@ static void incl_file(t)
 struct token *t;
    {
    struct token *file_tok, *t1;
-   char *s;
-   char *fname;
+   char *s, *fname;
    int line;
 
    file_tok = NULL;
@@ -300,13 +298,12 @@ struct token *t;
    {
    struct token *mname;   /* name of macro */
    int category;	  /* NoArgs for object-like macro, else number params */
-   int multi_line;
+   int multi_line, nesting;
    struct id_lst *prmlst; /* parameter list */
    struct tok_lst *body;  /* replacement list */
    struct token *t1;
    struct id_lst **pilst;
    struct tok_lst **ptlst;
-   int nesting;
 
    /*
     * Get the macro name.
@@ -669,7 +666,6 @@ struct token *interp_dir()
    {
    struct token *t, *t1;
    struct macro *m;
-   char *s;
 
    /*
     * See if the caller pushed back any tokens
@@ -754,17 +750,22 @@ struct token *interp_dir()
 	    free_t(t1);
 	    break;
 
-	 case PpKeep:
+	 case PpKeep:         /* #passthru */
 	    /*
 	     * This is a directive special to an application using
 	     *  this preprocessor. Pass it on to the application.
 	     */
+	    t1 = NULL;
+	    nxt_non_wh(&t1);
+	    if (t1->tok_id == StrLit) {
+	       t->image = t1->image;
+	       nxt_non_wh(&t1);
+	       }
 	    init_sbuf(sbuf);
-	    AppChar(sbuf, '#');
-	    for (s = t->image; *s != '\0'; ++s)
-	       AppChar(sbuf, *s);
-	    toks_to_str(sbuf, next_tok());
-	    t->image = str_install(sbuf);
+	    toks_to_str(sbuf, t1);
+	    t1 = copy_t(t);
+	    t1->image = str_install(sbuf);
+	    g_src_stack->toks[g_src_stack->ntoks++] = t1;
 	    return t;
 
 	 case PpNull:         /* # */
@@ -775,19 +776,14 @@ struct token *interp_dir()
 	 case PpOutput:         /* #output */
 	    t1 = NULL;
 	    advance_tok(&t1);
-
 	    if (t1->tok_id != StrLit)
 	       errt1(t1, "#output requires a string literal pointing to a file path");
-
-	    free_t(t);
-	    t = t1;
-	    t->tok_id = Output;
-
+	    t->image = t1->image;
+	    free_t(t1);
 	    t1 = next_tok();
 	    if (t1->tok_id != PpDirEnd)
 	       errt1(t1, "syntax error for #output");
 	    free_t(t1);
-
 	    return t;
 
 	 default:

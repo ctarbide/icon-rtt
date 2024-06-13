@@ -1227,14 +1227,6 @@ int indent, brace, may_force_nl;
 	       ForceNl();
 	       does_break = 1;
 	       return 0;
-	    case Keep:
-	       if (strncmp(t->image, "#passthru", 9) == 0) {
-		  prt_str(t->image + 10, indent);
-		  ForceNl();
-		  }
-	       else
-		  prt_tok(t, indent);
-	       return 1;
 	    default:
 	       /*
 		* Other "primary" expressions are just their token image,
@@ -4251,21 +4243,18 @@ struct token *t;
    }
 
 /*
- * keepdir - A preprocessor directive to be kept has been encountered.
- *   If it is #passthru, print just the body of the directive, otherwise
- *   print the whole thing.
+ * keepdir - This is related to passing through, but at the preprocessor level
+ * using #passthru directive
  */
-void keepdir(t)
-struct token *t;
+void keepdir(n, v)
+struct token *n, *v;
    {
-   char *s;
-
    ForceNl();
-   prt_str("<<passthru>>=\n", 0);
-   s = t->image;
-   if (strncmp(s, "#passthru", 9) == 0)
-      s = s + 10;
-   fprintf(g_out_file, "%s\n@", s);
+   prt_str("<<", 0);
+   prt_str(n->image, 0);
+   prt_str(">>=\n", 0);
+   prt_str(v->image, 0);
+   prt_str("\n@", 0);
    ForceNl();
    }
 

@@ -334,14 +334,20 @@ int yylex()
 	 }
       }
    else if (yylval.t->tok_id == PpKeep) {
-      /* non-standard preprocessor directive
+      /* Non-standard preprocessor directive, PpKeep always comes in twos, one
+       * for the chunk name and other for the chunk contents
        */
-      yylval.t->tok_id = Keep;
+      struct token *n, *v;
+      n = yylval.t;
+      v = preproc();
+      keepdir(n, v);
+      free_tt(n, v);
+      return yylex();
       }
    else if (yylval.t->tok_id == PpOutput) {
-      /* non-standard preprocessor directive
-       */
-      yylval.t->tok_id = Output;
+      outputdir(yylval.t);
+      free_t(yylval.t);
+      return yylex();
       }
    else if (lex_state == OpHead && yylval.t->tok_id != '}' &&
 	 GoodChar((int)yylval.t->image[0])) {
