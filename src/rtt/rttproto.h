@@ -84,7 +84,11 @@ void           spcl_dcls (struct sym_entry *op_params);
 struct srcfile   *src_lkup  (char *srcname);
 void           strt_def  (void);
 void           sv_prmloc (struct parminfo *parminfo);
-struct sym_entry *sym_add  (int tok_id, char *image, int id_type, int nest_lvl);
+struct sym_entry *sym_add              (int tok_id, char *image, int id_type, int nest_lvl);
+struct sym_entry *sym_add_c_keyword    (int tok_id, char *image);
+struct sym_entry *sym_add_rtt_keyword  (int tok_id, char *image);
+struct sym_entry *sym_add_icontype     (int tok_id, char *image);
+struct sym_entry *sym_add_component    (int tok_id, char *image);
 struct sym_entry *sym_lkup  (char *image);
 struct node      *sym_node  (struct token *tok);
 void           s_prm_def (struct token *u_ident, struct token *d_ident);
@@ -101,10 +105,6 @@ struct node *copy_tree(struct node *n);
 struct node *alloc_node(size_t size);
 void node_update_trace(struct node *n);
 
-void push_into_switch(void);
-void pop_out_of_switch(void);
-void switch_case_stmt(void);
-
 const char *node_id_name(int nd_id);
 const char *node_name(struct node *nd);
 
@@ -113,7 +113,7 @@ sym_name(struct sym_entry *sym);
 
 /* is_a(...): [a]ny token
  * is_n(...): [n]ull token
- * is_t(...): has [t]oken
+ * is_t(...): specific [t]oken
  */
 struct node *is_a(struct node *n, int nd_id);
 struct node *is_n(struct node *n, int nd_id);

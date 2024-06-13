@@ -1285,6 +1285,11 @@ int indent, brace, may_force_nl;
 		  prt_str("}", indent + IndentInc);
 		  }
 	       return 1;
+	    case PassThru:
+	       prt_str("__PT__(", indent);
+	       c_walk(n->u[0].child, indent, 0);
+	       prt_str(")", indent);
+	       return 1;
 	    case Default:
 	       ForceNl();
 	       prt_tok(t, indent);
@@ -3348,7 +3353,9 @@ struct node *n;
       ForceNl();
       }
 
-   c_walk(n, 0, 0);
+   if (is_concrete || chunk_name)
+      c_walk(n, 0, 0);
+
    g_def_fnd -= is_concrete;
 
    if (chunk_name) {
@@ -4301,21 +4308,6 @@ void prologue()
    ForceNl();
    }
 
-void push_into_switch()
-   {
-   g_switch_level++;
-   }
-
-void pop_out_of_switch()
-   {
-   g_switch_level--;
-   }
-
-void switch_case_stmt()
-   {
-   /* nop */
-   }
-
 static struct node *defining_identifier(n)
 struct node *n;
    {
@@ -4330,9 +4322,11 @@ struct node *n;
 	 exit(1);
 	 return NULL;
 
-      case PrimryNd:
-	 if (n->tok && n->tok->tok_id == Identifier)
-	    return n;
+      case PrimryNd: {
+	    int tok_id = n->tok->tok_id;
+	    if (tok_id == Identifier || tok_id == TypeDefName)
+	       return n;
+	    }
 	 return NULL;
 
       /* 1 */
@@ -4382,7 +4376,7 @@ struct node *n;
       if (nd1->nd_id == BinryNd && n->u[1].child == NULL) {
 	 switch (nd1->tok->tok_id) {
 	    case Enum:
-	       if ((nd2 = nd1->u[0].child) && nd2->nd_id == PrimryNd && nd2->tok->tok_id == Identifier) {
+	       if ((nd2 = nd1->u[0].child) && is_t(nd2, PrimryNd, Identifier)) {
 		  int tag_only = nd1->u[1].child == NULL;
 		  snprintf(top_level_chunk_name_buffer, sizeof(top_level_chunk_name_buffer),
 		     tag_only ? "<<enum tag %s>>=" : "<<enum %s>>=", nd2->tok->image);
@@ -4391,7 +4385,7 @@ struct node *n;
 		  }
 	       return "<<enums>>=";
 	    case Union:
-	       if ((nd2 = nd1->u[0].child) && nd2->nd_id == PrimryNd && nd2->tok->tok_id == Identifier) {
+	       if ((nd2 = nd1->u[0].child) && is_t(nd2, PrimryNd, Identifier)) {
 		  int tag_only = nd1->u[1].child == NULL;
 		  snprintf(top_level_chunk_name_buffer, sizeof(top_level_chunk_name_buffer),
 		     tag_only ? "<<union tag %s>>=" : "<<union %s>>=", nd2->tok->image);
@@ -4400,7 +4394,7 @@ struct node *n;
 		  }
 	       return "<<unions>>=";
 	    case Struct:
-	       if ((nd2 = nd1->u[0].child) && nd2->nd_id == PrimryNd && nd2->tok->tok_id == Identifier) {
+	       if ((nd2 = nd1->u[0].child) && is_t(nd2, PrimryNd, Identifier)) {
 		  int tag_only = nd1->u[1].child == NULL;
 		  snprintf(top_level_chunk_name_buffer, sizeof(top_level_chunk_name_buffer),
 		     tag_only ? "<<struct tag %s>>=" : "<<struct %s>>=", nd2->tok->image);
@@ -4410,11 +4404,13 @@ struct node *n;
 	       return "<<structs>>=";
 	    }
 	 }
-      if ((nd2 = nav_n(nd1, LstNd, 0)) &&
-	    nd2->nd_id == PrimryNd && nd2->tok->tok_id == Typedef) {
-	 struct node *id;
-	 id = defining_identifier(n->u[1].child);
-	 if (id) {
+      if ((nd2 = nav_n(nd1, LstNd, 0)) && is_t(nd2, PrimryNd, Typedef)) {
+	 struct node *id, *maybe_ignore;
+
+	 maybe_ignore = nav_n_is_t(nd1, LstNd, 1, PrimryNd, TypeDefName);
+	 if (maybe_ignore && maybe_ignore->tok->image == g_str_IGNORE)
+	    return NULL;
+	 if ((id = defining_identifier(n->u[1].child))) {
 	    snprintf(top_level_chunk_name_buffer, sizeof(top_level_chunk_name_buffer),
 	       "<<typedef %s>>=", id->tok->image);
 	    return top_level_chunk_name_buffer;

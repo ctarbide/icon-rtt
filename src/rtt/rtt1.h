@@ -47,7 +47,7 @@ struct srcfile {
 #define ForceNl() g_nl = 1;
 extern int g_nl;  /* flag: a new-line is needed in the output */
 
-extern int g_switch_level; /* let nodes be aware of their existence in a switch */
+extern int g_passthru;
 
 /*
  * The lexical analyzer recognizes 3 states. Operators are treated differently
@@ -80,7 +80,9 @@ struct sym_entry {
    int tok_id;	       /* Ident, TokType, or identification of reserved word */
    char *image;		/* image of symbol */
    int id_type;		/* OtherDcl, TndDesc, TndStr, TndBlk, Label, RtParm,
-                           DrfPrm, RsltLoc */
+			   DrfPrm, RsltLoc */
+   int is_c_kwd;        /* is a reserved c keyword? otherwise it is safe to
+			   passing through */
    union {
       struct {			/* RtParm: */
          int param_num;		/*   parameter number */
@@ -151,6 +153,8 @@ extern struct sym_entry *g_params;   /* current list of parameters */
 extern struct sym_entry *g_decl_lst; /* declarations from "declare {...}" */
 extern struct init_tend *g_tend_lst; /* list of allocated tended slots */
 extern char *g_str_rslt;             /* string "result" in string table */
+extern char *g_str_FILE;             /* string "FILE" in string table */
+extern char *g_str_IGNORE;           /* string "IGNORE" in string table */
 extern word g_lbl_num;               /* next unused label number */
 extern struct sym_entry *g_v_len;    /* symbol entry for size of varargs */
 extern int g_il_indx;                /* next index into data base symbol table */
@@ -209,7 +213,7 @@ struct node {
    char *trace;
 #endif
    int16_t nd_id;
-   int16_t gln; /* grammar line number (in rttgram.y) */
+   int16_t gln; /* grammar line number (in rttgram.y) */   /* TODO: get rid of gln, this became obsolete/deprecated */
    union field u[1]; /* actual size varies with node type */
    };
 

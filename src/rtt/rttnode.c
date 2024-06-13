@@ -408,8 +408,7 @@ struct token *tok;
    struct sym_entry *sym;
    struct node *n;
 
-   sym = sym_lkup(tok->image);
-   if (sym != NULL) {
+   if ((sym = sym_lkup(tok->image))) {
       n = NewNode(1);
       n->nd_id = SymNd;
       n->tok = tok;

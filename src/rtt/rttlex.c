@@ -77,92 +77,92 @@ void init_lex()
       /*
        * install C keywords into the symbol table
        */
-      sym_add(Auto,          spec_str("auto"),          OtherDcl, 0);
-      sym_add(Break,         spec_str("break"),         OtherDcl, 0);
-      sym_add(Case,          spec_str("case"),          OtherDcl, 0);
-      sym_add(Char,          spec_str("char"),          OtherDcl, 0);
-      sym_add(Const,         spec_str("const"),         OtherDcl, 0);
-      sym_add(Continue,      spec_str("continue"),      OtherDcl, 0);
-      sym_add(Default,       spec_str("default"),       OtherDcl, 0);
-      sym_add(Do,            spec_str("do"),            OtherDcl, 0);
-      sym_add(Doubl,         spec_str("double"),        OtherDcl, 0);
-      sym_add(Else,          spec_str("else"),          OtherDcl, 0);
-      sym_add(Enum,          spec_str("enum"),          OtherDcl, 0);
-      sym_add(Extern,        spec_str("extern"),        OtherDcl, 0);
-      sym_add(Float,         spec_str("float"),         OtherDcl, 0);
-      sym_add(For,           spec_str("for"),           OtherDcl, 0);
-      sym_add(Goto,          spec_str("goto"),          OtherDcl, 0);
-      sym_add(If,            spec_str("if"),            OtherDcl, 0);
-      sym_add(Int,           spec_str("int"),           OtherDcl, 0);
-      sym_add(Long,          spec_str("long"),          OtherDcl, 0);
-      sym_add(Register,      spec_str("register"),      OtherDcl, 0);
-      sym_add(Return,        spec_str("return"),        OtherDcl, 0);
-      sym_add(Short,         spec_str("short"),         OtherDcl, 0);
-      sym_add(Signed,        spec_str("signed"),        OtherDcl, 0);
-      sym_add(Sizeof,        spec_str("sizeof"),        OtherDcl, 0);
-      sym_add(PassThru,      spec_str("passthru"),      OtherDcl, 0);
-      sym_add(Static,        spec_str("static"),        OtherDcl, 0);
-      sym_add(Struct,        spec_str("struct"),        OtherDcl, 0);
-      sym_add(Switch,        spec_str("switch"),        OtherDcl, 0);
-      sym_add(Typedef,       spec_str("typedef"),       OtherDcl, 0);
-      sym_add(Union,         spec_str("union"),         OtherDcl, 0);
-      sym_add(Unsigned,      spec_str("unsigned"),      OtherDcl, 0);
-      sym_add(Void,          spec_str("void"),          OtherDcl, 0);
-      sym_add(Volatile,      spec_str("volatile"),      OtherDcl, 0);
-      sym_add(While,         spec_str("while"),         OtherDcl, 0);
+      sym_add_c_keyword(Auto,          spec_str("auto"));
+      sym_add_c_keyword(Break,         spec_str("break"));
+      sym_add_c_keyword(Case,          spec_str("case"));
+      sym_add_c_keyword(Char,          spec_str("char"));
+      sym_add_c_keyword(Const,         spec_str("const"));
+      sym_add_c_keyword(Continue,      spec_str("continue"));
+      sym_add_c_keyword(Default,       spec_str("default"));
+      sym_add_c_keyword(Do,            spec_str("do"));
+      sym_add_c_keyword(Doubl,         spec_str("double"));
+      sym_add_c_keyword(Else,          spec_str("else"));
+      sym_add_c_keyword(Enum,          spec_str("enum"));
+      sym_add_c_keyword(Extern,        spec_str("extern"));
+      sym_add_c_keyword(Float,         spec_str("float"));
+      sym_add_c_keyword(For,           spec_str("for"));
+      sym_add_c_keyword(Goto,          spec_str("goto"));
+      sym_add_c_keyword(If,            spec_str("if"));
+      sym_add_c_keyword(Int,           spec_str("int"));
+      sym_add_c_keyword(Long,          spec_str("long"));
+      sym_add_c_keyword(Register,      spec_str("register"));
+      sym_add_c_keyword(Return,        spec_str("return"));
+      sym_add_c_keyword(Short,         spec_str("short"));
+      sym_add_c_keyword(Signed,        spec_str("signed"));
+      sym_add_c_keyword(Sizeof,        spec_str("sizeof"));
+      sym_add_c_keyword(PassThru,      spec_str("passthru"));
+      sym_add_c_keyword(Static,        spec_str("static"));
+      sym_add_c_keyword(Struct,        spec_str("struct"));
+      sym_add_c_keyword(Switch,        spec_str("switch"));
+      sym_add_c_keyword(Typedef,       spec_str("typedef"));
+      sym_add_c_keyword(Union,         spec_str("union"));
+      sym_add_c_keyword(Unsigned,      spec_str("unsigned"));
+      sym_add_c_keyword(Void,          spec_str("void"));
+      sym_add_c_keyword(Volatile,      spec_str("volatile"));
+      sym_add_c_keyword(While,         spec_str("while"));
 
       /*
        * Install keywords from run-time interface language.
        */
-      sym_add(Abstract,      spec_str("abstract"),      OtherDcl, 0);
-      sym_add(All_fields,    spec_str("all_fields"),    OtherDcl, 0);
-      sym_add(Any_value,     spec_str("any_value"),     OtherDcl, 0);
-      sym_add(Arith_case,    spec_str("arith_case"),    OtherDcl, 0);
-      sym_add(Body,          spec_str("body"),          OtherDcl, 0);
-      sym_add(C_Double,      spec_str("C_double"),      OtherDcl, 0);
-      sym_add(C_Integer,     spec_str("C_integer"),     OtherDcl, 0);
-      sym_add(C_String,      spec_str("C_string"),      OtherDcl, 0);
-      sym_add(Cnv,           spec_str("cnv"),           OtherDcl, 0);
-      sym_add(Constant,      spec_str("constant"),      OtherDcl, 0);
-      sym_add(Declare,       spec_str("declare"),       OtherDcl, 0);
-      sym_add(Def,           spec_str("def"),           OtherDcl, 0);
-      sym_add(Empty_type,    spec_str("empty_type"),    OtherDcl, 0);
-      sym_add(End,           spec_str("end"),           OtherDcl, 0);
-      sym_add(Errorfail,     spec_str("errorfail"),     OtherDcl, 0);
-      sym_add(Exact,         spec_str("exact"),         OtherDcl, 0);
-      sym_add(Fail,          spec_str("fail"),          OtherDcl, 0);
-      sym_add(Function,      spec_str("function"),      OtherDcl, 0);
-      sym_add(Inline,        spec_str("inline"),        OtherDcl, 0);
-      sym_add(Is,            spec_str("is"),            OtherDcl, 0);
-      sym_add(Keyword,       spec_str("keyword"),       OtherDcl, 0);
-      sym_add(Len_case,      spec_str("len_case"),      OtherDcl, 0);
-      sym_add(Named_var,     spec_str("named_var"),     OtherDcl, 0);
-      sym_add(New,           spec_str("new"),           OtherDcl, 0);
-      sym_add(Of,            spec_str("of"),            OtherDcl, 0);
-      sym_add(Operator,      spec_str("operator"),      OtherDcl, 0);
+      sym_add_rtt_keyword(Abstract,      spec_str("abstract"));
+      sym_add_rtt_keyword(All_fields,    spec_str("all_fields"));
+      sym_add_rtt_keyword(Any_value,     spec_str("any_value"));
+      sym_add_rtt_keyword(Arith_case,    spec_str("arith_case"));
+      sym_add_rtt_keyword(Body,          spec_str("body"));
+      sym_add_rtt_keyword(C_Double,      spec_str("C_double"));
+      sym_add_rtt_keyword(C_Integer,     spec_str("C_integer"));
+      sym_add_rtt_keyword(C_String,      spec_str("C_string"));
+      sym_add_rtt_keyword(Cnv,           spec_str("cnv"));
+      sym_add_rtt_keyword(Constant,      spec_str("constant"));
+      sym_add_rtt_keyword(Declare,       spec_str("declare"));
+      sym_add_rtt_keyword(Def,           spec_str("def"));
+      sym_add_rtt_keyword(Empty_type,    spec_str("empty_type"));
+      sym_add_rtt_keyword(End,           spec_str("end"));
+      sym_add_rtt_keyword(Errorfail,     spec_str("errorfail"));
+      sym_add_rtt_keyword(Exact,         spec_str("exact"));
+      sym_add_rtt_keyword(Fail,          spec_str("fail"));
+      sym_add_rtt_keyword(Function,      spec_str("function"));
+      sym_add_rtt_keyword(Inline,        spec_str("inline"));
+      sym_add_rtt_keyword(Is,            spec_str("is"));
+      sym_add_rtt_keyword(Keyword,       spec_str("keyword"));
+      sym_add_rtt_keyword(Len_case,      spec_str("len_case"));
+      sym_add_rtt_keyword(Named_var,     spec_str("named_var"));
+      sym_add_rtt_keyword(New,           spec_str("new"));
+      sym_add_rtt_keyword(Of,            spec_str("of"));
+      sym_add_rtt_keyword(Operator,      spec_str("operator"));
       g_str_rslt = spec_str("result");
-      sym_add(Runerr,        spec_str("runerr"),        OtherDcl, 0);
-      sym_add(Store,         spec_str("store"),         OtherDcl, 0);
-      sym_add(Struct_var,    spec_str("struct_var"),    OtherDcl, 0);
-      sym_add(Suspend,       spec_str("suspend"),       OtherDcl, 0);
-      sym_add(Tended,        spec_str("tended"),        OtherDcl, 0);
-      sym_add(Then,          spec_str("then"),          OtherDcl, 0);
-      sym_add(Tmp_cset,      spec_str("tmp_cset"),      OtherDcl, 0);
-      sym_add(Tmp_string,    spec_str("tmp_string"),    OtherDcl, 0);
-      sym_add(Type,          spec_str("type"),          OtherDcl, 0);
-      sym_add(Type_case,     spec_str("type_case"),     OtherDcl, 0);
-      sym_add(Underef,       spec_str("underef"),       OtherDcl, 0);
-      sym_add(Variable,      spec_str("variable"),      OtherDcl, 0);
+      sym_add_rtt_keyword(Runerr,        spec_str("runerr"));
+      sym_add_rtt_keyword(Store,         spec_str("store"));
+      sym_add_rtt_keyword(Struct_var,    spec_str("struct_var"));
+      sym_add_rtt_keyword(Suspend,       spec_str("suspend"));
+      sym_add_rtt_keyword(Tended,        spec_str("tended"));
+      sym_add_rtt_keyword(Then,          spec_str("then"));
+      sym_add_rtt_keyword(Tmp_cset,      spec_str("tmp_cset"));
+      sym_add_rtt_keyword(Tmp_string,    spec_str("tmp_string"));
+      sym_add_rtt_keyword(Type,          spec_str("type"));
+      sym_add_rtt_keyword(Type_case,     spec_str("type_case"));
+      sym_add_rtt_keyword(Underef,       spec_str("underef"));
+      sym_add_rtt_keyword(Variable,      spec_str("variable"));
 
       for (i = 0; i < num_typs; ++i) {
 	 icontypes[i].id = spec_str(icontypes[i].id);
-	 sym = sym_add(IconType, icontypes[i].id, OtherDcl, 0);
+	 sym = sym_add_icontype(IconType, icontypes[i].id);
 	 sym->u.typ_indx = i;
 	 }
 
       for (i = 0; i < num_cmpnts; ++i) {
 	 typecompnt[i].id = spec_str(typecompnt[i].id);
-	 sym = sym_add(Component, typecompnt[i].id, OtherDcl, 0);
+	 sym = sym_add_component(Component, typecompnt[i].id);
 	 sym->u.typ_indx = i;
 	 }
       }
@@ -269,8 +269,7 @@ int yylex()
       /*
        * See if this is an identifier, a reserved word, or typedef name.
        */
-      sym = sym_lkup(yylval.t->image);
-      if (sym != NULL)
+      if ((sym = sym_lkup(yylval.t->image)))
 	 yylval.t->tok_id = sym->tok_id;
       }
    else if (yylval.t->tok_id == PpNumber) {

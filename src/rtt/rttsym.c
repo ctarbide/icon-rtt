@@ -5,6 +5,8 @@
 
 #define HashSize 149
 
+int g_passthru = 0;
+
 /*
  * Prototype for static function.
  */
@@ -76,11 +78,29 @@ char *image;
    {
    struct sym_entry *sym;
 
-   for (sym = sym_tbl[(unsigned int)(unsigned long)image % HashSize];
-	 sym != NULL;
-	 sym = sym->next)
-      if (sym->image == image)
+   for (
+      sym = sym_tbl[(unsigned int)(unsigned long)image % HashSize];
+      sym; sym = sym->next
+      )
+      if (sym->image == image) {
+	 if (g_passthru && sym->tok_id != TypeDefName) {
+	    if (sym->is_c_kwd == 0) {
+		  sym = NewStruct(sym_entry);
+		  sym->tok_id = Identifier;
+		  sym->image = image;
+		  sym->id_type =  OtherDcl;
+		  sym->nest_lvl = 1; /* nest_lvl: 1 - global */
+		  sym->ref_cnt = 1;
+		  sym->il_indx = -1;
+		  sym->may_mod = 0;
+		  /* TODO: save this sym, or else it will leak */
+		  sym->next = NULL;
+		  break;
+	       }
+	    }
 	 return sym;
+	 }
+
    return NULL;
    }
 
@@ -90,13 +110,10 @@ char *image;
  *  the entry is returned.
  */
 struct sym_entry *sym_add(tok_id, image, id_type, nest_lvl)
-int tok_id;
+int tok_id, id_type, nest_lvl;
 char *image;
-int id_type;
-int nest_lvl;
    {
-   struct sym_entry **symp;
-   struct sym_entry *sym;
+   struct sym_entry **symp, *sym;
 
    symp = &sym_tbl[(unsigned int)(unsigned long)image % HashSize];
    while (*symp != NULL && (*symp)->nest_lvl > nest_lvl)
@@ -143,6 +160,50 @@ int nest_lvl;
    *symp = sym;
 
    return sym;     /* success */
+   }
+
+struct sym_entry *sym_add_c_keyword(tok_id, image)
+int tok_id;
+char *image;
+   {
+   struct sym_entry *sym;
+
+   sym = sym_add(tok_id, image, OtherDcl, 0 /* nest_lvl */);
+   sym->is_c_kwd = 1;
+   return sym;
+   }
+
+struct sym_entry *sym_add_rtt_keyword(tok_id, image)
+int tok_id;
+char *image;
+   {
+   struct sym_entry *sym;
+
+   sym = sym_add(tok_id, image, OtherDcl, 0 /* nest_lvl */);
+   sym->is_c_kwd = 0;
+   return sym;
+   }
+
+struct sym_entry *sym_add_icontype(tok_id, image)
+int tok_id;
+char *image;
+   {
+   struct sym_entry *sym;
+
+   sym = sym_add(tok_id, image, OtherDcl, 0 /* nest_lvl */);
+   sym->is_c_kwd = 0;
+   return sym;
+   }
+
+struct sym_entry *sym_add_component(tok_id, image)
+int tok_id;
+char *image;
+   {
+   struct sym_entry *sym;
+
+   sym = sym_add(tok_id, image, OtherDcl, 0 /* nest_lvl */);
+   sym->is_c_kwd = 0;
+   return sym;
    }
 
 /*
@@ -208,8 +269,11 @@ void pop_cntxt()
    new_lvl = g_dcl_stk->nest_lvl;
    if (old_lvl > new_lvl) {
       for (hash_val = 0; hash_val < HashSize; ++ hash_val) {
-	 for (sym = sym_tbl[hash_val]; sym != NULL &&
-	   sym->nest_lvl > new_lvl; sym = sym_tbl[hash_val]) {
+	 for (
+	    sym = sym_tbl[hash_val];
+	    sym && sym->nest_lvl > new_lvl;
+	    sym = sym_tbl[hash_val])
+	    {
 	    sym_tbl[hash_val] = sym->next;
 	    free_sym(sym);
 	    }
@@ -257,9 +321,8 @@ struct sym_entry *sym;
  *  its index.
  */
 int alloc_tnd(typ, init, lvl)
-int typ;
+int typ, lvl;
 struct node *init;
-int lvl;
    {
    struct init_tend *tnd;
 
@@ -327,8 +390,7 @@ void free_tend()
  *  parsing; make sure a place is allocated to act as the destination.
  */
 void dst_alloc(cnv_typ, var)
-struct node *cnv_typ;
-struct node *var;
+struct node *cnv_typ, *var;
    {
    struct sym_entry *sym;
 
@@ -417,8 +479,7 @@ struct node *dcltor;
  *  the "storage class type qualifier list".
  */
 void id_def(dcltor, init)
-struct node *dcltor;
-struct node *init;
+struct node *dcltor, *init;
    {
    struct node *chld0, *chld1;
    struct sym_entry *sym;

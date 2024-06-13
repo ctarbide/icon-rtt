@@ -73,7 +73,7 @@ pinit.o: $(PP_DIR)pinit.c $(P_DOT_H)
 	$(CC) -c $(CFLAGS) $(PP_DIR)pinit.c
 
 rttparse.c ltoken.h: rttgram.y
-	yacc -d rttgram.y
+	yacc -v -d rttgram.y
 	fgrep -v -x "extern char *malloc(), *realloc();" y.tab.c > rttparse.c
 	rm y.tab.c
 	mv y.tab.h ltoken.h

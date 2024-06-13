@@ -1,6 +1,9 @@
 
 #include "rtt.h"
 
+char *g_str_FILE;
+char *g_str_IGNORE;
+
 /*
  * prototypes for static functions.
  */
@@ -142,7 +145,7 @@ char **argv;
 	    refpath = optarg;
 	    break;
 	 case 't':  /* -t ident : treat ident as a typedef name */
-	    add_tdef(optarg);
+	    add_tdef(spec_str(optarg));
 	    break;
 	 case 'x':  /* produce code for interpreter rather than compiler */
 	    iconx_flg = 1;
@@ -276,7 +279,8 @@ char *src_file;
 
    /* FILE must be treated as a typedef name.
     */
-   add_tdef("FILE");
+   add_tdef((g_str_FILE = spec_str("FILE")));
+   add_tdef((g_str_IGNORE = spec_str("IGNORE")));
    do {
       struct tdefnm *td;
       for (td = tdefnm_lst; td != NULL; td = td->next)
@@ -336,7 +340,7 @@ char *name;
    struct tdefnm *td;
 
    td = NewStruct(tdefnm);
-   td->name = spec_str(name);
+   td->name = name;
    td->next = tdefnm_lst;
    tdefnm_lst = td;
    }

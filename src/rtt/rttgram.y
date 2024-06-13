@@ -5,7 +5,7 @@
 
 %{
 #include "rtt1.h"
-/* 10000 is the default for "yacc - 2.0 20240109" */
+/* YYMAXDEPTH: 10000 is the default for "yacc - 2.0 20240109" */
 #define YYMAXDEPTH 5000
 %}
 
@@ -59,7 +59,7 @@
 %type <n> struct_type_lst struct_dcltor_lst struct_dcltor
 %type <n> struct_no_tdn_dcltor_lst struct_no_tdn_dcltor enum_spec enumerator_lst
 %type <n> enumerator dcltor no_tdn_dcltor direct_dcltor no_tdn_direct_dcltor
-%type <n> pointer opt_pointer tqual_lst param_type_lst opt_param_type_lst
+%type <n> pointer opt_pointer tqual_lst param_lst_ellipsis opt_param_lst_ellipsis
 %type <n> param_lst param_dcltion ident_lst type_tqual_lst type_name
 %type <n> abstract_dcltor direct_abstract_dcltor initializer initializer_lst
 %type <n> stmt labeled_stmt compound_stmt dcltion_lst opt_dcltion_lst stmt_lst
@@ -72,7 +72,39 @@
 %type <n> simple_check_conj simple_check len_select_lst len_select
 %type <n> type_computations side_effect_lst side_effect
 %type <n> type basic_type type_lst
-%type <n> passthru arg_anything_lst anything_expr
+%type <n> arg_anything_lst anything_expr
+
+%type <n> param_dcltion_w_pt
+
+/*
+ * PassThru related nodes
+ *
+ */
+
+%type <n> pt__dcltion_specs
+%type <n> pt__typ_dcltion_specs
+%type <n> pt__type_ind
+%type <n> pt__storcl_tqual_lst
+%type <n> pt__type_storcl_tqual_lst
+%type <n> pt__storage_class_spec
+%type <n> pt__no_tdn_dcltor
+%type <n> pt__no_tdn_direct_dcltor
+%type <n> pt__abstract_dcltor
+%type <n> pt__direct_abstract_dcltor
+%type <n> pt__type_qual
+%type <n> pt__stnd_type
+%type <n> pt__pointer
+%type <n> pt__opt_pointer
+%type <n> pt__tqual_lst
+%type <n> pt__param_lst_ellipsis
+%type <n> pt__opt_param_lst_ellipsis
+%type <n> pt__param_lst
+%type <n> pt__param_dcltion
+%type <n> pt__parm_dcls_or_ids
+%type <n> pt__typedefname
+%type <n> pt__identifier
+%type <n> pt__struct_or_union_spec
+%type <n> pt__enum_spec
 
 %type <i> opt_plus length
 
@@ -122,12 +154,8 @@ postfix_expr
       {$$ = node3ex(GLN_POSTFIX_EXPR_CNV, TrnryNd, $1, $3, $5, $7), free_tttt($2, $4, $6, $8);}
    | Def ':' dest_type   '(' assign_expr ',' assign_expr ',' assign_expr ')'
       {$$ = node4ex(GLN_POSTFIX_EXPR_DEF, QuadNd, $1, $3, $5, $7, $9), free_ttttt($2, $4, $6, $8, $10);}
-   | passthru '(' arg_anything_lst ')'
-      {$$ = node2ex(__LINE__, BinryNd, $4, $1, $3); free_t($2);}
-   ;
-
-passthru
-   : PassThru     {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | PassThru '(' arg_anything_lst ')'
+      {$$ = node1ex(__LINE__, PrefxNd, $1, $3); free_tt($2, $4);}
    ;
 
 arg_anything_lst                        /* based on arg_expr_lst */
@@ -294,9 +322,9 @@ dcltion_specs
    ;
 
 type_ind
-   : typedefname             {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   : typedefname                      {$$ = node0ex(__LINE__, PrimryNd, $1);}
    | typedefname storcl_tqual_lst
-                             {$$ = node2ex(__LINE__, LstNd, NULL, node0ex(__LINE__, PrimryNd, $1), $2);}
+      {$$ = node2ex(__LINE__, LstNd, NULL, node0ex(__LINE__, PrimryNd, $1), $2);}
    | type_storcl_tqual_lst
    ;
 
@@ -366,10 +394,10 @@ stnd_type
 struct_or_union_spec
    : struct_or_union any_ident '{' struct_dcltion_lst '}'
                                             {$$ = node2ex(__LINE__, BinryNd, $1, $2, $4);
-                                             free_t($3); free_t($5);}
+                                             free_tt($3, $5);}
    | struct_or_union '{' struct_dcltion_lst '}'
                                             {$$ = node2ex(__LINE__, BinryNd, $1, NULL, $3);
-                                             free_t($2); free_t($4);}
+                                             free_tt($2, $4);}
    | struct_or_union any_ident              {$$ = node2ex(__LINE__, BinryNd, $1, $2, NULL);}
    ;
 
@@ -434,9 +462,9 @@ struct_no_tdn_dcltor
 
 enum_spec
    : Enum {push_cntxt(0);} '{' enumerator_lst '}'
-       {$$ = node2ex(__LINE__, BinryNd, $1, NULL, $4); pop_cntxt(); free_t($3); free_t($5);}
+       {$$ = node2ex(__LINE__, BinryNd, $1, NULL, $4); pop_cntxt(); free_tt($3, $5);}
    | Enum any_ident {push_cntxt(0);} '{' enumerator_lst '}'
-       {$$ = node2ex(__LINE__, BinryNd, $1, $2,  $5); pop_cntxt(); free_t($4); free_t($6);}
+       {$$ = node2ex(__LINE__, BinryNd, $1, $2,  $5); pop_cntxt(); free_tt($4, $6);}
    | Enum any_ident {$$ = node2ex(__LINE__, BinryNd, $1, $2,  NULL);}
    ;
 
@@ -482,7 +510,7 @@ no_tdn_direct_dcltor
    : identifier                               {$$ = node0ex(__LINE__, PrimryNd, $1);}
    | '(' no_tdn_dcltor ')'                    {$$ = node1(PrefxNd, $1, $2); free_t($3);}
    | no_tdn_direct_dcltor '[' opt_constant_expr  ']'
-                                              {$$ = node2ex(__LINE__, BinryNd, $2, $1, $3); free_t($4);}
+      {$$ = node2ex(__LINE__, BinryNd, $2, $1, $3); free_t($4);}
    | no_tdn_direct_dcltor '(' {push_cntxt(1);} parm_dcls_or_ids ')'
       {
 	 $$ = node2ex(__LINE__, BinryNd, $5, $1, $4);
@@ -493,7 +521,7 @@ no_tdn_direct_dcltor
    ;
 
 parm_dcls_or_ids
-   : opt_param_type_lst
+   : opt_param_lst_ellipsis
    | ident_lst
    ;
 
@@ -514,19 +542,25 @@ tqual_lst
    | tqual_lst type_qual {$$ = node2ex(__LINE__, LstNd, NULL, $1, $2);}
    ;
 
-param_type_lst
+param_lst_ellipsis
    : param_lst
    | param_lst ',' Ellipsis {$$ = node2ex(__LINE__, CommaNd, $2, $1, node0ex(__LINE__, PrimryNd, $3));}
    ;
 
-opt_param_type_lst
+opt_param_lst_ellipsis
    : {$$ = NULL;}
-   | param_type_lst
+   | param_lst_ellipsis
    ;
 
 param_lst
+   : param_dcltion_w_pt
+   | param_lst ',' param_dcltion_w_pt {$$ = node2ex(__LINE__, CommaNd, $2, $1, $3);}
+   ;
+
+param_dcltion_w_pt
    : param_dcltion
-   | param_lst ',' param_dcltion {$$ = node2ex(__LINE__, CommaNd, $2, $1, $3);}
+   | PassThru {++g_passthru;} pt__param_dcltion
+      {$$ = node1ex(__LINE__, PrefxNd, $1, $3); --g_passthru;}
    ;
 
 param_dcltion
@@ -563,9 +597,9 @@ direct_abstract_dcltor
                                             {$$ = node2ex(__LINE__, BinryNd, $1, NULL, $2); free_t($3);}
    | direct_abstract_dcltor '[' opt_constant_expr  ']'
                                             {$$ = node2ex(__LINE__, BinryNd, $2, $1, $3); free_t($4);}
-   |                        '(' {push_cntxt(1);} opt_param_type_lst ')'
+   |                        '(' {push_cntxt(1);} opt_param_lst_ellipsis ')'
                                             {$$ = node2ex(__LINE__, BinryNd, $4, NULL, $3); pop_cntxt(); free_t($1);}
-   | direct_abstract_dcltor '(' {push_cntxt(1);} opt_param_type_lst ')'
+   | direct_abstract_dcltor '(' {push_cntxt(1);} opt_param_lst_ellipsis ')'
       {
 	 $$ = node2ex(__LINE__, BinryNd, $5, $1, $4);
 	 pop_cntxt();
@@ -604,8 +638,8 @@ non_lbl_stmt
 
 labeled_stmt
    : label ':' stmt              {$$ = node2ex(__LINE__, BinryNd, $2, $1, $3);}
-   | Case constant_expr ':' {switch_case_stmt();} stmt
-      {$$ = node2ex(__LINE__, BinryNd, $1, $2, $5); free_t($3);}
+   | Case constant_expr ':' stmt
+      {$$ = node2ex(__LINE__, BinryNd, $1, $2, $4); free_t($3);}
    | Default ':' stmt            {$$ = node1(PrefxNd, $1, $3); free_t($2);}
    ;
 
@@ -660,8 +694,8 @@ selection_stmt
                                           free_t($2); free_t($4);}
    | If '(' expr ')' stmt Else stmt      {$$ = node3ex(__LINE__, TrnryNd, $1, $3, $5, $7);
                                           free_t($2); free_t($4); free_t($6);}
-   | Switch {push_into_switch();} '(' expr ')' stmt {pop_out_of_switch();}
-      {$$ = node2ex(__LINE__, BinryNd, $1, $4, $6); free_t($3); free_t($5);}
+   | Switch '(' expr ')' stmt
+      {$$ = node2ex(__LINE__, BinryNd, $1, $3, $5); free_tt($2, $4);}
    | Type_case expr Of '{' c_type_select_lst c_opt_default '}'
       {$$ = node3(TrnryNd, $1, $2, $5, $6); free_t($3); free_t($4); free_t($7);}
    ;
@@ -693,7 +727,7 @@ iteration_stmt
    ;
 
 jump_stmt
-   : Goto label';'       {$$ = node1(PrefxNd, $1, $2); free_t($3);}
+   : Goto label ';'      {$$ = node1(PrefxNd, $1, $2); free_t($3);}
    | Continue ';'        {$$ = node0ex(__LINE__, PrimryNd, $1); free_t($2);}
    | Break ';'           {$$ = node0ex(__LINE__, PrimryNd, $1); free_t($2);}
    | Return ret_val ';'  {$$ = node1(PrefxNd, $1, $2); free_t($3);}
@@ -722,7 +756,7 @@ external_dcltion
 
 function_definition
    : func_head {func_def($1);} opt_dcltion_lst compound_stmt
-                                                          {fncout($1, $3, $4);}
+      {fncout($1, $3, $4);}
    ;
 
 func_head
@@ -1103,6 +1137,189 @@ type_lst
 attrb_name
    : Component
    | All_fields
+   ;
+
+/*
+ * PassThru related rules, the whole structure was replicated to avoid side
+ * effects. Maybe the avoidance can also be contextualized.
+ *
+ */
+
+pt__typedefname
+   : TypeDefName {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   ;
+
+pt__identifier
+   : Identifier {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   ;
+
+pt__param_dcltion
+   : pt__dcltion_specs pt__no_tdn_dcltor
+      {$$ = node2ex(__LINE__, LstNd, NULL, $1, $2);}
+   | pt__dcltion_specs
+   | pt__dcltion_specs pt__abstract_dcltor
+      {$$ = node2ex(__LINE__, LstNd, NULL, $1, $2);}
+   ;
+
+pt__dcltion_specs
+   : pt__typ_dcltion_specs
+   | pt__storcl_tqual_lst
+   ;
+
+pt__typ_dcltion_specs
+   : pt__type_ind
+   | pt__storcl_tqual_lst  pt__type_ind
+      {$$ = node2ex(__LINE__, LstNd, NULL, $1, $2);}
+   ;
+
+pt__type_ind
+   : pt__typedefname
+   | pt__typedefname pt__storcl_tqual_lst    {$$ = node2ex(__LINE__, LstNd, NULL, $1, $2);}
+   | pt__type_storcl_tqual_lst
+   ;
+
+pt__storcl_tqual_lst
+   : pt__storage_class_spec
+   | pt__type_qual
+   | pt__storcl_tqual_lst pt__storage_class_spec {$$ = node2ex(__LINE__, LstNd, NULL, $1, $2);}
+   | pt__storcl_tqual_lst pt__type_qual          {$$ = node2ex(__LINE__, LstNd, NULL, $1, $2);}
+   ;
+
+pt__type_storcl_tqual_lst
+   : pt__stnd_type
+   | pt__type_storcl_tqual_lst pt__stnd_type          {$$ = node2ex(__LINE__, LstNd, NULL, $1, $2);}
+   | pt__type_storcl_tqual_lst pt__storage_class_spec {$$ = node2ex(__LINE__, LstNd, NULL, $1, $2);}
+   | pt__type_storcl_tqual_lst pt__type_qual          {$$ = node2ex(__LINE__, LstNd, NULL, $1, $2);}
+   ;
+
+pt__storage_class_spec
+   : Typedef  {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | Extern   {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | Static   {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | Auto     {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | Register {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   ;
+
+pt__no_tdn_dcltor
+   : pt__opt_pointer pt__no_tdn_direct_dcltor
+      {$$ = node2ex(__LINE__, ConCatNd, NULL, $1, $2);}
+   ;
+
+pt__no_tdn_direct_dcltor
+   : pt__identifier
+   | '(' pt__no_tdn_dcltor ')'
+      {$$ = node1(PrefxNd, $1, $2); free_t($3);}
+   | pt__no_tdn_direct_dcltor '[' opt_constant_expr  ']'
+      {
+	 $$ = node2ex(__LINE__, BinryNd, $2, $1, $3);
+	 free_t($4);
+	 }
+   | pt__no_tdn_direct_dcltor '(' pt__parm_dcls_or_ids ')'
+      {
+	 $$ = node2ex(__LINE__, BinryNd, $4, $1, $3);
+	 free_t($2);
+	 }
+   ;
+
+pt__parm_dcls_or_ids
+   : pt__opt_param_lst_ellipsis
+   ;
+
+pt__abstract_dcltor
+   : pt__pointer
+   | pt__opt_pointer pt__direct_abstract_dcltor
+      {$$ = node2ex(__LINE__, ConCatNd, NULL, $1, $2);}
+   ;
+
+pt__direct_abstract_dcltor
+   : '(' pt__abstract_dcltor ')'        {$$ = node1(PrefxNd, $1, $2); free_t($3);}
+   | '[' opt_constant_expr  ']'         {$$ = node2ex(__LINE__, BinryNd, $1, NULL, $2); free_t($3);}
+   | pt__direct_abstract_dcltor '[' opt_constant_expr  ']'
+      {
+	 $$ = node2ex(__LINE__, BinryNd, $2, $1, $3);
+	 free_t($4);
+	 }
+   | '(' pt__opt_param_lst_ellipsis ')'
+      {
+	 $$ = node2ex(__LINE__, BinryNd, $3, NULL, $2);
+	 free_t($1);
+	 }
+   | pt__direct_abstract_dcltor '(' pt__opt_param_lst_ellipsis ')'
+      {
+	 $$ = node2ex(__LINE__, BinryNd, $4, $1, $3);
+	 free_t($2);
+	 }
+   ;
+
+pt__type_qual
+   : Const    {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | Volatile {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   ;
+
+pt__stnd_type
+   : Void                {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | Char                {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | Short               {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | Int                 {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | Long                {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | Float               {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | Doubl               {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | Signed              {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | Unsigned            {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | pt__struct_or_union_spec
+   | pt__enum_spec
+   ;
+
+pt__struct_or_union_spec
+   : struct_or_union pt__identifier
+      {$$ = node2ex(__LINE__, BinryNd, $1, $2, NULL);}
+   ;
+
+pt__enum_spec
+   : Enum pt__identifier
+      {$$ = node2ex(__LINE__, BinryNd, $1, $2,  NULL);}
+   ;
+
+pt__pointer
+   : '*'                       {$$ = node0ex(__LINE__, PrimryNd, $1);}
+   | '*' pt__tqual_lst         {$$ = node1(PreSpcNd, $1, $2);}
+   | '*' pt__pointer           {$$ = node1(PrefxNd, $1, $2);}
+   | '*' pt__tqual_lst pt__pointer
+      {
+	 $$ = node1(PrefxNd, $1,
+	    node2ex(__LINE__, LstNd, NULL, $2, $3)
+	    );
+	 }
+   ;
+
+pt__opt_pointer
+   : {$$ = NULL;}
+   | pt__pointer
+   ;
+
+pt__tqual_lst
+   : pt__type_qual
+   | pt__tqual_lst pt__type_qual {$$ = node2ex(__LINE__, LstNd, NULL, $1, $2);}
+   ;
+
+pt__param_lst_ellipsis
+   : pt__param_lst
+   | pt__param_lst ',' Ellipsis
+      {
+	 $$ = node2ex(__LINE__, CommaNd, $2, $1,
+	    node0ex(__LINE__, PrimryNd, $3)
+	    );
+	 }
+   ;
+
+pt__opt_param_lst_ellipsis
+   : {$$ = NULL;}
+   | pt__param_lst_ellipsis
+   ;
+
+pt__param_lst
+   : pt__param_dcltion
+   | pt__param_lst ',' pt__param_dcltion     {$$ = node2ex(__LINE__, CommaNd, $2, $1, $3);}
    ;
 
 %%
