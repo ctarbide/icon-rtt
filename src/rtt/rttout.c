@@ -1916,12 +1916,7 @@ int indent, brace, may_force_nl;
 	       prt_str(" (", indent);
 	       c_walk(n->u[0].child, indent + IndentInc, 0);
 	       n1 = n->u[1].child;
-	       if (is_ttt(n1, BinryNd, Switch, While, Do)
-		     || is_t(n1, PstfxNd, ';')
-		     || is_t(n1, PrefxNd, Return)
-		     || is_t(n1, TrnryNd, If)
-		     || is_t(n1, QuadNd, For)
-		     ) {
+	       if (is_t(n1, CompNd, '{') == NULL) {
 		  prt_str(")", indent);
 		  ForceNl();
 		  }
@@ -1937,12 +1932,12 @@ int indent, brace, may_force_nl;
 		   *  "else if"
 		   */
 		  ForceNl();
-		  if (is_ttt(n1, BinryNd, Switch, While, Do)) {
+		  if (is_t(n1, CompNd, '{') || is_t(n1, TrnryNd, If))
+		     prt_str("else ", indent);
+		  else {
 		     prt_str("else", indent);
 		     ForceNl();
 		     }
-		  else
-		     prt_str("else ", indent);
 		  ind = indent;
 		  if (is_t(n1, TrnryNd, If) == NULL)
 		     ind += IndentInc;
@@ -1981,16 +1976,12 @@ int indent, brace, may_force_nl;
 	       save_break = does_break;
 	       n1 = n->u[3].child;
 
-	       if (is_ttt(n1, BinryNd, Switch, While, Do)
-		     || is_t(n1, PstfxNd, ';')
-		     || is_t(n1, TrnryNd, If)
-		     || is_t(n1, QuadNd, For)
-		     ) {
+	       if (is_t(n1, CompNd, '{'))
+		  prt_str(") ", indent);
+	       else {
 		  prt_str(")", indent);
 		  ForceNl();
 		  }
-	       else
-		  prt_str(") ", indent);
 	       c_walk(n1, indent + IndentInc, 0);
 	       if (n->u[1].child == NULL && !does_break)
 		  fall_thru = 0;
