@@ -1,27 +1,6 @@
 #include "../preproc/preproc.h"
 #include "../preproc/pproto.h"
 
-/* gln stands for grammar line number */
-
-#define GLN_POSTFIX_EXPR_ARRAY 98
-#define GLN_POSTFIX_EXPR_NOPARAMS 100
-#define GLN_POSTFIX_EXPR_PARAMS 102
-#define GLN_POSTFIX_EXPR_DOT 104
-#define GLN_POSTFIX_EXPR_ARROW 105
-#define GLN_POSTFIX_EXPR_INCR 106
-#define GLN_POSTFIX_EXPR_DECR 107
-#define GLN_POSTFIX_EXPR_IS 109
-#define GLN_POSTFIX_EXPR_CNV 111
-#define GLN_POSTFIX_EXPR_DEF 114
-#define GLN_STRUCT_DCLTION_LST 357
-#define GLN_ENUMERATOR 419
-#define GLN_LOCAL_DCLS 612
-#define GLN_STMT_LST 631
-#define GLN_EXPR_STMT_OPT_EXPR_SEMICOLON 638
-#define GLN_ITERATION_STMT_DO_STMT_WHILE_SEMICOLON 669
-#define GLN_ITERATION_STMT_FOR 673
-#define GLN_FUNC_HEAD_TYP_DCLTION_SPECS_DCLTOR 712
-
 #define IndentInc 3
 #define MaxCol 80
 
@@ -212,8 +191,7 @@ struct node {
 #ifdef TRACE_NODE_MEMBER
    char *trace;
 #endif
-   int16_t nd_id;
-   int16_t gln; /* grammar line number (in rttgram.y) */   /* TODO: get rid of gln, this became obsolete/deprecated */
+   int nd_id;
    union field u[1]; /* actual size varies with node type */
    };
 

@@ -15,7 +15,7 @@ void           clr_dpnd  (char *srcname);
 void           clr_prmloc (void);
 struct token     *cnv_to_id (struct token *t);
 char             *cnv_name  (int typcd, struct node *dflt, int *dflt_to_ptr);
-struct node      *comp_nd   (int gln, struct token *tok, struct node *dcls,
+struct node      *comp_nd   (struct token *tok, struct node *dcls,
                               struct node *stmts);
 int               creat_obj (void);
 void           d_lst_typ (struct node *dcls);
@@ -52,21 +52,12 @@ void           loaddb    (char *db);
 void           mrg_prmloc (struct parminfo *parminfo);
 struct parminfo  *new_prmloc (void);
 struct node      *node0     (int id, struct token *tok);
-struct node      *node0ex   (int gln, int id, struct token *tok);
 struct node      *node1     (int id, struct token *tok, struct node *n1);
-struct node      *node1ex   (int gln, int id, struct token *tok, struct node *n1);
 struct node      *node2     (int id, struct token *tok, struct node *n1,
-                              struct node *n2);
-struct node      *node2ex   (int gln, int id, struct token *tok, struct node *n1,
                               struct node *n2);
 struct node      *node3     (int id, struct token *tok, struct node *n1,
                               struct node *n2, struct node *n3);
-struct node      *node3ex   (int gln, int id, struct token *tok, struct node *n1,
-                              struct node *n2, struct node *n3);
 struct node      *node4     (int id, struct token *tok, struct node *n1,
-                              struct node *n2, struct node *n3,
-                              struct node *n4);
-struct node      *node4ex   (int gln, int id, struct token *tok, struct node *n1,
                               struct node *n2, struct node *n3,
                               struct node *n4);
 struct il_c      *parm_dcl  (int addr_of, struct sym_entry *sym);

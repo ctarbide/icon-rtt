@@ -11,7 +11,7 @@ static struct str_buf sbuf_preproc[1];
 
 #define MAX_SYMS 16
 
-static int g_sym_counter = 0;
+static int sym_counter = 0;
 
 /*
  * Prototypes for static functions.
@@ -412,7 +412,7 @@ struct token *t;
 			__FILE__, __LINE__, syms_tally);
 		     exit(1);
 		     }
-		  symids[syms_tally] = g_sym_counter++;
+		  symids[syms_tally] = sym_counter++;
 		  syms[syms_tally] = t1->image;
 		  syms_tally++;
 		  }

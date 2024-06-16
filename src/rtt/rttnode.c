@@ -67,29 +67,6 @@ struct token *tok;
    }
 
 /*
- * node0ex - create a syntax tree leaf node.
- */
-struct node *node0ex(gln, id, tok)
-int gln, id;
-struct token *tok;
-   {
-   struct node *n;
-
-   n = NewNode(0);
-   n->gln = gln;
-   n->nd_id = id;
-   n->tok = tok;
-#if defined(TRACE_NODE_MEMBER) && defined(TRACE_NODE_ADD_INFO)
-   do {
-      char buf[100];
-      token_name(tok, buf, sizeof(buf));
-      n->trace = concat(node_id_name(id), ":", buf, NULL);
-      } while (0);
-#endif
-   return n;
-   }
-
-/*
  * node1 - create a syntax tree node with one child.
  */
 struct node *node1(id, tok, n1)
@@ -118,35 +95,6 @@ struct node *n1;
    }
 
 /*
- * node1ex - create a syntax tree node with one child.
- */
-struct node *node1ex(gln, id, tok, n1)
-int gln, id;
-struct token *tok;
-struct node *n1;
-   {
-   struct node *n;
-
-   n = NewNode(1);
-   n->gln = gln;
-   n->nd_id = id;
-   n->tok = tok;
-   n->u[0].child = n1;
-#if defined(TRACE_NODE_MEMBER) && defined(TRACE_NODE_ADD_INFO)
-   do {
-      char buf[100];
-      token_name(tok, buf, sizeof(buf));
-      n->trace = concat(
-	 node_id_name(id),
-	 ":", buf, ":[",
-	 node_name(n1), "]",
-	 NULL);
-      } while (0);
-#endif
-   return n;
-   }
-
-/*
  * node2 - create a syntax tree node with two children.
  */
 struct node *node2(id, tok, n1, n2)
@@ -157,70 +105,6 @@ struct node *n1, *n2;
    struct node *n;
 
    n = NewNode(2);
-   n->nd_id = id;
-   n->tok = tok;
-   n->u[0].child = n1;
-   n->u[1].child = n2;
-#if defined(TRACE_NODE_MEMBER) && defined(TRACE_NODE_ADD_INFO)
-   if (tok) {
-      char buf[100];
-      token_name(tok, buf, sizeof(buf));
-      if (id == CommaNd) {
-	 n->trace = concat(
-	    "[", node_name(n1), "]",
-	    buf /* always ',' according to rttgram.y */,
-	    "[", node_name(n2), "]",
-	    NULL);
-	 }
-      else {
-	 n->trace = concat(
-	    node_id_name(id),
-	    ":", buf, ":[",
-	    node_name(n1), "]:[",
-	    node_name(n2), "]",
-	    NULL);
-	 }
-      }
-   else {
-      if (id == LstNd) {
-	 n->trace = concat(
-	    "list:[",
-	    node_name(n1), "]:[",
-	    node_name(n2), "]",
-	    NULL);
-	 }
-      else if (id == ConCatNd) {
-	 n->trace = concat(
-	    "cat:[",
-	    node_name(n1), "]:[",
-	    node_name(n2), "]",
-	    NULL);
-	 }
-      else {
-	 n->trace = concat(
-	    node_id_name(id),
-	    "::[",
-	    node_name(n1), "]:[",
-	    node_name(n2), "]",
-	    NULL);
-	 }
-      }
-#endif
-   return n;
-   }
-
-/*
- * node2ex - create a syntax tree node with two children.
- */
-struct node *node2ex(gln, id, tok, n1, n2)
-int gln, id;
-struct token *tok;
-struct node *n1, *n2;
-   {
-   struct node *n;
-
-   n = NewNode(2);
-   n->gln = gln;
    n->nd_id = id;
    n->tok = tok;
    n->u[0].child = n1;
@@ -315,48 +199,6 @@ struct node *n1, *n2, *n3;
    }
 
 /*
- * node3ex - create a syntax tree node with three children.
- */
-struct node *node3ex(gln, id, tok, n1, n2, n3)
-int gln, id;
-struct token *tok;
-struct node *n1, *n2, *n3;
-   {
-   struct node *n;
-
-   n = NewNode(3);
-   n->gln = gln;
-   n->nd_id = id;
-   n->tok = tok;
-   n->u[0].child = n1;
-   n->u[1].child = n2;
-   n->u[2].child = n3;
-#if defined(TRACE_NODE_MEMBER) && defined(TRACE_NODE_ADD_INFO)
-   if (tok) {
-      char buf[100];
-      token_name(tok, buf, sizeof(buf));
-      n->trace = concat(
-	 node_id_name(id),
-	 ":", buf, ":[",
-	 node_name(n1), "]:[",
-	 node_name(n2), "]:[",
-	 node_name(n3), "]",
-	 NULL);
-      }
-   else {
-      n->trace = concat(
-	 node_id_name(id),
-	 "::[",
-	 node_name(n1), "]:[",
-	 node_name(n2), "]:[",
-	 node_name(n3), "]",
-	 NULL);
-      }
-#endif
-   return n;
-   }
-
-/*
  * node4 - create a syntax tree node with four children.
  */
 struct node *node4(id, tok, n1, n2, n3, n4)
@@ -367,27 +209,6 @@ struct node *n1, *n2, *n3, *n4;
    struct node *n;
 
    n = NewNode(4);
-   n->nd_id = id;
-   n->tok = tok;
-   n->u[0].child = n1;
-   n->u[1].child = n2;
-   n->u[2].child = n3;
-   n->u[3].child = n4;
-   return n;
-   }
-
-/*
- * node4ex - create a syntax tree node with four children.
- */
-struct node *node4ex(gln, id, tok, n1, n2, n3, n4)
-int gln, id;
-struct token *tok;
-struct node *n1, *n2, *n3, *n4;
-   {
-   struct node *n;
-
-   n = NewNode(4);
-   n->gln = gln;
    n->nd_id = id;
    n->tok = tok;
    n->u[0].child = n1;
@@ -436,8 +257,7 @@ struct token *tok;
 /*
  * comp_nd - create a node for a compound statement.
  */
-struct node *comp_nd(gln, tok, dcls, stmts)
-int gln;
+struct node *comp_nd(tok, dcls, stmts)
 struct token *tok;
 struct node *dcls;
 struct node *stmts;
@@ -445,7 +265,6 @@ struct node *stmts;
    struct node *n;
 
    n = NewNode(3);
-   n->gln = gln;
    n->nd_id = CompNd;
    n->tok = tok;
    n->u[0].child = dcls;
@@ -634,7 +453,6 @@ struct node *n;
       return NULL;
 
    res = NewNode(node_nfields(n));
-   res->gln = n->gln;
    res->nd_id = n->nd_id;
    res->tok = copy_t(n->tok);
 #ifdef TRACE_NODE_MEMBER

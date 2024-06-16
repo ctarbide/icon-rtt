@@ -1509,7 +1509,7 @@ int indent, brace, may_force_nl;
 	  */
 	 fall_thru = c_walk(n->u[0].child, indent, 0);
 	 prt_tok(t, indent);
-	 if (n->gln == GLN_EXPR_STMT_OPT_EXPR_SEMICOLON)
+	 if (t->tok_id == ';')
 	    ForceNl();
 	 return fall_thru;
       case PreSpcNd: /* prefix expression that needs a space after it */
@@ -1789,11 +1789,8 @@ int indent, brace, may_force_nl;
 	  * Need space between parts
 	  */
 	 c_walk(n->u[0].child, indent, 0);
-	 if (n->gln == GLN_LOCAL_DCLS || n->gln == GLN_STRUCT_DCLTION_LST) {
-	    /* nop */
-	 } else {
+	 if (is_t(n->u[1].child, BinryNd, ';') == NULL)
 	    prt_str(" ", indent);
-	 }
 	 c_walk(n->u[1].child, indent, 0);
 	 return 1;
       case ConCatNd: /* two ajacent pieces of code with no other syntax */
@@ -1922,7 +1919,9 @@ int indent, brace, may_force_nl;
 		  }
 	       else
 		  prt_str(") ", indent);
-	       fall_thru = c_walk(n->u[1].child, indent + IndentInc, 0);
+	       fall_thru = c_walk(n1, indent + IndentInc, 0);
+	       if (is_t(n1, PstfxNd, ';'))
+		  ForceNl();
 	       n1 = n->u[2].child;
 	       if (n1 == NULL)
 		  fall_thru = 1;
@@ -1942,6 +1941,8 @@ int indent, brace, may_force_nl;
 		  if (is_t(n1, TrnryNd, If) == NULL)
 		     ind += IndentInc;
 		  fall_thru |= c_walk(n1, ind, 0);
+		  if (is_t(n1, PstfxNd, ';'))
+		     ForceNl();
 		  }
 	       return fall_thru;
 	    case Type_case:
@@ -1983,6 +1984,8 @@ int indent, brace, may_force_nl;
 		  ForceNl();
 		  }
 	       c_walk(n1, indent + IndentInc, 0);
+	       if (is_t(n1, PstfxNd, ';'))
+		  ForceNl();
 	       if (n->u[1].child == NULL && !does_break)
 		  fall_thru = 0;
 	       else
@@ -3467,7 +3470,7 @@ int start, len;
 	    nchildren = get_comma_children(children, 0, sizeof(children)/sizeof(*children), nd);
 	    typedefname = n->u[0].child;
 	    for (i=0; i<nchildren; i++) {
-	       out[start++] = node2ex(-1, BinryNd,
+	       out[start++] = node2(BinryNd,
 		  new_token(';', ";", __FILE__, __LINE__),
 		  copy_tree(typedefname),
 		  copy_tree(children[i]));
@@ -3505,7 +3508,7 @@ int start, len;
 	 }
       if ((nd = n->u[1].child)) {
 	 if (nd->nd_id == ConCatNd) {
-	    out[start++] = node2ex(-1, LstNd, NULL,
+	    out[start++] = node2(LstNd, NULL,
 	       copy_tree(n->u[0].child),
 	       copy_tree(n->u[1].child));
 	    }
@@ -3515,7 +3518,7 @@ int start, len;
 	    nchildren = get_comma_children(children, 0, sizeof(children)/sizeof(*children), nd);
 	    typedefname = n->u[0].child;
 	    for (i=0; i<nchildren; i++) {
-	       out[start++] = node2ex(-1, LstNd, NULL,
+	       out[start++] = node2(LstNd, NULL,
 		  copy_tree(typedefname),
 		  copy_tree(children[i]));
 	       }
@@ -3611,14 +3614,14 @@ struct node *head, *prm_dcl;
 	    exit(1);
 	    }
 	 if (decl_lst == NULL) {
-	    decl_lst = node2ex(-1, LstNd, NULL,
+	    decl_lst = node2(LstNd, NULL,
 	       copy_tree(found->u[0].child),
 	       copy_tree(found->u[1].child));
 	    }
 	 else {
-	    decl_lst = node2ex(-1, CommaNd, new_token(',', ",", __FILE__, __LINE__),
+	    decl_lst = node2(CommaNd, new_token(',', ",", __FILE__, __LINE__),
 	       decl_lst,
-	       node2ex(-1, LstNd, NULL,
+	       node2(LstNd, NULL,
 		  copy_tree(found->u[0].child),
 		  copy_tree(found->u[1].child))
 	       );
@@ -3630,11 +3633,11 @@ struct node *head, *prm_dcl;
 	 free_tree(decls[i]);
 	 }
 
-      new_head = node2ex(-1, LstNd, NULL,
+      new_head = node2(LstNd, NULL,
 	 copy_tree(nav_n(head, LstNd, 0)),
-	 node2ex(-1, ConCatNd, NULL,
+	 node2(ConCatNd, NULL,
 	    copy_tree(nav_n_n(head, LstNd, 1, ConCatNd, 0)),
-	    node2ex(-1, BinryNd, new_token(')', ")", __FILE__, __LINE__),
+	    node2(BinryNd, new_token(')', ")", __FILE__, __LINE__),
 	       copy_tree(nav_n_n_t(head, LstNd, 1, ConCatNd, 1, BinryNd, ')', 0)),
 	       decl_lst)));
 
