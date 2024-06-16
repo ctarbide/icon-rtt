@@ -181,7 +181,7 @@ unary_expr
    | unary_op cast_expr       {$$ = node1(PrefxNd, $1, $2);}
    | Sizeof unary_expr        {$$ = node1(PrefxNd, $1, $2);}
    | Sizeof '(' type_name ')' {$$ = node1(PrefxNd, $1, $3);
-                               free_t($2); free_t($4);}
+                               free_tt($2, $4);}
    ;
 
 unary_op
@@ -665,7 +665,7 @@ local_dcls
 local_dcl
    : dcltion
    | Tended tended_type init_dcltor_lst ';'
-             {$$ = NULL; free_t($1); free_t($4); g_dcl_stk->kind_dcl = OtherDcl;}
+             {$$ = NULL; free_tt($1, $4); g_dcl_stk->kind_dcl = OtherDcl;}
    ;
 
 tended_type
@@ -690,13 +690,13 @@ expr_stmt
 
 selection_stmt
    : If '(' expr ')' stmt   %prec IfStmt {$$ = node3(TrnryNd, $1, $3, $5, NULL);
-                                          free_t($2); free_t($4);}
+                                          free_tt($2, $4);}
    | If '(' expr ')' stmt Else stmt      {$$ = node3(TrnryNd, $1, $3, $5, $7);
-                                          free_t($2); free_t($4); free_t($6);}
+                                          free_ttt($2, $4, $6);}
    | Switch '(' expr ')' stmt
       {$$ = node2(BinryNd, $1, $3, $5); free_tt($2, $4);}
    | Type_case expr Of '{' c_type_select_lst c_opt_default '}'
-      {$$ = node3(TrnryNd, $1, $2, $5, $6); free_t($3); free_t($4); free_t($7);}
+      {$$ = node3(TrnryNd, $1, $2, $5, $6); free_ttt($3, $4, $7);}
    ;
 
 c_type_select_lst
@@ -710,19 +710,17 @@ c_type_select
 
 c_opt_default
    : {$$ = NULL;}
-   | Default ':' non_lbl_stmt {$$ = $3; free_t($1); free_t($2);}
+   | Default ':' non_lbl_stmt {$$ = $3; free_tt($1, $2);}
    ;
 
 iteration_stmt
    : While '(' expr ')' stmt           {$$ = node2(BinryNd, $1, $3, $5);
-                                        free_t($2); free_t($4);}
+                                        free_tt($2, $4);}
    | Do stmt While '(' expr ')' ';'    {$$ = node2(BinryNd, $1, $2, $5);
-                                        free_t($3); free_t($4); free_t($6);
-                                        free_t($7);}
+                                        free_ttt($3, $4, $6); free_t($7);}
    | For '(' opt_expr ';' opt_expr ';' opt_expr ')' stmt
                                        {$$ = node4(QuadNd, $1, $3, $5, $7, $9);
-                                        free_t($2); free_t($4); free_t($6);
-                                        free_t($8);}
+                                        free_ttt($2, $4, $6); free_t($8);}
    ;
 
 jump_stmt
@@ -790,7 +788,7 @@ definition
 operation
    : fnc_oper op_declare actions End {defout($3); free_t($4);}
    | keyword             actions End {defout($2); free_t($3);}
-   | keyword Constant key_const  End {keyconst($3); free_t($2); free_t($4);}
+   | keyword Constant key_const  End {keyconst($3); free_tt($2, $4);}
    ;
 
 description
@@ -800,16 +798,14 @@ description
 
 fnc_oper
    : Function '{' result_seq '}' op_name '(' opt_s_parm_lst ')'
-      {impl_fnc($5); free_t($1); free_t($2); free_t($4); free_t($6);
-       free_t($8);}
+      {impl_fnc($5); free_ttt($1, $2, $4); free_tt($6, $8);}
    | Operator '{' result_seq {lex_state = OpHead;} '}' OpSym
       {lex_state = DfltLex;} op_name '(' opt_s_parm_lst ')'
-      {impl_op($6, $8); free_t($1); free_t($2); free_t($5); free_t($9);
-       free_t($11);}
+      {impl_op($6, $8); free_ttt($1, $2, $5); free_tt($9, $11);}
 
 keyword
    : Keyword  '{' result_seq '}' op_name
-       {impl_key($5); free_t($1); free_t($2); free_t($4);}
+       {impl_key($5); free_ttt($1, $2, $4);}
    ;
 
 key_const
@@ -919,7 +915,7 @@ opt_plus
 opt_s_parm_lst
    :
    | s_parm_lst
-   | s_parm_lst '[' identifier ']' {var_args($3); free_t($2); free_t($4);}
+   | s_parm_lst '[' identifier ']' {var_args($3); free_tt($2, $4);}
    ;
 
 s_parm_lst
@@ -936,8 +932,7 @@ s_parm
 
 op_declare
    : {}
-   | Declare '{' local_dcls '}' {d_lst_typ($3); free_t($1); free_t($2);
-                                 free_t($4);}
+   | Declare '{' local_dcls '}' {d_lst_typ($3); free_ttt($1, $2, $4);}
    ;
 
 opt_actions
@@ -957,24 +952,25 @@ action
    | '{' opt_actions '}' {$$ = node1(PrefxNd, $1, $2); free_t($3);}
    | Abstract {lex_state = TypeComp;} '{' type_computations
          {lex_state = DfltLex;} '}'
-         {$$ = $4; free_t($1); free_t($3); free_t($6);}
+         {$$ = $4; free_ttt($1, $3, $6);}
    ;
 
 checking_conversions
    : If type_check Then action %prec IfStmt
       {$$ = node3(TrnryNd, $1, $2, $4, NULL); free_t($3);}
    | If type_check Then action Else action
-      {$$ = node3(TrnryNd, $1, $2, $4, $6); free_t($3); free_t($5);}
+      {$$ = node3(TrnryNd, $1, $2, $4, $6); free_tt($3, $5);}
    | Type_case variable Of '{' type_select_lst opt_default '}'
-      {$$ = node3(TrnryNd, $1, $2, $5, $6); free_t($3); free_t($4); free_t($7);}
+      {$$ = node3(TrnryNd, $1, $2, $5, $6); free_ttt($3, $4, $7);}
    | Len_case identifier Of '{' len_select_lst Default ':' action '}'
-      {$$ = node3(TrnryNd, $1, sym_node($2), $5, $8); free_t($3), free_t($4);
-       free_t($6); free_t($7); free_t($9);}
+      {$$ = node3(TrnryNd, $1, sym_node($2), $5, $8); free_ttt($3, $4, $6);
+	 free_tt($7, $9);}
    | Arith_case '(' variable ',' variable ')' Of '{'
       dest_type ':' action dest_type ':' action dest_type ':' action '}'
-      {$$ = arith_nd($1, $3, $5, $9, $11, $12, $14, $15, $17); free_t($2);
-       free_t($4), free_t($6); free_t($7); free_t($8); free_t($10);
-       free_t($13); free_t($16); free_t($18);}
+      {$$ = arith_nd($1, $3, $5, $9, $11, $12, $14, $15, $17);
+	 free_ttt($2, $4, $6);
+	 free_ttt($7, $8, $10);
+	 free_ttt($13, $16, $18);}
    ;
 
 type_select_lst
@@ -988,7 +984,7 @@ type_select
 
 opt_default
    : {$$ = NULL;}
-   | Default ':' action {$$ = $3; free_t($1); free_t($2);}
+   | Default ':' action {$$ = $3; free_tt($1, $2);}
    ;
 
 selector_lst
@@ -1018,19 +1014,18 @@ simple_check_conj
 
 simple_check
    : Is ':' i_type_name '(' variable ')'
-      {$$ = node2(BinryNd, $1, $3, $5); free_t($2); free_t($4); free_t($6);}
+      {$$ = node2(BinryNd, $1, $3, $5); free_ttt($2, $4, $6);}
    | Cnv ':' dest_type '(' variable ')'
-      {$$ = node3(TrnryNd, $1, $3, $5, NULL), dst_alloc($3, $5); free_t($2);
-       free_t($4); free_t($6);}
+      {$$ = node3(TrnryNd, $1, $3, $5, NULL), dst_alloc($3, $5);
+	 free_ttt($2, $4, $6);}
    | Cnv ':' dest_type '(' variable  ',' assign_expr ')'
-      {$$ = node3(TrnryNd, $1, $3, $5, $7), free_t($2); free_t($4); free_t($6);
-       free_t($8);}
+      {$$ = node3(TrnryNd, $1, $3, $5, $7), free_ttt($2, $4, $6); free_t($8);}
    | Def ':' dest_type '(' variable  ',' assign_expr ')'
-      {$$ = node4(QuadNd, $1, $3, $5, $7, NULL), dst_alloc($3, $5); free_t($2);
-       free_t($4); free_t($6); free_t($8);}
+      {$$ = node4(QuadNd, $1, $3, $5, $7, NULL), dst_alloc($3, $5);
+	 free_ttt($2, $4, $6); free_t($8);}
    | Def ':' dest_type '(' variable  ',' assign_expr ',' assign_expr ')'
-      {$$ = node4(QuadNd, $1, $3, $5, $7, $9), free_t($2); free_t($4);
-       free_t($6); free_t($8); free_t($10);}
+      {$$ = node4(QuadNd, $1, $3, $5, $7, $9), free_ttt($2, $4, $6);
+	 free_tt($8, $10);}
    ;
 
 detail_code
@@ -1043,10 +1038,10 @@ detail_code
 runerr
    : Runerr '(' IntConst ')' opt_semi
                     {$$ = node2(BinryNd, $1, node0(PrimryNd, $3), NULL);
-                     free_t($2); free_t($4);}
+                     free_tt($2, $4);}
    | Runerr '(' IntConst ',' variable ')' opt_semi
                     {$$ = node2(BinryNd, $1, node0(PrimryNd, $3), $5);
-                     free_t($2); free_t($4); free_t($6);}
+                     free_ttt($2, $4, $6);}
    ;
 
 opt_semi
@@ -1057,8 +1052,7 @@ opt_semi
 variable
    : identifier                  {$$ = sym_node($1);}
    | identifier '[' IntConst ']' {$$ = node2(BinryNd, $2, sym_node($1),
-                                    node0(PrimryNd, $3));
-                                  free_t($4);}
+      node0(PrimryNd, $3)); free_t($4);}
 
 dest_type
    : IconType                {$$ = dest_node($1);}
@@ -1067,10 +1061,9 @@ dest_type
    | C_String                {$$ = node0(PrimryNd, $1);}
    | Tmp_string              {$$ = node0(PrimryNd, $1); ++g_n_tmp_str;}
    | Tmp_cset                {$$ = node0(PrimryNd, $1); ++g_n_tmp_cset;}
-   | '(' Exact ')' IconType  {$$ = node0(ExactCnv, chk_exct($4)); free_t($1);
-                              free_t($2); free_t($3);}
-   | '(' Exact ')' C_Integer {$$ = node0(ExactCnv, $4); free_t($1); free_t($2);
-                              free_t($3);}
+   | '(' Exact ')' IconType  {$$ = node0(ExactCnv, chk_exct($4));
+      free_ttt($1, $2, $3);}
+   | '(' Exact ')' C_Integer {$$ = node0(ExactCnv, $4); free_ttt($1, $2, $3);}
    ;
 
 i_type_name
@@ -1100,7 +1093,7 @@ side_effect_lst
 
 side_effect
    : Store '[' type ']' '=' type opt_semi {$$ = node2(BinryNd, $5, $3, $6);
-                                           free_t($1); free_t($2); free_t($4);}
+      free_ttt($1, $2, $4);}
    ;
 
 type
@@ -1112,14 +1105,14 @@ basic_type
    : i_type_name                        {$$ = node1(IcnTypNd,
                                          copy_t($1->tok), $1);}
    | Type '(' variable ')'              {$$ = node1(PrefxNd, $1, $3);
-                                         free_t($2); free_t($4);}
+                                         free_tt($2, $4);}
    | New i_type_name '(' type_lst ')'   {$$ = node2(BinryNd, $1, $2, $4);
-                                         free_t($3); free_t($5);}
+                                         free_tt($3, $5);}
    | Store '[' type ']'                 {$$ = node1(PrefxNd, $1, $3);
-                                         free_t($2); free_t($4);}
+                                         free_tt($2, $4);}
    | basic_type '.' attrb_name          {$$ = node1(PstfxNd, $3, $1);
                                          free_t($2);}
-   | '(' type ')'                       {$$ = $2; free_t($1); free_t($3);}
+   | '(' type ')'                       {$$ = $2; free_tt($1, $3);}
    ;
 
 union
