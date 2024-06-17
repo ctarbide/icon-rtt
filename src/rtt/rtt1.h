@@ -134,6 +134,7 @@ extern struct init_tend *g_tend_lst; /* list of allocated tended slots */
 extern char *g_str_rslt;             /* string "result" in string table */
 extern char *g_str_FILE;             /* string "FILE" in string table */
 extern char *g_str_IGNORE;           /* string "IGNORE" in string table */
+extern char *g_str_GENSYM;           /* hidden string for special purposes */
 extern word g_lbl_num;               /* next unused label number */
 extern struct sym_entry *g_v_len;    /* symbol entry for size of varargs */
 extern int g_il_indx;                /* next index into data base symbol table */

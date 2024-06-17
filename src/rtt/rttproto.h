@@ -138,3 +138,5 @@ nav_t_is_t(struct node *n, int nd_id1, int tok_id1, int child1, int nd_id2, int 
 
 struct node *
 nav_t_is_tt(struct node *n, int nd_id1, int tok_id1, int child1, int nd_id2, int tok_id21, int tok_id22);
+
+void id_is_tag(struct node *n);

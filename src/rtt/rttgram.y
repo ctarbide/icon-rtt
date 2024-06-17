@@ -393,12 +393,12 @@ stnd_type
 
 struct_or_union_spec
    : struct_or_union any_ident '{' struct_dcltion_lst '}'
-                                            {$$ = node2(BinryNd, $1, $2, $4);
-                                             free_tt($3, $5);}
+      {id_is_tag($2); $$ = node2(BinryNd, $1, $2, $4); free_tt($3, $5);}
    | struct_or_union '{' struct_dcltion_lst '}'
                                             {$$ = node2(BinryNd, $1, NULL, $3);
                                              free_tt($2, $4);}
-   | struct_or_union any_ident              {$$ = node2(BinryNd, $1, $2, NULL);}
+   | struct_or_union any_ident
+      {id_is_tag($2); $$ = node2(BinryNd, $1, $2, NULL);}
    ;
 
 struct_or_union
@@ -464,8 +464,8 @@ enum_spec
    : Enum {push_cntxt(0);} '{' enumerator_lst '}'
        {$$ = node2(BinryNd, $1, NULL, $4); pop_cntxt(); free_tt($3, $5);}
    | Enum any_ident {push_cntxt(0);} '{' enumerator_lst '}'
-       {$$ = node2(BinryNd, $1, $2,  $5); pop_cntxt(); free_tt($4, $6);}
-   | Enum any_ident {$$ = node2(BinryNd, $1, $2,  NULL);}
+       {id_is_tag($2); $$ = node2(BinryNd, $1, $2,  $5); pop_cntxt(); free_tt($4, $6);}
+   | Enum any_ident {id_is_tag($2); $$ = node2(BinryNd, $1, $2,  NULL);}
    ;
 
 enumerator_lst

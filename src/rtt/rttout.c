@@ -7,6 +7,9 @@
 
 #include "rtt.h"
 
+static struct str_buf sbuf_rttout[1];
+#define sbuf sbuf_rttout
+
 #define WHEN_NL_ENUM_LIST 1
 #define WHEN_NL_INITIALIZER_LIST 16
 #define WHEN_NL_PRIMARY_DECLARATOR_LIST 8
@@ -35,6 +38,8 @@
 
 unsigned long trace_count = 0;
 int can_output_trace(void);
+
+static int sym_counter = 0;
 
 /*
  * Prototypes for static functions.
@@ -82,7 +87,7 @@ static int     typ_case      (struct node *var, struct node *slct_lst,
 				 int brace), int maybe_var, int indent);
 static void untend        (int indent);
 static char *
-top_level_chunk_name(struct node *n);
+top_level_chunk_name(struct node *n, int is_concrete, struct node **auxnd1, struct node **auxnd2);
 static int is_static_function(struct node *head);
 static struct node *fnc_head_args(struct node *head);
 static int get_args_names(struct node **out, int start, int len, struct node *n);
@@ -91,7 +96,6 @@ static int get_comma_children(struct node **out, int start, int len, struct node
 static int get_declarations_as_list(struct node **out, int start, int len, struct node *n);
 static struct node *header_k_and_r_to_ansi(struct node *head, struct node *prm_dcl);
 static struct node *defining_identifier(struct node *n);
-static char top_level_chunk_name_buffer[100];
 static int c_walk_cat(struct node *n, int indent, int brace);
 static int c_walk_nl(struct node *n, int indent, int brace, int may_force_nl);
 static struct node *has_primry(struct node *n, int p);
@@ -3321,36 +3325,68 @@ struct node *n;
    return 0;  /* avoid gcc warning */
    }
 
+#define MAX_DCLOUT_DATA_ITEMS 3
+struct dclout_data {
+   struct {
+      struct node *node;
+      int is_concrete;
+      char *chunk_name;
+   } items[MAX_DCLOUT_DATA_ITEMS];
+   int tally;
+};
+
 /*
  * dclout - output an ordinary global C declaration.
  */
-void dclout(n)
+static void dclout0(struct dclout_data *data, struct node *n);
+static void dclout0(data, n)
+struct dclout_data *data;
 struct node *n;
    {
-   int is_concrete;
+   int idx, is_concrete;
    char *chunk_name;
+   struct node *auxnd1 = NULL, *auxnd2 = NULL;
 
    /* this declaration defines a run-time object */
    is_concrete = real_def(n);
-   g_def_fnd += is_concrete;
-
-   if ((chunk_name = top_level_chunk_name(n))) {
-      prt_str(chunk_name, 0);
-      ForceNl();
+   if ((chunk_name = top_level_chunk_name(n, is_concrete, &auxnd1, &auxnd2))) {
+      if (data->tally >= MAX_DCLOUT_DATA_ITEMS) {
+	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	 exit(1);
+	 }
+      idx = data->tally;
+      data->items[idx].node = n;
+      data->items[idx].is_concrete = is_concrete;
+      data->items[idx].chunk_name = chunk_name;
+      data->tally++;
+      if (auxnd1)
+	 dclout0(data, auxnd1);
+      if (auxnd2)
+	 dclout0(data, auxnd2);
       }
-
-   if (is_concrete || chunk_name)
-      c_walk(n, 0, 0);
-
-   g_def_fnd -= is_concrete;
-
-   if (chunk_name) {
+   }
+
+void dclout(n)
+struct node *n;
+   {
+   int idx;
+   struct dclout_data data = {0};
+   dclout0(&data, n);
+   for (idx = 0; data.tally; data.tally--, idx++) {
+      prt_str(data.items[idx].chunk_name, 0);
       ForceNl();
+      g_def_fnd += data.items[idx].is_concrete;
+      c_walk(data.items[idx].node, 0, 0);
+      g_def_fnd -= data.items[idx].is_concrete;
+      ForceNl();
+      free_tree(data.items[idx].node);
+      }
+   if (idx == 0)
+      free_tree(n);
+   else {
       prt_str("@", 0);
       ForceNl();
       }
-
-   free_tree(n);
    }
 
 static struct node *has_primry(n, p)
@@ -4349,59 +4385,196 @@ struct node *n;
       return NULL;
    }
 
-static char *
-top_level_chunk_name(n)
-struct node *n;
+static char *str_install_local_sbuf(char *s);
+static char *str_install_local_sbuf(s)
+char *s;
    {
-   struct node *nd1, *nd2;
+   init_sbuf(sbuf);
+   for (; *s != '\0'; ++s)
+      AppChar(sbuf, *s);
+   return str_install(sbuf);
+   }
+
+static char *gensym(char *prefix);
+static char *gensym(prefix)
+char *prefix;
+   {
+      char buf[100];
+      snprintf(buf, sizeof(buf), "%s%d", prefix, sym_counter++);
+      return str_install_local_sbuf(buf);
+   }
+static char *
+top_level_chunk_name(n, is_concrete, auxnd1, auxnd2)
+int is_concrete;
+struct node *n, **auxnd1, **auxnd2;
+   {
+   char buf[100];
+   struct node *nd1;
 
    if ((nd1 = nav_t(n, BinryNd, ';', 0))) {
-      if (nd1->nd_id == BinryNd && n->u[1].child == NULL) {
-	 switch (nd1->tok->tok_id) {
-	    case Enum:
-	       if ((nd2 = nd1->u[0].child) && is_t(nd2, PrimryNd, Identifier)) {
-		  int tag_only = nd1->u[1].child == NULL;
-		  snprintf(top_level_chunk_name_buffer, sizeof(top_level_chunk_name_buffer),
-		     tag_only ? "<<enum tag %s>>=" : "<<enum %s>>=", nd2->tok->image);
-		  return top_level_chunk_name_buffer;
+      struct node *nd2;
 
-		  }
-	       return "<<enums>>=";
-	    case Union:
-	       if ((nd2 = nd1->u[0].child) && is_t(nd2, PrimryNd, Identifier)) {
-		  int tag_only = nd1->u[1].child == NULL;
-		  snprintf(top_level_chunk_name_buffer, sizeof(top_level_chunk_name_buffer),
-		     tag_only ? "<<union tag %s>>=" : "<<union %s>>=", nd2->tok->image);
-		  return top_level_chunk_name_buffer;
+      if (is_a(nd1, BinryNd)) {
+	 if ((nd2 = nd1->u[0].child) && is_t(nd2, PrimryNd, Identifier)) {
+	    int tag_only = nd1->u[1].child == NULL;
+	    char *type_name;
 
+	    switch (nd1->tok->tok_id) {
+	       case Enum: type_name = "enum"; break;
+	       case Union: type_name = "union"; break;
+	       case Struct: type_name = "struct"; break;
+	       default:
+		  fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+		  exit(1);
+	       }
+	    if (tag_only && nav_t(n, BinryNd, ';', 1)) {
+	       struct node *id_nd;
+	       if ((id_nd = is_t(n->u[1].child, PrimryNd, Identifier)) && id_nd->tok->image == g_str_GENSYM) {
+		  n->u[1].child = NULL;
+		  node_update_trace(n);
+		  free(id_nd);
+		  return g_str_GENSYM;
 		  }
-	       return "<<unions>>=";
-	    case Struct:
-	       if ((nd2 = nd1->u[0].child) && is_t(nd2, PrimryNd, Identifier)) {
-		  int tag_only = nd1->u[1].child == NULL;
-		  snprintf(top_level_chunk_name_buffer, sizeof(top_level_chunk_name_buffer),
-		     tag_only ? "<<struct tag %s>>=" : "<<struct %s>>=", nd2->tok->image);
-		  return top_level_chunk_name_buffer;
-
+	       return is_concrete ? "<<globals>>=" : NULL;
+	       }
+	    snprintf(buf, sizeof(buf),
+	       tag_only ? "<<%s tag %s>>=" : "<<%s %s>>=", type_name, nd2->tok->image);
+	    return str_install_local_sbuf(buf);
+	    }
+	 else if (nd1->u[0].child == NULL) { /* does not have tag */
+	    char *tag_id, *prefix, *type_name;
+	    int type_tok_id;
+	    struct token *tag_tok;
+	    struct node *tag_nd;
+	    switch (nd1->tok->tok_id) {
+	       case Enum:
+		  type_tok_id = Enum;
+		  type_name = "enum";
+		  prefix = "_tag_enum_";
+		  break;
+	       case Union:
+		  type_tok_id = Union;
+		  type_name = "union";
+		  prefix = "_tag_union_";
+		  break;
+	       case Struct:
+		  type_tok_id = Struct;
+		  type_name = "struct";
+		  prefix = "_tag_struct_";
+		  break;
+	       default:
+		  fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+		  exit(1);
+	       }
+	    tag_id = gensym(prefix);
+	    tag_tok = new_token(Identifier, tag_id, __FILE__, __LINE__);
+	    tag_nd = node0(PrimryNd, tag_tok);
+	    nd1->u[0].child = tag_nd;
+	    if ((nd2 = n->u[1].child)) {      /* has variables */
+	       struct token *type_tok, *semi_tok, *gensym_tok;
+	       n->u[1].child = NULL;
+	       type_tok = new_token(type_tok_id, type_name, __FILE__, __LINE__);
+	       semi_tok = new_token(';', ";", __FILE__, __LINE__);
+	       *auxnd1 = node2(BinryNd, semi_tok,
+		  node2(BinryNd, type_tok, copy_tree(tag_nd), NULL), nd2);
+	       gensym_tok = new_token(Identifier, g_str_GENSYM,
+		  __FILE__, __LINE__);
+	       *auxnd2 = node2(BinryNd, gensym_tok,
+		  node0(PrimryNd, copy_t(type_tok)),
+		  copy_tree(tag_nd));
+	       }
+	    else {
+	       struct token *type_tok, *gensym_tok;
+	       if (type_tok_id != Enum) {
+		  /* enum does not required tag nor variables, struct
+		   * or union do
+		   */
+		  fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+		  exit(1);
 		  }
-	       return "<<structs>>=";
+	       type_tok = new_token(type_tok_id, type_name, __FILE__, __LINE__);
+	       gensym_tok = new_token(Identifier, g_str_GENSYM,
+		  __FILE__, __LINE__);
+	       *auxnd1 = node2(BinryNd, gensym_tok,
+		  node0(PrimryNd, type_tok),
+		  copy_tree(tag_nd));
+	       }
+	    node_update_trace(n);
+	    return top_level_chunk_name(n, is_concrete, NULL, NULL);
+	    }
+	 else {
+	    fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	    exit(1);
 	    }
 	 }
-      if ((nd2 = nav_n(nd1, LstNd, 0)) && is_t(nd2, PrimryNd, Typedef)) {
-	 struct node *id, *maybe_ignore;
+      else if ((nd2 = nav_n(nd1, LstNd, 0))) {
+	 if (is_t(nd2, PrimryNd, Typedef)) {
+	    struct node *id, *maybe_ignore;
 
-	 maybe_ignore = nav_n_is_t(nd1, LstNd, 1, PrimryNd, TypeDefName);
-	 if (maybe_ignore && maybe_ignore->tok->image == g_str_IGNORE)
-	    return NULL;
-	 if ((id = defining_identifier(n->u[1].child))) {
-	    snprintf(top_level_chunk_name_buffer, sizeof(top_level_chunk_name_buffer),
-	       "<<typedef %s>>=", id->tok->image);
-	    return top_level_chunk_name_buffer;
+	    maybe_ignore = nav_n_is_t(nd1, LstNd, 1, PrimryNd, TypeDefName);
+	    if (maybe_ignore && maybe_ignore->tok->image == g_str_IGNORE)
+	       return NULL;
+	    if ((id = defining_identifier(n->u[1].child))) {
+	       snprintf(buf, sizeof(buf),
+		  "<<typedef %s>>=", id->tok->image);
+	       return str_install_local_sbuf(buf);
+	       }
+	    return "<<typedefs>>=";
 	    }
-	 return "<<typedefs>>=";
+	 if (!is_concrete) /* probably just a prototype */
+	    return NULL;
+	 if (
+	       /* TODO: optimize these tests */
+	       is_ttt(nd2, PrimryNd, Const, Int, Unsigned) ||
+	       is_ttt(nd2, PrimryNd, Static, Extern, Long)
+	    ) {
+	    return "<<globals>>=";
+	    }
+	 if (is_n(nd2, LstNd)) {
+	    /* assume a complex type being declared */
+	    return "<<globals>>=";
+	    }
+	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	 exit(1);
+	 }
+      else if (!is_concrete) /* probably just a prototype */
+	 return NULL;
+      else if (
+	    /* TODO: optimize these tests */
+	    is_ttt(nd1, PrimryNd, TypeDefName, Int, Void) ||
+	    is_ttt(nd1, PrimryNd, Char, Doubl, Unsigned) ||
+	    is_tt(nd1, PrimryNd, Long, Float)
+	 ) {
+	 return "<<globals>>=";
+	 }
+      else {
+	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	 exit(1);
 	 }
       }
-   return g_def_fnd ? "<<globals>>=" : NULL;
+   else if (is_t(n, BinryNd, Identifier)) {
+      char *typeimg, *idimg;
+      if (n->tok->image != g_str_GENSYM) {
+	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	 exit(1);
+	 }
+      free_t(n->tok);
+      n->tok = NULL;
+      typeimg = n->u[0].child->tok->image;
+      idimg = n->u[1].child->tok->image;
+      n->nd_id = ConCatNd;
+      free_tree(n->u[0].child);
+      n->u[0].child = NULL;
+      snprintf(buf, sizeof(buf), "<<%s %s>>", typeimg, idimg);
+      n->u[1].child->tok->image = str_install_local_sbuf(buf);
+      node_update_trace(n);
+      snprintf(buf, sizeof(buf), "<<untagged %ss>>=", typeimg);
+      return str_install_local_sbuf(buf);
+      }
+   else if (!is_concrete) { /* probably just a prototype */
+      return NULL;
+      }
+   return is_concrete ? "<<globals>>=" : NULL;
    }
 
 static int c_walk_cat(n, indent, brace)
@@ -4489,4 +4662,13 @@ int indent, brace, may_force_nl;
       }
    c_walk_nl(n, indent, brace, may_force_nl);
    return;
+   }
+
+void id_is_tag(n)
+struct node *n;
+   {
+   if (is_t(n, PrimryNd, TypeDefName)) {
+      n->tok->tok_id = Identifier;
+      node_update_trace(n);
+      }
    }
