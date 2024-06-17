@@ -1255,9 +1255,7 @@ int indent, brace, may_force_nl;
 	       /*
 		* Initializer list.
 		*/
-	       if (is_a(n->u[0].child, PrimryNd))
-		  ; /* just one item, skip nl */
-	       else if ((n1 = is_t(n->u[0].child, CommaNd, ','))) {
+	       if ((n1 = is_t(n->u[0].child, CommaNd, ','))) {
 		  int counter;
 		  prt_tok(t, indent + IndentInc);     /* { */
 		  ForceNl();
@@ -1275,7 +1273,9 @@ int indent, brace, may_force_nl;
 		  prt_str("}", indent);
 		  }
 	       else {
-		  ForceNl();
+		  if (is_a(n->u[0].child, PrimryNd) == NULL)
+		     /* multiple items, force nl */
+		     ForceNl();
 		  prt_tok(t, indent + IndentInc);     /* { */
 		  c_walk(n->u[0].child, indent + IndentInc, 0);
 		  prt_str("}", indent + IndentInc);
