@@ -37,8 +37,9 @@
 #define PpBegdef   1018   /* #begdef */
 #define PpEnddef   1019   /* #enddef */
 #define PpNull     1020   /* # */
-#define PpKeep     1021   /* #passthru */
+#define PpPassThru 1021   /* #passthru */
 #define PpOutput   1022   /* decide output file name */
+#define PpNoExpand 1023   /* prevent macro expansion (passthru) */
 #define Invalid    9999   /* marker */
 
 extern char *g_progname; /* name of this program: for error messages */
@@ -126,6 +127,7 @@ struct macro {
    struct tok_lst *body;
    int ref_cnt;
    int recurse;
+   struct macro *orig;    /* original macro before #noexpand */
    struct macro *next;
    };
 

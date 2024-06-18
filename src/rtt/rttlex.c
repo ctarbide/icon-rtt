@@ -262,7 +262,7 @@ int yylex()
 
    /*
     * Some tokens are passed along without change, but some need special
-    *  processing: identifiers, numbers, PpKeep tokens, and single
+    *  processing: identifiers, numbers, PpPassThru tokens, and single
     *  character tokens.
     */
    if (yylval.t->tok_id == Identifier) {
@@ -333,14 +333,14 @@ int yylex()
 	    }
 	 }
       }
-   else if (yylval.t->tok_id == PpKeep) {
-      /* Non-standard preprocessor directive, PpKeep always comes in twos, one
-       * for the chunk name and other for the chunk contents
+   else if (yylval.t->tok_id == PpPassThru) {
+      /* Non-standard preprocessor directive, PpPassThru always comes in
+       * twos, one for the chunk name and other for the chunk contents
        */
       struct token *n, *v;
       n = yylval.t;
       v = preproc();
-      keepdir(n, v);
+      passthrudir(n, v);
       free_tt(n, v);
       return yylex();
       }

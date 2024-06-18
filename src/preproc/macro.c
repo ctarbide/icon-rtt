@@ -55,7 +55,7 @@ char *mname;
    {
    struct macro **mpp;
 
-   for (mpp = &m_table[MHash(mname)]; *mpp != NULL && (*mpp)->mname != mname;
+   for (mpp = &m_table[MHash(mname)]; *mpp && (*mpp)->mname != mname;
       mpp = &(*mpp)->next)
       ;
    return mpp;
@@ -186,7 +186,7 @@ void init_macro()
 /*
  * m_install - install a macro.
  */
-void m_install(mname, category, multi_line, prmlst, body)
+struct macro *m_install(mname, category, multi_line, prmlst, body)
 struct token *mname;	/* name of macro */
 int multi_line;		/* flag indicating if this is a multi-line macro */
 int category;		/* # parms, or NoArgs if it is object-like macro */
@@ -231,12 +231,13 @@ struct tok_lst *body;	/* replacement list */
       free_id_lst(prmlst);
       free_t_lst(body);
       }
+   return *mpp;
    }
 
 /*
- * m_delete - delete a macro.
+ * m_uninstall - remove a macro from hash table, but don't free it.
  */
-void m_delete(mname)
+struct macro *m_uninstall(mname)
 struct token *mname;
    {
    struct macro **mpp, *mp;
@@ -256,13 +257,27 @@ struct token *mname;
     *  associate with it.
     */
    mpp = m_find(mname->image);
-   if (*mpp != NULL) {
+   if (*mpp) {
       mp = *mpp;
       if (mp->category == FixedMac || mp->category == SpecMac)
 	 errt2(mname, mname->image, " may not be the subject of #undef");
       *mpp = mp->next;
-      free_m(mp);
+      mp->next = NULL;
       }
+   else
+      mp = NULL;
+   return mp;
+   }
+
+/*
+ * m_delete - delete a macro.
+ */
+void m_delete(mname)
+struct token *mname;
+   {
+   struct macro *mp;
+   if ((mp = m_uninstall(mname)))
+      free(mp);
    }
 
 /*

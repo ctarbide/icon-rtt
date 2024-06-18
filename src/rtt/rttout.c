@@ -1,10 +1,4 @@
 
-/* fprintf(stderr, "/""*%d,%s*""/\n", __LINE__, node_name(n)); */
-/* fprintf(stderr, "/""*%d,%d,%s*""/\n", __LINE__, n->gln, node_name(n)); */
-/* fprintf(g_out_file, "\n/""*%d,%d*""/\n", __LINE__, n->gln); */
-/* fprintf(g_out_file, "\n/""*%d,%d,%s*""/\n", __LINE__, n->gln, node_name(n)); */
-/* fprintf(g_out_file, "\n/""*%d,%s*""/\n", __LINE__, node_name(n->u[1].child)); */
-
 #include "rtt.h"
 
 static struct str_buf sbuf_rttout[1];
@@ -3271,7 +3265,13 @@ struct node *n;
       case BinryNd:
 	 switch (n->tok->tok_id) {
 	    case '=':
+#if 0
+	       /* N.B.: how having an assignment categorizes for "only proto"? */
+	       /* TODO: confirm if this is a bug */
 	       return only_proto(n->u[0].child);
+#else
+	       return 0;
+#endif
 	    case '[':
 	       /*
 		* At this point, assume array declarator is not part of
@@ -4273,10 +4273,10 @@ struct token *t;
    }
 
 /*
- * keepdir - This is related to passing through, but at the preprocessor level
- * using #passthru directive
+ * passthrudir - This is related to passing through, but at the preprocessor
+ * level using #passthru directive
  */
-void keepdir(n, v)
+void passthrudir(n, v)
 struct token *n, *v;
    {
    ForceNl();
@@ -4508,6 +4508,7 @@ struct node *n, **auxnd1, **auxnd2;
 	    }
 	 }
       else if ((nd2 = nav_n(nd1, LstNd, 0))) {
+	 struct node *nd3;
 	 if (is_t(nd2, PrimryNd, Typedef)) {
 	    struct node *id, *maybe_ignore;
 
@@ -4521,6 +4522,28 @@ struct node *n, **auxnd1, **auxnd2;
 	       }
 	    return "<<typedefs>>=";
 	    }
+	 if ((nd3 = nav_n(nd2, LstNd, 0))) {
+	    if (is_t(nd3, PrimryNd, Typedef)) {
+	       struct node *id;
+	       if ((id = defining_identifier(n->u[1].child))) {
+		  snprintf(buf, sizeof(buf),
+		     "<<typedef %s>>=", id->tok->image);
+		  return str_install_local_sbuf(buf);
+		  }
+	       return "<<typedefs>>=";
+	       }
+	    if (
+		  /* TODO: optimize these tests */
+		  is_ttt(nd3, PrimryNd, Const, Int, Unsigned) ||
+		  is_ttt(nd3, PrimryNd, Static, Extern, Long)
+	       ) {
+	       if (!is_concrete)
+		  return NULL;
+	       return "<<globals>>=";
+	       }
+	    fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	    exit(1);
+	    }
 	 if (!is_concrete) /* probably just a prototype */
 	    return NULL;
 	 if (
@@ -4528,10 +4551,6 @@ struct node *n, **auxnd1, **auxnd2;
 	       is_ttt(nd2, PrimryNd, Const, Int, Unsigned) ||
 	       is_ttt(nd2, PrimryNd, Static, Extern, Long)
 	    ) {
-	    return "<<globals>>=";
-	    }
-	 if (is_n(nd2, LstNd)) {
-	    /* assume a complex type being declared */
 	    return "<<globals>>=";
 	    }
 	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);

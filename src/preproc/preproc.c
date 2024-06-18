@@ -665,7 +665,7 @@ struct token *t;
 struct token *interp_dir()
    {
    struct token *t, *t1;
-   struct macro *m;
+   struct macro *m, *m1;
 
    /*
     * See if the caller pushed back any tokens
@@ -750,7 +750,7 @@ struct token *interp_dir()
 	    free_t(t1);
 	    break;
 
-	 case PpKeep:         /* #passthru */
+	 case PpPassThru:     /* #passthru */
 	    /*
 	     * This is a directive special to an application using
 	     *  this preprocessor. Pass it on to the application.
@@ -785,6 +785,28 @@ struct token *interp_dir()
 	       errt1(t1, "syntax error for #output");
 	    free_t(t1);
 	    return t;
+
+	 case PpNoExpand:     /* #noexpand */
+	    t1 = NULL;
+	    nxt_non_wh(&t1);
+	    if (t1->tok_id != Identifier)
+	       errt1(t1, "#noexpand requires an identifier pointing to macro definition");
+	    if ((m = m_uninstall(t1)) == NULL)
+	       errt2(t1, "#noexpand error, macro definition not found for identifier ", t1->image);
+	    m1 = m_install(t1,
+	       0 /*category*/,
+	       0 /*multi_line*/,
+	       NULL /*prmlst*/,
+	       new_t_lst(copy_t(t1)) /* body */
+	       );
+	    m1->orig = m;
+	    free_t(t1);
+	    t1 = next_tok();
+	    if (t1->tok_id != PpDirEnd)
+	       errt1(t1, "syntax error for #noexpand");
+	    free_t(t1);
+	    free(t);
+	    break;
 
 	 default:
 	    /*

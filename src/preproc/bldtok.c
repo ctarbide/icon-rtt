@@ -44,10 +44,11 @@ struct token *one_tok;          /* token for literal 1 */
  */
 static struct rsrvd_wrd pp_rsrvd[] = {
    /* custom directives */
-   {"passthru", PpKeep},
+   {"passthru",PpPassThru},
    {"output",  PpOutput},
    {"begdef",  PpBegdef},
    {"enddef",  PpEnddef},
+   {"noexpand",PpNoExpand},
    /* standard directives */
    {"if",      PpIf},
    {"else",    PpElse},

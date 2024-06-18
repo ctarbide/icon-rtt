@@ -32,8 +32,9 @@ struct token      *interp_dir   (void);
 struct token      *mac_tok      (void);
 void            merge_whsp   (struct token **whsp, struct token **next_t,
                                   struct token *(*t_src)(void));
+struct macro    *m_uninstall (struct token *mname);
 void            m_delete     (struct token *mname);
-void            m_install    (struct token *mname, int category,
+struct macro    *m_install   (struct token *mname, int category,
                                   int multi_line, struct id_lst *prmlst,
                                   struct tok_lst *body);
 struct macro      *m_lookup     (struct token *mname);
