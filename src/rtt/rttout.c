@@ -1189,7 +1189,7 @@ struct node *n;
 int indent, brace, may_force_nl;
    {
    struct token *t;
-   struct node *n1;
+   struct node *n1, *n2;
    struct sym_entry *sym;
    int fall_thru;
    int save_break;
@@ -1276,9 +1276,15 @@ int indent, brace, may_force_nl;
 		  }
 	       return 1;
 	    case PassThru:
-	       prt_str("__PT__(", indent);
-	       c_walk(n->u[0].child, indent, 0);
-	       prt_str(")", indent);
+	       if ((n1 = is_tt(n->u[0].child, CommaNd, ',', ':'))) {
+		  int counter = 1;
+		  c_walk_comma(n1->u[0].child, NULL, indent + IndentInc,
+		     brace, may_force_nl, &counter, WHEN_NL_ARG_LIST);
+		  c_walk_comma(n1->u[1].child, n1->tok, indent + IndentInc,
+		     brace, may_force_nl, &counter, WHEN_NL_ARG_LIST);
+		  }
+	       else
+		  c_walk(n->u[0].child, indent, 0);
 	       return 1;
 	    case Default:
 	       ForceNl();
@@ -1551,8 +1557,13 @@ int indent, brace, may_force_nl;
 		*/
 	       if (n->u[0].child->tok->tok_id == PassThru)
 		  return c_walk(n->u[1].child, indent, 0);
+	       n2 = NULL;
 	       c_walk(n->u[0].child, indent, 0);
 	       prt_str("(", indent);
+	       if ((n1 = is_t(n->u[0].child, PrimryNd, Identifier)) &&
+		     n1->tok && n1->tok->image == g_str___ASM__)
+		  if ((n2 = is_t(n->u[1].child, PrefxNd, PassThru)))
+		     ForceNl();
 	       if ((n1 = is_t(n->u[1].child, CommaNd, ','))) {
 		  int counter = 1;
 		  c_walk_comma(n1->u[0].child, NULL, indent + IndentInc,
@@ -1562,7 +1573,9 @@ int indent, brace, may_force_nl;
 		  }
 	       else
 		  c_walk(n->u[1].child, indent, 0);
-	       prt_tok(t, indent);   /* ) */
+	       if (n2)
+		  ForceNl();
+	       prt_tok(t, indent + IndentInc);   /* ) */
 	       return call_ret(n->u[0].child);
 	    case Struct:
 	    case Union:
@@ -4626,14 +4639,18 @@ struct node *n;
 struct token *t;
 int indent, brace, *counter, may_force_nl, when_nl;
    {
-   if (is_t(n, CommaNd, ',')) {
+   if (is_tt(n, CommaNd, ',', ':')) {
       c_walk_comma(n->u[0].child, NULL, indent, brace, may_force_nl, counter, when_nl);
       c_walk_comma(n->u[1].child, n->tok, indent, brace, may_force_nl, counter, when_nl);
       return;
       }
    if (n) {
       if (t) {
-	 prt_tok(t, indent);  /* , */
+	 if (t->tok_id == ':') {
+	    *counter = 0;
+	    ForceNl();
+	    }
+	 prt_tok(t, indent);
 	 if (*counter == when_nl) {
 	    *counter = 1;
 	    ForceNl();

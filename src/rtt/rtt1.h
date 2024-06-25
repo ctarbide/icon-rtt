@@ -135,6 +135,7 @@ extern char *g_str_rslt;             /* string "result" in string table */
 extern char *g_str_FILE;             /* string "FILE" in string table */
 extern char *g_str_IGNORE;           /* string "IGNORE" in string table */
 extern char *g_str_GENSYM;           /* hidden string for special purposes */
+extern char *g_str___ASM__;          /* string "__asm__" in string table */
 extern word g_lbl_num;               /* next unused label number */
 extern struct sym_entry *g_v_len;    /* symbol entry for size of varargs */
 extern int g_il_indx;                /* next index into data base symbol table */

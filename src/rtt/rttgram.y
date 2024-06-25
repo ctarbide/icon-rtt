@@ -161,6 +161,7 @@ postfix_expr
 arg_anything_lst                        /* based on arg_expr_lst */
    : anything_expr
    | arg_anything_lst ',' anything_expr {$$ = node2(CommaNd, $2, $1, $3);}
+   | arg_anything_lst ':' anything_expr {$$ = node2(CommaNd, $2, $1, $3);}
    ;
 
 anything_expr                           /* based on assign_expr */

@@ -4,6 +4,7 @@
 char *g_str_FILE;
 char *g_str_IGNORE;
 char *g_str_GENSYM;
+char *g_str___ASM__;
 
 /*
  * prototypes for static functions.
@@ -279,6 +280,7 @@ char *src_file;
    init_sym();
 
    g_str_GENSYM = spec_str("**GENSYM: internal use only**");
+   g_str___ASM__ = spec_str("__asm__");
 
    /* FILE must be treated as a typedef name.
     */

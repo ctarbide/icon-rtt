@@ -494,6 +494,7 @@ struct macro *m;
 	  * There is no argument list. Do not expand the macro, just push
 	  *  back the tokens we read ahead.
 	  */
+	 assert(g_src_stack->ntoks + 1 < NTokSav); /* at least 2 available */
 	 if (t1 != NULL)
 	    g_src_stack->toks[g_src_stack->ntoks++] = t1;
 	 if (whsp != NULL)
@@ -791,12 +792,11 @@ struct token *interp_dir()
 	    nxt_non_wh(&t1);
 	    if (t1->tok_id != Identifier)
 	       errt1(t1, "#noexpand requires an identifier pointing to macro definition");
-	    if ((m = m_uninstall(t1)) == NULL)
-	       errt2(t1, "#noexpand error, macro definition not found for identifier ", t1->image);
+	    m = m_uninstall(t1);
 	    m1 = m_install(t1,
-	       0 /*category*/,
-	       0 /*multi_line*/,
-	       NULL /*prmlst*/,
+	       0 /* category */,
+	       0 /* multi_line */,
+	       NULL /* prmlst */,
 	       new_t_lst(copy_t(t1)) /* body */
 	       );
 	    m1->orig = m;
@@ -1054,6 +1054,8 @@ struct token *preproc()
 	 free_t(t1);
 	 t1 = str;
 	 }
+
+      assert(g_src_stack->ntoks + 1 < NTokSav); /* at least 2 available */
 
       /*
        * Push back any look-ahead tokens.
