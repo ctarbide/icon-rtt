@@ -24,14 +24,8 @@ static struct str_buf sbuf_rttout[1];
  */
 #define VArgAlwnc 3
 
-#define MIN_TRACE 0
-#define MAX_TRACE 1000000
-
 #define MAX_NARGS 16
 #define MAX_NCHILDREN 16
-
-unsigned long trace_count = 0;
-int can_output_trace(void);
 
 static int sym_counter = 0;
 
@@ -1160,16 +1154,6 @@ int indent, brace;
       else
 	 prt_str("return;", indent);
    ForceNl();
-   }
-
-int can_output_trace(void)
-   {
-   trace_count++;
-#if MIN_TRACE > 0
-   return (trace_count >= MIN_TRACE) && (trace_count <= MAX_TRACE);
-#else
-   return trace_count <= MAX_TRACE;
-#endif
    }
 
 /*
