@@ -147,7 +147,7 @@ FILE *f;
  */
 static void rm_files()
    {
-   while (file_lst != NULL) {
+   while (file_lst) {
       fclose ( file_lst->file );
       remove(file_lst->name);
       file_lst = file_lst->next;

@@ -1,9 +1,9 @@
 include ../../Makedefs
 
 
-OBJS =	long.o getopt.o time.o filepart.o identify.o strtbl.o rtdb.o \
-	munix.o literals.o alloc.o long.o getopt.o time.o \
-	xwindow.o ipp.o lconcat.o strlcat.o strlcpy.o localely.o
+OBJS =	getopt.o time.o filepart.o identify.o strtbl.o rtdb.o \
+	munix.o literals.o alloc.o getopt.o time.o xwindow.o lconcat.o \
+	strlcat.o strlcpy.o localely.o
 
 common:		$(OBJS)
 
@@ -22,8 +22,6 @@ $(OBJS): ../h/define.h ../h/arch.h ../h/config.h ../h/cstructs.h \
 		./infer >../h/arch.h
 
 identify.o: ../h/version.h
-
-ipp.o: ../h/features.h
 
 literals.o: ../h/esctab.h
 

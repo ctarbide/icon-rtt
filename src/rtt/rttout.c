@@ -4306,6 +4306,10 @@ struct token *t;
       }
    if ((g_out_file = fopen(cname, "w")) == NULL)
       err2("cannot open output file ", cname);
+   if (strcmp(cname, "/dev/stdout") == 0)
+      ;
+   else if (strcmp(cname, "/dev/stderr") == 0)
+      ;
    else
       addrmlst(cname, g_out_file);
    }

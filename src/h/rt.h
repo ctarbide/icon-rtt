@@ -19,14 +19,14 @@
 #include "../h/cstructs.h"
 #include "../h/mproto.h"
 #include "../h/cpuconf.h"
-#include "../h/rmacros.h"
-#include "../h/rstructs.h"
+/* #include "../h/rmacros.h" */
+/* #include "../h/rstructs.h" */
 
 #ifdef Graphics
    #include "../h/graphics.h"
 #endif					/* Graphics */
 
-#include "../h/rexterns.h"
-#include "../h/rproto.h"
+/* #include "../h/rexterns.h" */
+/* #include "../h/rproto.h" */
 
 #endif					/* RT_DOT_H */
