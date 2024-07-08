@@ -249,8 +249,6 @@ struct macro *m;
    {
    if (--m->ref_cnt != 0)
       return;
-   if (m->orig)
-      free_m(m->orig);
    free_id_lst(m->prmlst);
    free_t_lst(m->body);
    free((char *)m);

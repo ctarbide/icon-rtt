@@ -127,7 +127,6 @@ struct macro {
    struct tok_lst *body;
    int ref_cnt;
    int recurse;
-   struct macro *orig;    /* original macro before #noexpand */
    struct macro *next;
    };
 

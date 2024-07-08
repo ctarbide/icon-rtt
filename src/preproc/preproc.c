@@ -666,7 +666,7 @@ struct token *t;
 struct token *interp_dir()
    {
    struct token *t, *t1;
-   struct macro *m, *m1;
+   struct macro *m;
 
    /*
     * See if the caller pushed back any tokens
@@ -792,15 +792,31 @@ struct token *interp_dir()
 	    nxt_non_wh(&t1);
 	    if (t1->tok_id != Identifier)
 	       errt1(t1, "#noexpand requires an identifier pointing to macro definition");
-	    m = m_uninstall(t1);
-	    m1 = m_install(t1,
-	       0 /* category */,
-	       0 /* multi_line */,
-	       NULL /* prmlst */,
-	       new_t_lst(copy_t(t1)) /* body */
-	       );
-	    m1->orig = m;
-	    free_t(t1);
+	    m = m_lookup(t1);
+	    if (m) {
+	       t1->flag &= ~LineChk;
+	       if (m->prmlst) {
+		  struct id_lst *p = m->prmlst;
+		  struct tok_lst **ptlst;
+		  free_t_lst(m->body);
+		  m->body = new_t_lst(t1);
+		  ptlst = &(m->body->next = new_t_lst(new_token('(', "(", "", 0)))->next;
+		  ptlst = &(*ptlst = new_t_lst(new_token(Identifier, p->id, "", 0)))->next;
+		  while ((p = p->next)) {
+		     ptlst = &(*ptlst = new_t_lst(new_token(',', ",", "", 0)))->next;
+		     ptlst = &(*ptlst = new_t_lst(new_token(Identifier, p->id, "", 0)))->next;
+		     }
+		  ptlst = &(*ptlst = new_t_lst(new_token(')', ")", "", 0)))->next;
+		  }
+	       else {
+		  free_t_lst(m->body);
+		  m->body = new_t_lst(t1);
+		  m->category = 0;
+		  }
+	       }
+	    else {
+	       errt1(t1, "syntax error for #noexpand, macro not found");
+	       }
 	    t1 = next_tok();
 	    if (t1->tok_id != PpDirEnd)
 	       errt1(t1, "syntax error for #noexpand");

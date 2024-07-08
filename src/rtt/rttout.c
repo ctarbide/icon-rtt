@@ -3410,6 +3410,12 @@ struct node *head;
 	 switch (nd1->tok->tok_id) {
 	    case Static:
 	       return 1;
+	    case Long:
+	    case Int:
+	    case Char:
+	    case Short:
+	    case Float:
+	    case Doubl:
 	    case Unsigned:
 	    case Const:
 	       return 0;
@@ -4546,7 +4552,8 @@ struct node *n, **auxnd1, **auxnd2;
 	 if (
 	       /* TODO: optimize these tests */
 	       is_ttt(nd2, PrimryNd, Const, Int, Unsigned) ||
-	       is_ttt(nd2, PrimryNd, Static, Extern, Long)
+	       is_ttt(nd2, PrimryNd, Static, Extern, Long) ||
+	       is_t(nd2, PrimryNd, Char)
 	    ) {
 	    return "<<globals>>=";
 	    }

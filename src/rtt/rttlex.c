@@ -72,7 +72,13 @@ void init_lex()
    static int first_time = 1;
 
    if (first_time) {
+      char *s__RTT_PURE_C__ = NULL;
+      int is__RTT_PURE_C__ = 0;
       first_time = 0;
+
+      if ((s__RTT_PURE_C__ = getenv("__RTT_PURE_C__")))
+	 is__RTT_PURE_C__ = *s__RTT_PURE_C__ == '1';
+
       ident = spec_str(ident);  /* install ident in string table */
       /*
        * install C keywords into the symbol table
@@ -110,6 +116,9 @@ void init_lex()
       sym_add_c_keyword(Void,          spec_str("void"));
       sym_add_c_keyword(Volatile,      spec_str("volatile"));
       sym_add_c_keyword(While,         spec_str("while"));
+
+      if (is__RTT_PURE_C__)
+	 return;
 
       /*
        * Install keywords from run-time interface language.

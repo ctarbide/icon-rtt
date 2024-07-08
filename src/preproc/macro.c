@@ -283,7 +283,7 @@ struct token *mname;
 /*
  * m_lookup - lookup a macro name. Return pointer to macro, if it is defined;
  *  return NULL, if it is not. This routine sets the definition for macros
- *  whose definitions various from place to place.
+ *  whose definitions varies from place to place.
  */
 struct macro *m_lookup(id)
 struct token *id;
@@ -292,7 +292,7 @@ struct token *id;
    static char buf[20];
 
    m = *m_find(id->image);
-   if (m != NULL && m->category == SpecMac) {
+   if (m && m->category == SpecMac) {
       int ln = g_line_for___LINE__;
       char *fn = g_fname_for___FILE__;
       if (m->mname == line_mac) {  /* __LINE___ */

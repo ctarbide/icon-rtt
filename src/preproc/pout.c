@@ -32,7 +32,7 @@ FILE *out_file;
 	  *  directives.
 	  */
 	 nxt_line = t->line;
-	 if (fname != t->fname  || line != nxt_line) {
+	 if (fname != t->fname || line != nxt_line) {
 	    /*
 	     * We need a #line directive. Make sure it is preceeded by a
 	     *  blank line.
