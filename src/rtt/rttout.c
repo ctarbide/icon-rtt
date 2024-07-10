@@ -4611,8 +4611,8 @@ int indent, brace;
    int fall_thru;
    struct node *nd;
    if ((nd = nav_n(n, ConCatNd, 0))) {
-      fall_thru = c_walk_cat(nd, indent, brace);
-      return fall_thru | c_walk_cat(n->u[1].child, indent, brace);
+      fall_thru = c_walk_cat(nd, indent, 0);
+      return fall_thru | c_walk_cat(n->u[1].child, indent, 0);
       }
    if (!is_t(n, BinryNd, Case) && !is_t(n, PrefxNd, Default))
       indent += IndentInc;
