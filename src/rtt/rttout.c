@@ -3691,7 +3691,7 @@ struct node *head, *prm_dcl;
 void fncout(head, prm_dcl, block)
 struct node *head, *prm_dcl, *block;
    {
-   struct node *head_ansi;
+   struct node *head_ansi, *fnc_name;
 
    assert(g_def_fnd >= 0);
    ++g_def_fnd;       /* this declaration defines a run-time object */
@@ -3708,13 +3708,22 @@ struct node *head, *prm_dcl, *block;
 
    head_ansi = header_k_and_r_to_ansi(head, prm_dcl);
 
-   if (is_static_function(head_ansi))
-      prt_str("<<protos - static>>=\n",  0);
-   else
-      prt_str("<<protos>>=\n",  0);
-   c_walk(head_ansi, 0, 0);
-   prt_str(";", 0);
-   ForceNl();
+   if ((fnc_name = nav_n_n_t_is_t(head_ansi, LstNd, 1, ConCatNd, 1,
+	 BinryNd, ')', 0, PrimryNd, Identifier)) == NULL)
+      {
+      fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+      exit(1);
+      }
+
+   if (no_proto_for(fnc_name->tok->image) == NULL) {
+      if (is_static_function(head_ansi))
+	 prt_str("<<protos - static>>=\n",  0);
+      else
+	 prt_str("<<protos>>=\n",  0);
+      c_walk(head_ansi, 0, 0);
+      prt_str(";", 0);
+      ForceNl();
+      }
 
    prt_str("<<impl>>=\n",  0);
    c_walk(head_ansi, 0, 0);

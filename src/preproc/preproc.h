@@ -40,7 +40,10 @@
 #define PpPassThru 1021   /* #passthru */
 #define PpOutput   1022   /* decide output file name */
 #define PpNoExpand 1023   /* prevent macro expansion (passthru) */
+#define PpNoProto  1024   /* prevent prototype generation */
 #define Invalid    9999   /* marker */
+
+#define FMT_NO_PROTO_FOR "NO_PROTO_FOR_%s"
 
 extern char *g_progname; /* name of this program: for error messages */
 extern int line_cntrl; /* flag: are line directives needed in the output */

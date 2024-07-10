@@ -824,6 +824,33 @@ struct token *interp_dir()
 	    free(t);
 	    break;
 
+	 case PpNoProto:     /* #noproto */
+	    t1 = NULL;
+	    advance_tok(&t1);
+	    if (t1->tok_id != Identifier)
+	       errt1(t1, "#noproto requires an identifier pointing to a function name");
+	    /*
+	     * Defines NO_PROTO_FOR_${t1} that evaluates to itself, t1 is
+	     * supposed to be a function name.
+	     */
+	    do {
+	       char buf[128], *s = buf;
+	       snprintf(buf, sizeof(buf), FMT_NO_PROTO_FOR, t1->image);
+	       init_sbuf(sbuf);
+	       while (*s != '\0') {
+		  AppChar(sbuf, *s);
+		  s++;
+		  }
+	       t1->image = str_install(sbuf);
+	       m_install(t1, NoArgs, 0, NULL, new_t_lst(t1));
+	       } while (0);
+	    t1 = next_tok();
+	    if (t1->tok_id != PpDirEnd)
+	       errt1(t1, "syntax error for #noproto");
+	    free_t(t1);
+	    free(t);
+	    break;
+
 	 default:
 	    /*
 	     * This is not a directive, see if it is a macro name.
@@ -1089,4 +1116,27 @@ struct token *preproc()
 void finish_preproc()
    {
    finish_tok();
+   }
+
+/* Is function configured to suppress prototype generation?
+ */
+struct macro *no_proto_for(name)
+char *name;
+   {
+   struct token t1[1];
+
+   memset(t1, 0, sizeof(t1));
+   t1->tok_id = Identifier;
+   t1->fname = "";
+   do {
+      char buf[128], *s = buf;
+      snprintf(buf, sizeof(buf), FMT_NO_PROTO_FOR, name);
+      init_sbuf(sbuf);
+      while (*s != '\0') {
+	 AppChar(sbuf, *s);
+	 s++;
+	 }
+      t1->image = str_install(sbuf);
+      } while (0);
+   return m_lookup(t1);
    }

@@ -787,6 +787,18 @@ int child1, child2, child3;
    }
 
 struct node *
+nav_n_n_t_is_t(n, nd_id1, child1, nd_id2, child2, nd_id3, tok_id3, child3, nd_id4, tok_id4)
+struct node *n;
+int nd_id1, nd_id2, nd_id3, nd_id4, tok_id3, tok_id4;
+int child1, child2, child3;
+   {
+   struct node *nd;
+   if ((nd = nav_n_n_t(n, nd_id1, child1, nd_id2, child2, nd_id3, tok_id3, child3)))
+      return is_t(nd, nd_id4, tok_id4);
+   return NULL;
+   }
+
+struct node *
 nav_n_is_t(n, nd_id1, child1, nd_id2, tok_id2)
 struct node *n;
 int nd_id1, child1, nd_id2, tok_id2;

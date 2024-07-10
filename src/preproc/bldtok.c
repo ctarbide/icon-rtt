@@ -49,6 +49,7 @@ static struct rsrvd_wrd pp_rsrvd[] = {
    {"begdef",  PpBegdef},
    {"enddef",  PpEnddef},
    {"noexpand",PpNoExpand},
+   {"noproto", PpNoProto},
    /* standard directives */
    {"if",      PpIf},
    {"else",    PpElse},

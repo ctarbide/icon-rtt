@@ -62,6 +62,7 @@ int                rt_state     (int tok_id);
 void            show_usage   (void);
 void            source       (char *fname);
 void            str_src      (char *src_name, char *s, int len);
-struct token      *tokenize     (void);
+struct token    *tokenize    (void);
+struct macro    *no_proto_for(char *name);
 
 void src_line_updt(int ln, char *fn);

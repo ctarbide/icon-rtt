@@ -110,7 +110,8 @@ struct node *is_a(struct node *n, int nd_id);
 struct node *is_n(struct node *n, int nd_id);
 struct node *is_t(struct node *n, int nd_id, int tok_id);
 struct node *is_tt(struct node *n, int nd_id, int tok_id1, int tok_id2);
-struct node *is_ttt(struct node *n, int nd_id, int tok_id1, int tok_id2, int tok_id3);
+struct node *is_ttt(struct node *n, int nd_id, int tok_id1, int tok_id2,
+   int tok_id3);
 
 struct node *
 nav_n(struct node *n, int nd_id, int child);
@@ -122,10 +123,16 @@ struct node *
 nav_n_n(struct node *n, int nd_id1, int child1, int nd_id2, int child2);
 
 struct node *
-nav_n_t(struct node *n, int nd_id1, int child1, int nd_id2, int tok_id2, int child2);
+nav_n_t(struct node *n, int nd_id1, int child1, int nd_id2, int tok_id2,
+   int child2);
 
 struct node *
-nav_n_n_t(struct node *n, int nd_id1, int child1, int nd_id2, int child2, int nd_id3, int tok_id3, int child3);
+nav_n_n_t(struct node *n, int nd_id1, int child1, int nd_id2, int child2,
+   int nd_id3, int tok_id3, int child3);
+
+struct node *
+nav_n_n_t_is_t(struct node *n, int nd_id1, int child1, int nd_id2, int child2,
+   int nd_id3, int tok_id3, int child3, int nd_id4, int tok_id4);
 
 struct node *
 nav_n_is_t(struct node *n, int nd_id1, int child1, int nd_id2, int tok_id2);
@@ -134,9 +141,11 @@ struct node *
 nav_t_is_n(struct node *n, int nd_id1, int tok_id1, int child1, int nd_id2);
 
 struct node *
-nav_t_is_t(struct node *n, int nd_id1, int tok_id1, int child1, int nd_id2, int tok_id2);
+nav_t_is_t(struct node *n, int nd_id1, int tok_id1, int child1, int nd_id2,
+   int tok_id2);
 
 struct node *
-nav_t_is_tt(struct node *n, int nd_id1, int tok_id1, int child1, int nd_id2, int tok_id21, int tok_id22);
+nav_t_is_tt(struct node *n, int nd_id1, int tok_id1, int child1, int nd_id2,
+   int tok_id21, int tok_id22);
 
 void id_is_tag(struct node *n);
