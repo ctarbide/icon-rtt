@@ -1,5 +1,5 @@
 /*
- * Icon configuration file for Linux with MUSL C library
+ * Icon configuration file for Linux
  */
 
 #define UNIX 1
