@@ -53,7 +53,6 @@ void	lear_sbuf	(struct str_buf *sbuf);
    int	getopt		(int argc, char * const argv[], const char *optstring);
 #endif					/* NoSysOpt */
 
-void (*fdlsym(void *handle, const char *symbol))(void);
 void report_waste(void);
 void donate_sbuf(struct str_buf *sbuf);
 

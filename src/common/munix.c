@@ -244,13 +244,3 @@ char *canonize(char *path) {
    *out++ = '\0';
    return path;				/* return result */
    }
-
-void (*fdlsym(void *handle, const char *symbol))(void)
-{
-    union {
-        void *vp;
-        void (*fp)(void);
-    } res;
-    res.vp = dlsym(handle, symbol);
-    return res.fp;
-}
