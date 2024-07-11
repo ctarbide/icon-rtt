@@ -855,6 +855,8 @@ struct token *interp_dir()
 	    /*
 	     * This is not a directive, see if it is a macro name.
 	     */
+	    if (is_g_sss_skip_member((const char*)t->image))
+	       break;
 	    if (t->tok_id == Identifier && !(t->flag & NoExpand) &&
 		 (m = m_lookup(t)) != NULL) {
 	       if (max_recurse < 0 || m->recurse < max_recurse) {

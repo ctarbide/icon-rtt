@@ -209,3 +209,15 @@ struct src {
 extern struct src dummy;       /* base of stack */
 
 extern struct src *g_src_stack;  /* source stack */
+
+/*
+ * See 'misc/gen-sss.sh'.
+ */
+int is_g_sss_skip_member(const char *s);
+extern const char *g_str___restrict;
+extern const char *g_str___restrict__;
+extern const char *g_str__Noreturn;
+extern const char *g_str___inline;
+extern const char *g_str___extension__;
+extern const char *g_str___const;
+extern const char *g_str___wur;
