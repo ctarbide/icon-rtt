@@ -1,3 +1,4 @@
+
 /*
  * Grammar for RTL. The C portion of the grammar is based on
  *  the ANSI Draft Standard - 3rd review.
@@ -7,10 +8,17 @@
 #include "rtt1.h"
 /* YYMAXDEPTH: 10000 is the default for "yacc - 2.0 20240109" */
 #define YYMAXDEPTH 5000
+
+/* #define DEBUG */
+#ifdef DEBUG
+#define TRACE fprintf(stderr, "TRACE: reduce at line %d\n", __LINE__);
+#else
+#define TRACE
+#endif
 %}
 
 /* YYDEBUG=1 to activate */
-/* %debug */
+/*%debug*/
 
 %union {
    struct token *t;
@@ -43,6 +51,16 @@
 
 %token <t> PassThru
 
+%token <t> CompatAttribute /* __attribute__ */
+%token <t> CompatAsm /* __asm__ */
+%token <t> CompatRestrict /* __restrict */
+%token <t> CompatRestrict2 /* __restrict__ */
+%token <t> CompatNoreturn /* _Noreturn */
+%token <t> CompatInline /* __inline */
+%token <t> CompatExtension /* __extension__ */
+%token <t> CompatConst /* __const */
+/* %token <t> CompatWur / * __wur */
+
 %type <t> unary_op assign_op struct_or_union typedefname
 %type <t> identifier op_name key_const union attrb_name
 
@@ -73,6 +91,7 @@
 %type <n> type_computations side_effect_lst side_effect
 %type <n> type basic_type type_lst
 %type <n> arg_anything_lst anything_expr
+%type <n> str_const asm
 
 %type <n> param_dcltion_w_pt
 
@@ -151,10 +170,19 @@ postfix_expr
    | Is  ':' i_type_name '(' assign_expr ')'
       {$$ = node2(BinryNd, $1, $3, $5); free_ttt($2, $4, $6);}
    | Cnv ':' dest_type   '(' assign_expr ',' assign_expr ')'
-      {$$ = node3(TrnryNd, $1, $3, $5, $7), free_ttt($2, $4, $6); free_t($8);}
+      {
+	 $$ = node3(TrnryNd, $1, $3, $5, $7);
+	 free_ttt($2, $4, $6);
+	 free_t($8);
+	 }
    | Def ':' dest_type   '(' assign_expr ',' assign_expr ',' assign_expr ')'
-      {$$ = node4(QuadNd, $1, $3, $5, $7, $9), free_ttt($2, $4, $6); free_tt($8, $10);}
+      {
+	 $$ = node4(QuadNd, $1, $3, $5, $7, $9);
+	 free_ttt($2, $4, $6); free_tt($8, $10);
+	 }
    | PassThru '(' arg_anything_lst ')'
+      {$$ = node1(PrefxNd, $1, $3); free_tt($2, $4);}
+   | CompatAsm '(' arg_anything_lst ')'
       {$$ = node1(PrefxNd, $1, $3); free_tt($2, $4);}
    ;
 
@@ -181,8 +209,8 @@ unary_expr
    | Decr unary_expr          {$$ = node1(PrefxNd, $1, $2);}
    | unary_op cast_expr       {$$ = node1(PrefxNd, $1, $2);}
    | Sizeof unary_expr        {$$ = node1(PrefxNd, $1, $2);}
-   | Sizeof '(' type_name ')' {$$ = node1(PrefxNd, $1, $3);
-                               free_tt($2, $4);}
+   | Sizeof '(' type_name ')'
+      {$$ = node1(PrefxNd, $1, $3); free_tt($2, $4);}
    ;
 
 unary_op
@@ -196,7 +224,8 @@ unary_op
 
 cast_expr
    : unary_expr
-   | '(' type_name ')' cast_expr {$$ = node2(BinryNd, $1, $2, $4); free_t($3);}
+   | '(' type_name ')' cast_expr
+      {$$ = node2(BinryNd, $1, $2, $4); free_t($3);}
    ;
 
 multiplicative_expr
@@ -228,45 +257,52 @@ relational_expr
 
 equality_expr
    : relational_expr
-   | equality_expr Equal relational_expr {$$ = node2(BinryNd, $2, $1, $3);}
-   | equality_expr Neq   relational_expr {$$ = node2(BinryNd, $2, $1, $3);}
+   | equality_expr Equal relational_expr
+      {$$ = node2(BinryNd, $2, $1, $3);}
+   | equality_expr Neq   relational_expr
+      {$$ = node2(BinryNd, $2, $1, $3);}
    ;
 
 and_expr
    : equality_expr
-   | and_expr '&' equality_expr {$$ = node2(BinryNd, $2, $1, $3);}
+   | and_expr '&' equality_expr
+      {$$ = node2(BinryNd, $2, $1, $3);}
    ;
 
 exclusive_or_expr
    : and_expr
-   | exclusive_or_expr '^' and_expr {$$ = node2(BinryNd, $2, $1, $3);}
+   | exclusive_or_expr '^' and_expr
+      {$$ = node2(BinryNd, $2, $1, $3);}
    ;
 
 inclusive_or_expr
    : exclusive_or_expr
-   | inclusive_or_expr '|' exclusive_or_expr {$$ = node2(BinryNd, $2, $1, $3);}
+   | inclusive_or_expr '|' exclusive_or_expr
+      {$$ = node2(BinryNd, $2, $1, $3);}
    ;
 
 logical_and_expr
    : inclusive_or_expr
-   | logical_and_expr And inclusive_or_expr {$$ = node2(BinryNd, $2, $1, $3);}
+   | logical_and_expr And inclusive_or_expr
+      {$$ = node2(BinryNd, $2, $1, $3);}
    ;
 
 logical_or_expr
    : logical_and_expr
-   | logical_or_expr Or logical_and_expr {$$ = node2(BinryNd, $2, $1, $3);}
+   | logical_or_expr Or logical_and_expr
+      {$$ = node2(BinryNd, $2, $1, $3);}
    ;
 
 conditional_expr
    : logical_or_expr
    | logical_or_expr '?' expr ':' conditional_expr
-                                         {$$ = node3(TrnryNd, $2, $1, $3, $5);
-                                          free_t($4);}
+      {$$ = node3(TrnryNd, $2, $1, $3, $5); free_t($4);}
    ;
 
 assign_expr
    : conditional_expr
-   | unary_expr assign_op assign_expr {$$ = node2(BinryNd, $2, $1, $3);}
+   | unary_expr assign_op assign_expr
+      {$$ = node2(BinryNd, $2, $1, $3);}
    ;
 
 assign_op
@@ -285,7 +321,8 @@ assign_op
 
 expr
    : assign_expr
-   | expr ',' assign_expr {$$ = node2(BinryNd, $2, $1, $3);}
+   | expr ',' assign_expr
+      {$$ = node2(BinryNd, $2, $1, $3);}
    ;
 
 opt_expr
@@ -303,18 +340,18 @@ opt_constant_expr
    ;
 
 dcltion
-   :  typ_dcltion_specs ';'                 {$$ = node2(BinryNd, $2, $1, NULL);
-                                             g_dcl_stk->kind_dcl = OtherDcl;}
-   |  typ_dcltion_specs init_dcltor_lst ';' {$$ = node2(BinryNd, $3, $1, $2);
-                                             g_dcl_stk->kind_dcl = OtherDcl;}
-   |  storcl_tqual_lst no_tdn_init_dcltor_lst ';'
-                                            {$$ = node2(BinryNd, $3, $1, $2);
-                                             g_dcl_stk->kind_dcl = OtherDcl;}
+   : typ_dcltion_specs ';'
+      {$$ = node2(BinryNd, $2, $1, NULL); g_dcl_stk->kind_dcl = OtherDcl;}
+   | typ_dcltion_specs init_dcltor_lst ';'
+      {$$ = node2(BinryNd, $3, $1, $2); g_dcl_stk->kind_dcl = OtherDcl;}
+   | storcl_tqual_lst no_tdn_init_dcltor_lst ';'
+      {$$ = node2(BinryNd, $3, $1, $2); g_dcl_stk->kind_dcl = OtherDcl;}
    ;
 
 typ_dcltion_specs
-   :                  type_ind
-   | storcl_tqual_lst type_ind {$$ = node2(LstNd, NULL, $1, $2);}
+   : type_ind
+   | storcl_tqual_lst type_ind
+      {$$ = node2(LstNd, NULL, $1, $2);}
    ;
 
 dcltion_specs
@@ -322,8 +359,11 @@ dcltion_specs
    | storcl_tqual_lst
    ;
 
+/* type indicator
+ */
 type_ind
-   : typedefname                      {$$ = node0(PrimryNd, $1);}
+   : typedefname
+      {$$ = node0(PrimryNd, $1);}
    | typedefname storcl_tqual_lst
       {$$ = node2(LstNd, NULL, node0(PrimryNd, $1), $2);}
    | type_storcl_tqual_lst
@@ -331,9 +371,12 @@ type_ind
 
 type_storcl_tqual_lst
    : stnd_type
-   | type_storcl_tqual_lst stnd_type          {$$ = node2(LstNd, NULL, $1, $2);}
-   | type_storcl_tqual_lst storage_class_spec {$$ = node2(LstNd, NULL, $1, $2);}
-   | type_storcl_tqual_lst type_qual          {$$ = node2(LstNd, NULL, $1, $2);}
+   | type_storcl_tqual_lst stnd_type
+      {$$ = node2(LstNd, NULL, $1, $2);}
+   | type_storcl_tqual_lst storage_class_spec
+      {$$ = node2(LstNd, NULL, $1, $2);}
+   | type_storcl_tqual_lst type_qual
+      {$$ = node2(LstNd, NULL, $1, $2);}
    ;
 
 storcl_tqual_lst
@@ -345,24 +388,28 @@ storcl_tqual_lst
 
 init_dcltor_lst
    : init_dcltor
-   | init_dcltor_lst ',' init_dcltor {$$ = node2(CommaNd, $2, $1, $3);}
+   | init_dcltor_lst ',' init_dcltor
+      {$$ = node2(CommaNd, $2, $1, $3);}
    ;
 
 no_tdn_init_dcltor_lst
    : no_tdn_init_dcltor
    | no_tdn_init_dcltor_lst ',' no_tdn_init_dcltor
-                                              {$$ = node2(CommaNd, $2, $1, $3);}
+      {$$ = node2(CommaNd, $2, $1, $3);}
    ;
 
 init_dcltor
-   : dcltor                 {$$ = $1; id_def($1, NULL);}
-   | dcltor '=' initializer {$$ = node2(BinryNd, $2, $1, $3); id_def($1, $3);}
+   : dcltor
+      {$$ = $1; id_def($1, NULL);}
+   | dcltor '=' initializer
+      {$$ = node2(BinryNd, $2, $1, $3); id_def($1, $3);}
    ;
 
 no_tdn_init_dcltor
-   : no_tdn_dcltor            {$$ = $1; id_def($1, NULL);}
+   : no_tdn_dcltor
+      {$$ = $1; id_def($1, NULL);}
    | no_tdn_dcltor '=' initializer
-                              {$$ = node2(BinryNd, $2, $1, $3); id_def($1, $3);}
+      {$$ = node2(BinryNd, $2, $1, $3); id_def($1, $3);}
    ;
 
 storage_class_spec
@@ -396,8 +443,7 @@ struct_or_union_spec
    : struct_or_union any_ident '{' struct_dcltion_lst '}'
       {id_is_tag($2); $$ = node2(BinryNd, $1, $2, $4); free_tt($3, $5);}
    | struct_or_union '{' struct_dcltion_lst '}'
-                                            {$$ = node2(BinryNd, $1, NULL, $3);
-                                             free_tt($2, $4);}
+      {$$ = node2(BinryNd, $1, NULL, $3); free_tt($2, $4);}
    | struct_or_union any_ident
       {id_is_tag($2); $$ = node2(BinryNd, $1, $2, NULL);}
    ;
@@ -409,64 +455,83 @@ struct_or_union
 
 struct_dcltion_lst
    : struct_dcltion
-   | struct_dcltion_lst struct_dcltion {$$ = node2(LstNd, NULL, $1, $2);}
+   | struct_dcltion_lst struct_dcltion
+      {$$ = node2(LstNd, NULL, $1, $2);}
    ;
 
 struct_dcltion
-   : struct_dcltion_specs struct_dcltor_lst ';'
-                                              {$$ = node2(BinryNd, $3, $1, $2);}
-   | tqual_lst struct_no_tdn_dcltor_lst ';'   {$$ = node2(BinryNd, $3, $1, $2);}
+   : struct_dcltion_specs ';'
+      {$$ = node2(BinryNd, $2, $1, NULL);}
+   | struct_dcltion_specs struct_dcltor_lst ';'
+      {$$ = node2(BinryNd, $3, $1, $2);}
+   | tqual_lst struct_no_tdn_dcltor_lst ';'
+      {$$ = node2(BinryNd, $3, $1, $2);}
    ;
 
 struct_dcltion_specs
-   :           struct_type_ind
-   | tqual_lst struct_type_ind  {$$ = node2(LstNd, NULL, $1, $2);}
+   : struct_type_ind
+   | tqual_lst struct_type_ind
+      {$$ = node2(LstNd, NULL, $1, $2);}
    ;
 
 struct_type_ind
-   : typedefname            {$$ = node0(PrimryNd, $1);}
-   | typedefname tqual_lst  {$$ = node2(LstNd, NULL, node0(PrimryNd, $1), $2);}
+   : typedefname
+      {$$ = node0(PrimryNd, $1);}
+   | typedefname tqual_lst
+      {$$ = node2(LstNd, NULL, node0(PrimryNd, $1), $2);}
    | struct_type_lst
    ;
 
 struct_type_lst
    : stnd_type
-   | struct_type_lst stnd_type {$$ = node2(LstNd, NULL, $1, $2);}
-   | struct_type_lst type_qual {$$ = node2(LstNd, NULL, $1, $2);} ;
+   | struct_type_lst stnd_type
+      {$$ = node2(LstNd, NULL, $1, $2);}
+   | struct_type_lst type_qual
+      {$$ = node2(LstNd, NULL, $1, $2);}
+   ;
 
 struct_dcltor_lst
    : struct_dcltor
-   | struct_dcltor_lst ',' struct_dcltor {$$ = node2(CommaNd, $2, $1, $3);}
+   | struct_dcltor_lst ',' struct_dcltor
+      {$$ = node2(CommaNd, $2, $1, $3);}
    ;
 
 struct_dcltor
-   : dcltor                   {$$ = node2(StrDclNd, NULL, $1, NULL);
-                               if (g_dcl_stk->parms_done) pop_cntxt();}
-   |        ':' constant_expr {$$ = node2(StrDclNd, $1, NULL, $2);}
+   : dcltor
+      {
+	 $$ = node2(StrDclNd, NULL, $1, NULL);
+	 if (g_dcl_stk->parms_done) pop_cntxt();
+	 }
+   | ':' constant_expr
+      {$$ = node2(StrDclNd, $1, NULL, $2);}
    | dcltor ':' {if (g_dcl_stk->parms_done) pop_cntxt();} constant_expr
-                              {$$ = node2(StrDclNd, $2, $1, $4);}
+      {$$ = node2(StrDclNd, $2, $1, $4);}
    ;
 
 struct_no_tdn_dcltor_lst
    : struct_no_tdn_dcltor
    | struct_no_tdn_dcltor_lst ',' struct_no_tdn_dcltor
-                                              {$$ = node2(CommaNd, $2, $1, $3);}
+      {$$ = node2(CommaNd, $2, $1, $3);}
    ;
 
 struct_no_tdn_dcltor
-   : no_tdn_dcltor                   {$$ = node2(StrDclNd, NULL, $1, NULL);
-                                      if (g_dcl_stk->parms_done) pop_cntxt();}
-   |               ':' constant_expr {$$ = node2(StrDclNd, $1, NULL, $2);}
+   : no_tdn_dcltor
+      {
+	 $$ = node2(StrDclNd, NULL, $1, NULL);
+	 if (g_dcl_stk->parms_done) pop_cntxt();
+	 }
+   | ':' constant_expr {$$ = node2(StrDclNd, $1, NULL, $2);}
    | no_tdn_dcltor ':' {if (g_dcl_stk->parms_done) pop_cntxt();} constant_expr
-                                     {$$ = node2(StrDclNd, $2, $1, $4);}
+      {$$ = node2(StrDclNd, $2, $1, $4);}
    ;
 
 enum_spec
    : Enum {push_cntxt(0);} '{' enumerator_lst '}'
-       {$$ = node2(BinryNd, $1, NULL, $4); pop_cntxt(); free_tt($3, $5);}
+      {$$ = node2(BinryNd, $1, NULL, $4); pop_cntxt(); free_tt($3, $5);}
    | Enum any_ident {push_cntxt(0);} '{' enumerator_lst '}'
-       {id_is_tag($2); $$ = node2(BinryNd, $1, $2,  $5); pop_cntxt(); free_tt($4, $6);}
-   | Enum any_ident {id_is_tag($2); $$ = node2(BinryNd, $1, $2,  NULL);}
+      {id_is_tag($2); $$ = node2(BinryNd, $1, $2,  $5); pop_cntxt(); free_tt($4, $6);}
+   | Enum any_ident
+      {id_is_tag($2); $$ = node2(BinryNd, $1, $2,  NULL);}
    ;
 
 enumerator_lst
@@ -480,24 +545,45 @@ enumerator
                               {$$ = node2(BinryNd, $2, $1, $3); id_def($1, $3);}
    ;
 
+/* type qualifier
+ */
 type_qual
    : Const    {$$ = node0(PrimryNd, $1);}
    | Volatile {$$ = node0(PrimryNd, $1);}
+   | CompatRestrict {$$ = node0(PrimryNd, $1);}
+   | CompatRestrict2 {$$ = node0(PrimryNd, $1);}
+   | CompatExtension {$$ = node0(PrimryNd, $1);}
+   | CompatConst {$$ = node0(PrimryNd, $1);}
    ;
-
 
 dcltor
-   : opt_pointer direct_dcltor        {$$ = node2(ConCatNd, NULL, $1, $2);}
+   : opt_pointer direct_dcltor
+      {$$ = node2(ConCatNd, NULL, $1, $2);}
    ;
 
+/* no tended declarator?
+ */
 no_tdn_dcltor
-   : opt_pointer no_tdn_direct_dcltor {$$ = node2(ConCatNd, NULL, $1, $2);}
+   : opt_pointer no_tdn_direct_dcltor
+      {$$ = node2(ConCatNd, NULL, $1, $2);}
+   ;
+
+str_const
+   : StrLit
+      {$$ = node0(PrimryNd, $1);}
+   ;
+
+asm
+   : CompatAsm '(' str_const ')'
+      {$$ = node1(PrefxNd, $1, $3); free_tt($2, $4);}
    ;
 
 direct_dcltor
    : any_ident
-   | '(' dcltor ')'                           {$$ = node1(PrefxNd, $1, $2); free_t($3);}
-   | direct_dcltor '[' opt_constant_expr  ']' {$$ = node2(BinryNd, $2, $1, $3); free_t($4);}
+   | '(' dcltor ')'
+      {$$ = node1(PrefxNd, $1, $2); free_t($3);}
+   | direct_dcltor '[' opt_constant_expr  ']'
+      {$$ = node2(BinryNd, $2, $1, $3); free_t($4);}
    | direct_dcltor '(' {push_cntxt(1);} parm_dcls_or_ids ')'
       {
 	 $$ = node2(BinryNd, $5, $1, $4);
@@ -505,11 +591,14 @@ direct_dcltor
 	 else pop_cntxt();
 	 free_t($2);
 	 }
+   | direct_dcltor asm
    ;
 
 no_tdn_direct_dcltor
-   : identifier                               {$$ = node0(PrimryNd, $1);}
-   | '(' no_tdn_dcltor ')'                    {$$ = node1(PrefxNd, $1, $2); free_t($3);}
+   : identifier
+      {$$ = node0(PrimryNd, $1);}
+   | '(' no_tdn_dcltor ')'
+      {$$ = node1(PrefxNd, $1, $2); free_t($3);}
    | no_tdn_direct_dcltor '[' opt_constant_expr  ']'
       {$$ = node2(BinryNd, $2, $1, $3); free_t($4);}
    | no_tdn_direct_dcltor '(' {push_cntxt(1);} parm_dcls_or_ids ')'
@@ -519,6 +608,7 @@ no_tdn_direct_dcltor
 	 else pop_cntxt();
 	 free_t($2);
 	 }
+   | no_tdn_direct_dcltor asm
    ;
 
 parm_dcls_or_ids
@@ -545,7 +635,8 @@ tqual_lst
 
 param_lst_ellipsis
    : param_lst
-   | param_lst ',' Ellipsis {$$ = node2(CommaNd, $2, $1, node0(PrimryNd, $3));}
+   | param_lst ',' Ellipsis
+      {$$ = node2(CommaNd, $2, $1, node0(PrimryNd, $3));}
    ;
 
 opt_param_lst_ellipsis
@@ -593,13 +684,14 @@ abstract_dcltor
    ;
 
 direct_abstract_dcltor
-   : '(' abstract_dcltor ')'                {$$ = node1(PrefxNd, $1, $2); free_t($3);}
-   |                        '[' opt_constant_expr  ']'
-                                            {$$ = node2(BinryNd, $1, NULL, $2); free_t($3);}
+   : '(' abstract_dcltor ')'
+      {$$ = node1(PrefxNd, $1, $2); free_t($3);}
+   | '[' opt_constant_expr  ']'
+      {$$ = node2(BinryNd, $1, NULL, $2); free_t($3);}
    | direct_abstract_dcltor '[' opt_constant_expr  ']'
-                                            {$$ = node2(BinryNd, $2, $1, $3); free_t($4);}
-   |                        '(' {push_cntxt(1);} opt_param_lst_ellipsis ')'
-                                            {$$ = node2(BinryNd, $4, NULL, $3); pop_cntxt(); free_t($1);}
+      {$$ = node2(BinryNd, $2, $1, $3); free_t($4);}
+   | '(' {push_cntxt(1);} opt_param_lst_ellipsis ')'
+      {$$ = node2(BinryNd, $4, NULL, $3); pop_cntxt(); free_t($1);}
    | direct_abstract_dcltor '(' {push_cntxt(1);} opt_param_lst_ellipsis ')'
       {
 	 $$ = node2(BinryNd, $5, $1, $4);
@@ -756,9 +848,12 @@ function_definition
    ;
 
 func_head
-   :                   no_tdn_dcltor {$$ = node2(LstNd, NULL, NULL, $1);}
-   | storcl_tqual_lst  no_tdn_dcltor {$$ = node2(LstNd, NULL, $1, $2);}
-   | typ_dcltion_specs dcltor        {$$ = node2(LstNd, NULL, $1, $2);}
+   : no_tdn_dcltor
+      {$$ = node2(LstNd, NULL, NULL, $1);}
+   | storcl_tqual_lst  no_tdn_dcltor
+      {$$ = node2(LstNd, NULL, $1, $2);}
+   | typ_dcltion_specs dcltor
+      {$$ = node2(LstNd, NULL, $1, $2);}
    ;
 
 any_ident
@@ -1140,6 +1235,8 @@ pt__typedefname
    : TypeDefName {$$ = node0(PrimryNd, $1);}
    ;
 
+/* TODO: mimic 'identifier', must fix 'rttsym.c' too
+ */
 pt__identifier
    : Identifier {$$ = node0(PrimryNd, $1);}
    ;

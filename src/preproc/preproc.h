@@ -41,6 +41,7 @@
 #define PpOutput   1022   /* decide output file name */
 #define PpNoExpand 1023   /* prevent macro expansion (passthru) */
 #define PpNoProto  1024   /* prevent prototype generation */
+#define PpIncludeNext 1025 /* mimic gcc's #include_next */
 #define Invalid    9999   /* marker */
 
 #define FMT_NO_PROTO_FOR "NO_PROTO_FOR_%s"
@@ -69,6 +70,8 @@ extern struct token *one_tok;  /* token "1" */
 extern int *g_first_char;        /* first character in tokenizing buffer */
 extern int *g_next_char;         /* next character in tokenizing buffer */
 extern int *g_last_char;         /* last character in tokenizing buffer */
+
+extern int g_nostdinc_flg;       /* flag: do not use standard includes */
 
 /*
  * Entry in array of preprocessor directive names.
@@ -141,6 +144,14 @@ struct macro {
 #define Within   3   /* Next new-line ends directive */
 
 /*
+ * Indicates an included file.
+ */
+struct search_dir {
+   int pos;               /* position of include dir in search list */
+   char *dir;             /* include directory path */
+};
+
+/*
  * Information for a source of tokens created from a character stream.
  *  The characters may come from a file, or they be in a prefilled buffer.
  */
@@ -153,7 +164,7 @@ struct char_src {
    int *next_char;	  /* next unprocessed character in buffer */
    int *last_char;	  /* last character in buffer */
    int line_adj;	  /* line adjustment caused by #line directive */
-   int dir_state;	  /* state w.r.t. recognizing directives */
+   int dir_state;	  /* state with reference to recognizing directives */
    struct token *tok_sav; /* used to save token after look ahead */
    };
 
@@ -198,26 +209,15 @@ union src_ref {
 #define NTokSav  2      /* maximum number of tokens that can be pushed back */
 
 struct src {
-   int flag;			/* indicate what kind of source it is */
+   int kind;			/* indicate what kind of source it is */
    struct tok_lst *cond;	/* list of nested conditionals in effect */
    struct token *toks[NTokSav];	/* token push-back stack for preproc() */
    int ntoks;			/* number of tokens on stack */
    struct src *next;		/* link for creating stack */
-   union src_ref u;             /* pointer to specific kind of source */
+   union src_ref u;		/* pointer to specific kind of source */
+   struct search_dir *orig;	/* included file? from where? */
    };
 
 extern struct src dummy;       /* base of stack */
 
 extern struct src *g_src_stack;  /* source stack */
-
-/*
- * See 'misc/gen-sss.sh'.
- */
-int is_g_sss_skip_member(const char *s);
-extern const char *g_str___restrict;
-extern const char *g_str___restrict__;
-extern const char *g_str__Noreturn;
-extern const char *g_str___inline;
-extern const char *g_str___extension__;
-extern const char *g_str___const;
-extern const char *g_str___wur;

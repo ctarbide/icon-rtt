@@ -12,8 +12,8 @@ CC = gcc
 
 CFLAGS :=
 # CFLAGS := $(CFLAGS) -DGraphics -DXWindows
-# CFLAGS := $(CFLAGS) -O0 -g -D_MUSL
-CFLAGS := $(CFLAGS) -O2 -D_MUSL
+# CFLAGS := $(CFLAGS) -O0 -g
+CFLAGS := $(CFLAGS) -O2
 # CFLAGS := $(CFLAGS) -std=c99
 CFLAGS := $(CFLAGS) -ansi
 CFLAGS := $(CFLAGS) -pedantic

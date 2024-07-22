@@ -18,7 +18,7 @@ static int sym_counter = 0;
  */
 static void start_select (struct token *t);
 static void end_select   (struct token *t);
-static void incl_file    (struct token *t);
+static void incl_file    (struct token *t, int next);
 static void define       (struct token *t);
 static int  expand       (struct token *t, struct macro *m);
 static void toks_to_str  (struct str_buf *buf, struct token *t);
@@ -196,15 +196,19 @@ struct token *t;
 /*
  * incl_file - handle #include
  */
-static void incl_file(t)
+static void incl_file(t, next)
 struct token *t;
+int next;
    {
    struct token *file_tok, *t1;
    char *s, *fname;
-   int line;
+   int line, start, system;
 
    file_tok = NULL;
    advance_tok(&file_tok);
+
+   /* fprintf(stderr, "TRACE: %s:%d, incl_file(t, next=%d), file_tok=\"%s\"\n",
+      __FILE__, __LINE__, next, file_tok->image); */
 
    /*
     * Determine what form the head file name takes.
@@ -278,13 +282,29 @@ struct token *t;
       errt1(t1, "invalid include file syntax");
    free_t(t1);
 
+   if (next) {
+      struct src *src = g_src_stack;
+      if (src->orig == NULL) {
+	 fprintf(stderr, "Exhaustion %s:%d\n", __FILE__, __LINE__);
+	 exit(1);
+	 }
+      /*
+       * #include_next must start at the next, thus +1, search dir
+       */
+      start = src->orig->pos + 1;
+      }
+   else
+      start = 0;
+
+   /*
+    * <system.h> vs "nonsystem.h"
+    */
+   system = file_tok->tok_id != StrLit;
+
    /*
     * Add the file to the top of the token source stack.
     */
-   if (file_tok->tok_id == StrLit)
-      include(t, file_tok->image, 0);
-   else
-      include(t, file_tok->image, 1);
+   include(t, file_tok->image, system, start);
 
    free_t(file_tok);
    free_t(t);
@@ -571,12 +591,15 @@ struct macro *m;
 	     */
 	    tlp = &exp_args[narg]; /* location of expanded token list for arg */
 	    *tlp = NULL;
-	    if (g_src_stack->flag == CharSrc)
+	    if (g_src_stack->kind == CharSrc)
 	       g_src_stack->u.cs->next_char = g_next_char; /* save state */
 	    stack_sav = g_src_stack;
 	    g_src_stack = &dummy;
 	    ref.tlst = args[narg];
-	    push_src(TokLst, &ref); /* initial stack is list of raw tokens */
+	    /*
+	     * Initial stack is list of raw tokens.
+	     */
+	    push_src(TokLst, &ref, NULL /* orig */);
 	    /*
 	     * Get macro expanded tokens.
 	     */
@@ -585,7 +608,7 @@ struct macro *m;
 	       tlp = &(*tlp)->next;
 	       }
 	    g_src_stack = stack_sav;
-	    if (g_src_stack->flag == CharSrc) {
+	    if (g_src_stack->kind == CharSrc) {
 	       /*
 		* Restore global state for tokenizing.
 		*/
@@ -606,7 +629,7 @@ struct macro *m;
 
    ++m->recurse;
    ref.me = new_me(m, args, exp_args);
-   push_src(MacExpand, &ref);
+   push_src(MacExpand, &ref, NULL /* orig */);
    /*
     * Don't loose generation of #line directive before regular
     *  macros, if there should be one.
@@ -693,7 +716,11 @@ struct token *interp_dir()
 	    break;
 
 	 case PpInclude:     /* #include */
-	    incl_file(t);
+	    incl_file(t, 0 /* next */);
+	    break;
+
+	 case PpIncludeNext: /* #include_next */
+	    incl_file(t, 1 /* next */);
 	    break;
 
 	 case PpDefine:      /* #define */
@@ -855,8 +882,6 @@ struct token *interp_dir()
 	    /*
 	     * This is not a directive, see if it is a macro name.
 	     */
-	    if (is_g_sss_skip_member((const char*)t->image))
-	       break;
 	    if (t->tok_id == Identifier && !(t->flag & NoExpand) &&
 		 (m = m_lookup(t)) != NULL) {
 	       if (max_recurse < 0 || m->recurse < max_recurse) {

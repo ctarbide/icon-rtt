@@ -78,28 +78,32 @@ char *image;
    {
    struct sym_entry *sym;
 
+   /* fprintf(stderr, "**************** sym_lkup(\"%s\")\n", image); */
+
    for (
       sym = sym_tbl[(unsigned int)(unsigned long)image % HashSize];
       sym; sym = sym->next
-      )
+      ) {
       if (sym->image == image) {
+	 /* TODO: try to delegate back to the grammar */
 	 if (g_passthru && sym->tok_id != TypeDefName) {
 	    if (sym->is_c_kwd == 0) {
-		  sym = NewStruct(sym_entry);
-		  sym->tok_id = Identifier;
-		  sym->image = image;
-		  sym->id_type =  OtherDcl;
-		  sym->nest_lvl = 1; /* nest_lvl: 1 - global */
-		  sym->ref_cnt = 1;
-		  sym->il_indx = -1;
-		  sym->may_mod = 0;
-		  /* TODO: save this sym, or else it will leak */
-		  sym->next = NULL;
-		  break;
+	       sym = NewStruct(sym_entry);
+	       sym->tok_id = Identifier;
+	       sym->image = image;
+	       sym->id_type =  OtherDcl;
+	       sym->nest_lvl = 1; /* nest_lvl: 1 - global */
+	       sym->ref_cnt = 1;
+	       sym->il_indx = -1;
+	       sym->may_mod = 0;
+	       /* TODO: save this sym, or else it will leak */
+	       sym->next = NULL;
+	       break;
 	       }
 	    }
 	 return sym;
 	 }
+      }
 
    return NULL;
    }

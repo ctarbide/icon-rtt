@@ -50,6 +50,7 @@ static struct rsrvd_wrd pp_rsrvd[] = {
    {"enddef",  PpEnddef},
    {"noexpand",PpNoExpand},
    {"noproto", PpNoProto},
+   {"include_next", PpIncludeNext}, /* gcc compat */
    /* standard directives */
    {"if",      PpIf},
    {"else",    PpElse},

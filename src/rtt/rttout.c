@@ -1185,6 +1185,8 @@ int indent, brace, may_force_nl;
    if (n == NULL)
       return 1;
 
+   /* fprintf(stderr, "/""*%d,%s*""/\n", __LINE__, node_name(n)); */
+
    t = n->tok;
    switch (n->nd_id) {
       case PrimryNd: /* simply a token */
@@ -1269,6 +1271,21 @@ int indent, brace, may_force_nl;
 		  }
 	       else
 		  c_walk(n->u[0].child, indent, 0);
+	       return 1;
+	    case CompatAsm:
+	       prt_tok(t, indent);                /* __asm__ */
+	       prt_str("(", indent);
+	       ForceNl();
+	       if ((n1 = is_tt(n->u[0].child, CommaNd, ',', ':'))) {
+		  int counter = 1;
+		  c_walk_comma(n1->u[0].child, NULL, indent + IndentInc,
+		     brace, may_force_nl, &counter, WHEN_NL_ARG_LIST);
+		  c_walk_comma(n1->u[1].child, n1->tok, indent + IndentInc,
+		     brace, may_force_nl, &counter, WHEN_NL_ARG_LIST);
+		  }
+	       else
+		  c_walk(n->u[0].child, indent, 0);
+	       prt_str(")", indent);
 	       return 1;
 	    case Default:
 	       ForceNl();
@@ -1539,15 +1556,19 @@ int indent, brace, may_force_nl;
 	       /*
 		* function call or declaration: <expr> ( <expr-list> )
 		*/
-	       if (n->u[0].child->tok->tok_id == PassThru)
+	       /* TODO: use nav_t? nav_n_t? */
+	       if (n->u[0].child->tok->tok_id == PassThru) {
 		  return c_walk(n->u[1].child, indent, 0);
+		  }
 	       n2 = NULL;
 	       c_walk(n->u[0].child, indent, 0);
 	       prt_str("(", indent);
 	       if ((n1 = is_t(n->u[0].child, PrimryNd, Identifier)) &&
-		     n1->tok && n1->tok->image == g_str___ASM__)
-		  if ((n2 = is_t(n->u[1].child, PrefxNd, PassThru)))
+		     n1->tok && n1->tok->image == g_str___ASM__) {
+		  if ((n2 = is_t(n->u[1].child, PrefxNd, PassThru))) {
 		     ForceNl();
+		     }
+		  }
 	       if ((n1 = is_t(n->u[1].child, CommaNd, ','))) {
 		  int counter = 1;
 		  c_walk_comma(n1->u[0].child, NULL, indent + IndentInc,
@@ -1643,10 +1664,12 @@ int indent, brace, may_force_nl;
 		  prt_tok(t, indent);  /* ; */
 		  }
 	       else {
-		  c_walk(n->u[0].child, indent, 0);
-		  if (n->u[1].child) {
-		     prt_str(" ", indent);
-		     c_walk(n->u[1].child, indent, 0);
+		  if ((n1 = n->u[0].child))
+		     c_walk(n->u[0].child, indent, 0);
+		  if ((n2 = n->u[1].child)) {
+		     if (n1)
+			prt_str(" ", indent);
+		     c_walk(n2, indent, 0);
 		     }
 		  prt_tok(t, indent);  /* ; */
 		  }
@@ -3691,7 +3714,7 @@ struct node *head, *prm_dcl;
 void fncout(head, prm_dcl, block)
 struct node *head, *prm_dcl, *block;
    {
-   struct node *head_ansi, *fnc_name;
+   struct node *head_ansi, *nd1, *fnc_name;
 
    assert(g_def_fnd >= 0);
    ++g_def_fnd;       /* this declaration defines a run-time object */
@@ -3708,11 +3731,17 @@ struct node *head, *prm_dcl, *block;
 
    head_ansi = header_k_and_r_to_ansi(head, prm_dcl);
 
-   if ((fnc_name = nav_n_n_t_is_t(head_ansi, LstNd, 1, ConCatNd, 1,
-	 BinryNd, ')', 0, PrimryNd, Identifier)) == NULL)
-      {
+   if ((nd1 = nav_n_n_t(head_ansi, LstNd, 1, ConCatNd, 1, BinryNd, ')', 0)) == NULL) {
       fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
       exit(1);
+      }
+
+   if ((fnc_name = is_t(nd1, PrimryNd, Identifier)) == NULL) {
+      if ((fnc_name = nav_t_n_t_is_t(nd1, PrefxNd, '(', 0, ConCatNd, 1, BinryNd, ')', 0, PrimryNd, Identifier)) == NULL) {
+	 fprintf(stderr, "/""*%d,%s*""/\n", __LINE__, node_name(nd1));
+	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	 exit(1);
+	 }
       }
 
    if (no_proto_for(fnc_name->tok->image) == NULL) {
@@ -4415,10 +4444,11 @@ static char *gensym(char *prefix);
 static char *gensym(prefix)
 char *prefix;
    {
-      char buf[100];
-      snprintf(buf, sizeof(buf), "%s%d", prefix, sym_counter++);
-      return str_install_local_sbuf(buf);
+   char buf[100];
+   snprintf(buf, sizeof(buf), "%s%d", prefix, sym_counter++);
+   return str_install_local_sbuf(buf);
    }
+
 static char *
 top_level_chunk_name(n, is_concrete, auxnd1, auxnd2)
 int is_concrete;
@@ -4550,8 +4580,8 @@ struct node *n, **auxnd1, **auxnd2;
 	       }
 	    if (
 		  /* TODO: optimize these tests */
-		  is_ttt(nd3, PrimryNd, Const, Int, Unsigned) ||
-		  is_ttt(nd3, PrimryNd, Static, Extern, Long)
+		  is_tttt(nd3, PrimryNd, Const, Int, Unsigned, Static) ||
+		  is_tttt(nd3, PrimryNd, Extern, Long, CompatExtension, CompatConst)
 	       ) {
 	       if (!is_concrete)
 		  return NULL;
@@ -4566,7 +4596,7 @@ struct node *n, **auxnd1, **auxnd2;
 	       /* TODO: optimize these tests */
 	       is_ttt(nd2, PrimryNd, Const, Int, Unsigned) ||
 	       is_ttt(nd2, PrimryNd, Static, Extern, Long) ||
-	       is_t(nd2, PrimryNd, Char)
+	       is_tt(nd2, PrimryNd, Char, Volatile)
 	    ) {
 	    return "<<globals>>=";
 	    }

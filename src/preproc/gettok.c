@@ -22,7 +22,7 @@ struct token *next_tok()
    char *fname;
    int n;
 
-   if (g_src_stack->flag == DummySrc)
+   if (g_src_stack->kind == DummySrc)
       return NULL;    /* source stack is empty - end of input */
 
    /*
@@ -31,7 +31,7 @@ struct token *next_tok()
    if (g_src_stack->ntoks > 0)
       return g_src_stack->toks[--g_src_stack->ntoks];
 
-   switch (g_src_stack->flag) {
+   switch (g_src_stack->kind) {
       case CharSrc:
 	 /*
 	  * Tokens from a raw character "stream".

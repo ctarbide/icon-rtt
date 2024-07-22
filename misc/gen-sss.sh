@@ -3,10 +3,12 @@ set -eu; set -- "$0" --ba-- "$0" "$@" --ea--
 exec nofake-exec.sh --error -Rprog "$@" -- icon
 exit 1
 
+TODO: add option to align
+
 static string set
 
 <<usage example>>=
-./misc/gen-sss.sh g_sss_skip __restrict __restrict__ _Noreturn __inline __extension__ __const __wur
+./misc/gen-sss.sh g_sss_skip __restrict __restrict__ _Noreturn __inline __extension__ __const __wur __asm__
 @
 
 <<prog>>=

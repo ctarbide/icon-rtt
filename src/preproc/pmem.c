@@ -159,19 +159,21 @@ struct paste_lsts *plst;
  * push_src - push an entry on the stack of tokens sources. This entry
  *  becomes the current source.
  */
-void push_src(flag, ref)
-int flag;
+void push_src(kind, ref, orig)
+int kind;
 union src_ref *ref;
+struct search_dir *orig;
    {
    struct src *sp;
 
    sp = NewStruct(src);
-   sp->flag = flag;
+   sp->kind = kind;
    sp->cond = NULL;
    sp->u = *ref;
    sp->ntoks = 0;
+   sp->orig = orig;
 
-   if (g_src_stack->flag == CharSrc)
+   if (g_src_stack->kind == CharSrc)
       g_src_stack->u.cs->next_char = g_next_char;
    sp->next = g_src_stack;
    g_src_stack = sp;
@@ -286,7 +288,7 @@ void pop_src()
    struct mac_expand *me;
    int i;
 
-   if (g_src_stack->flag == DummySrc)
+   if (g_src_stack->kind == DummySrc)
       return; /* bottom of stack */
 
    sp = g_src_stack;
@@ -296,7 +298,7 @@ void pop_src()
     * If the new current source is a character source, reload global
     *  variables used in tokenizing the characters.
     */
-   if (g_src_stack->flag == CharSrc) {
+   if (g_src_stack->kind == CharSrc) {
       g_first_char = g_src_stack->u.cs->char_buf;
       g_next_char = g_src_stack->u.cs->next_char;
       g_last_char = g_src_stack->u.cs->last_char;
@@ -312,7 +314,7 @@ void pop_src()
    /*
     * Free any storage that the stack entry still references.
     */
-   switch (sp->flag) {
+   switch (sp->kind) {
       case CharSrc:
 	 cs = sp->u.cs;
 	 if (cs->f != NULL)

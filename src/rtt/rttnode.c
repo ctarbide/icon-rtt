@@ -11,10 +11,10 @@ static int node_nfields(struct node *n);
  */
 static char *nd_id_names[] = {
    "0-invalid/error",
-   "prim" /* "1-PrimryNd" */, /* simply a token */
+   "1-PrimryNd", /* "1-PrimryNd", simply a token */
    "2-PrefxNd", /* a prefix expression */
    "3-PstfxNd", /* a postfix expression */
-   "bin" /* "4-BinryNd" */, /* a binary expression (not necessarily infix) */
+   "4-BinryNd", /* "4-BinryNd", a binary expression (not necessarily infix) */
    "5-TrnryNd", /* an expression with 3 subexpressions */
    "6-QuadNd", /* an expression with 4 subexpressions */
    "7-LstNd", /* list of declaration parts */
@@ -732,6 +732,20 @@ int nd_id, tok_id1, tok_id2, tok_id3;
    }
 
 struct node *
+is_tttt(n, nd_id, tok_id1, tok_id2, tok_id3, tok_id4)
+struct node *n;
+int nd_id, tok_id1, tok_id2, tok_id3, tok_id4;
+   {
+   int id;
+   if (n && n->nd_id == nd_id && n->tok) {
+      id = n->tok->tok_id;
+      if (id == tok_id1 || id == tok_id2 || id == tok_id3 || id == tok_id4)
+	 return n;
+      }
+   return NULL;
+   }
+
+struct node *
 nav_n(n, nd_id, child)
 struct node *n;
 int nd_id, child;
@@ -774,6 +788,17 @@ int nd_id1, nd_id2, tok_id2, child1, child2;
    }
 
 struct node *
+nav_t_n(n, nd_id1, tok_id1, child1, nd_id2, child2)
+struct node *n;
+int nd_id1, nd_id2, tok_id1, child1, child2;
+   {
+   struct node *nd;
+   if ((nd = nav_t(n, nd_id1, tok_id1, child1)))
+      return nav_n(nd, nd_id2, child2);
+   return NULL;
+   }
+
+struct node *
 nav_n_n_t(n, nd_id1, child1, nd_id2, child2, nd_id3, tok_id3, child3)
 struct node *n;
 int nd_id1, nd_id2, nd_id3, tok_id3;
@@ -783,6 +808,31 @@ int child1, child2, child3;
    if ((nd1 = nav_n(n, nd_id1, child1)))
       if ((nd2 = nav_n_t(nd1, nd_id2, child2, nd_id3, tok_id3, child3)))
 	 return nd2;
+   return NULL;
+   }
+
+struct node *
+nav_t_n_t(n, nd_id1, tok_id1, child1, nd_id2, child2, nd_id3, tok_id3, child3)
+struct node *n;
+int nd_id1, nd_id2, nd_id3, tok_id1, tok_id3;
+int child1, child2, child3;
+   {
+   struct node *nd1, *nd2;
+   if ((nd1 = nav_t_n(n, nd_id1, tok_id1, child1, nd_id2, child2)))
+      if ((nd2 = nav_t(nd1, nd_id3, tok_id3, child3)))
+	 return nd2;
+   return NULL;
+   }
+
+struct node *
+nav_t_n_t_is_t(n, nd_id1, tok_id1, child1, nd_id2, child2, nd_id3, tok_id3, child3, nd_id4, tok_id4)
+struct node *n;
+int nd_id1, nd_id2, nd_id3, nd_id4, tok_id1, tok_id3, tok_id4;
+int child1, child2, child3;
+   {
+   struct node *nd;
+   if ((nd = nav_t_n_t(n, nd_id1, tok_id1, child1, nd_id2, child2, nd_id3, tok_id3, child3)))
+      return is_t(nd, nd_id4, tok_id4);
    return NULL;
    }
 

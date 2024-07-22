@@ -14,32 +14,6 @@ static void undef_opt    (char *s, int len);
 struct src dummy;
 
 /*
- * See 'misc/gen-sss.sh'.
- */
-static const char g_sss_skip[] =
-    "__restrict\000"
-    "__restrict__\000"
-    "_Noreturn\000"
-    "__inline\000"
-    "__extension__\000"
-    "__const\000"
-    "__wur\000"
-;
-const char *g_str___restrict = g_sss_skip + 0;
-const char *g_str___restrict__ = g_sss_skip + 11;
-const char *g_str__Noreturn = g_sss_skip + 24;
-const char *g_str___inline = g_sss_skip + 34;
-const char *g_str___extension__ = g_sss_skip + 43;
-const char *g_str___const = g_sss_skip + 57;
-const char *g_str___wur = g_sss_skip + 65;
-static const char *g_sss_skip_end = g_sss_skip + 71;
-
-int is_g_sss_skip_member(const char *s)
-{
-    return s >= g_sss_skip && s <= g_sss_skip_end;
-}
-
-/*
  * init_preproc - initialize all parts of the preprocessor, establishing
  *  the primary file as the current source of tokens.
  */
@@ -51,20 +25,10 @@ char **opt_args;
    init_tok();                      /* initialize tokenizer */
    init_macro();                    /* initialize macro table */
    init_files(opt_lst, opt_args);   /* initialize standard header locations */
-   dummy.flag = DummySrc;           /* marker at bottom of source stack */
+   dummy.kind = DummySrc;           /* marker at bottom of source stack */
    dummy.ntoks = 0;
    g_src_stack = &dummy;
    mac_opts(opt_lst, opt_args);     /* process options for predefined macros */
-   /*
-    * See 'misc/gen-sss.sh'.
-    */
-   spec_str((char*)g_str___restrict);
-   spec_str((char*)g_str___restrict__);
-   spec_str((char*)g_str__Noreturn);
-   spec_str((char*)g_str___inline);
-   spec_str((char*)g_str___extension__);
-   spec_str((char*)g_str___const);
-   spec_str((char*)g_str___wur);
    }
 
 /*
@@ -114,7 +78,7 @@ int len;
     * Create a character source with a large enought buffer for the string.
     */
    ref.cs = new_cs(src_name, NULL, len + 1);
-   push_src(CharSrc, &ref);
+   push_src(CharSrc, &ref, NULL /* orig */);
    ip1 = ref.cs->char_buf;
    ip2 = ref.cs->line_buf;
    while (len-- > 0) {

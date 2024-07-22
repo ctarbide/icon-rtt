@@ -558,7 +558,7 @@ struct token *paste()
     */
    ref.cs = new_cs(trigger->fname, NULL,
       (int)strlen(t->image) + (int)strlen(t1->image) + 7);
-   push_src(CharSrc, &ref);
+   push_src(CharSrc, &ref, NULL /* orig */);
    s = cpy_image(t, ref.cs->char_buf);
    s = cpy_image(t1, s);
    *s = EOF;
@@ -625,7 +625,7 @@ struct token *mac_tok()
       plst = paste_parse(t, me);
       if (plst != NULL) {
 	 ref.plsts = plst;
-	 push_src(PasteLsts, &ref);
+	 push_src(PasteLsts, &ref, NULL /* orig */);
 	 }
       t1 = next_tok();
       if (line_check && !(t1->flag & LineChk)) {
@@ -642,7 +642,7 @@ struct token *mac_tok()
 	  *  argument, that is, replace the parameter with its definition.
 	  */
 	 ref.tlst = me->exp_args[indx];
-	 push_src(TokLst, &ref);
+	 push_src(TokLst, &ref, NULL /* orig */);
 	 if (t->flag & LineChk) {
 	    line = t->line;
 	    fname = t->fname;

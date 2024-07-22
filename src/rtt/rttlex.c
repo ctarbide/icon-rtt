@@ -101,12 +101,12 @@ void init_lex()
       sym_add_c_keyword(If,            spec_str("if"));
       sym_add_c_keyword(Int,           spec_str("int"));
       sym_add_c_keyword(Long,          spec_str("long"));
+      sym_add_c_keyword(PassThru,      spec_str("passthru"));
       sym_add_c_keyword(Register,      spec_str("register"));
       sym_add_c_keyword(Return,        spec_str("return"));
       sym_add_c_keyword(Short,         spec_str("short"));
       sym_add_c_keyword(Signed,        spec_str("signed"));
       sym_add_c_keyword(Sizeof,        spec_str("sizeof"));
-      sym_add_c_keyword(PassThru,      spec_str("passthru"));
       sym_add_c_keyword(Static,        spec_str("static"));
       sym_add_c_keyword(Struct,        spec_str("struct"));
       sym_add_c_keyword(Switch,        spec_str("switch"));
@@ -116,6 +116,17 @@ void init_lex()
       sym_add_c_keyword(Void,          spec_str("void"));
       sym_add_c_keyword(Volatile,      spec_str("volatile"));
       sym_add_c_keyword(While,         spec_str("while"));
+
+      /* compat */
+      sym_add_c_keyword(CompatAttribute,  spec_str("__attribute__"));
+      sym_add_c_keyword(CompatAsm,        spec_str("__asm__"));
+      sym_add_c_keyword(CompatRestrict,   spec_str("__restrict"));
+      sym_add_c_keyword(CompatRestrict2,  spec_str("__restrict__"));
+      sym_add_c_keyword(CompatNoreturn,   spec_str("_Noreturn"));
+      sym_add_c_keyword(CompatInline,     spec_str("__inline"));
+      sym_add_c_keyword(CompatExtension,  spec_str("__extension__"));
+      sym_add_c_keyword(CompatConst,      spec_str("__const"));
+      /* sym_add_c_keyword(CompatWur,        spec_str("__wur")); / * __attribute__((__warn_unused_result__)) */
 
       if (is__RTT_PURE_C__)
 	 return;
@@ -385,6 +396,8 @@ int yylex()
       if (!GoodChar(yylval.t->tok_id))
 	 errt2(yylval.t, "invalid character: ", yylval.t->image);
       }
+
+   /* fprintf(stderr, "**************** %d\n", yylval.t->tok_id); */
 
    return yylval.t->tok_id;
    }

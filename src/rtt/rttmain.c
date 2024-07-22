@@ -20,7 +20,7 @@ int               yyparse   (void);
 char *refpath;
 char patchpath[18 + MaxPath] = "%PatchStringHere->";
 
-static char *ostr = "+ECPD:I:U:d:cir:st:x";
+static char *ostr = "+ECPD:I:U:d:cir:st:xN";
 
 static char *options =
    "[-E] [-C] [-P] [-Dname[=[text]]] [-Uname] [-Ipath] [-dfile]\n    \
@@ -151,6 +151,10 @@ char **argv;
 	    break;
 	 case 'x':  /* produce code for interpreter rather than compiler */
 	    iconx_flg = 1;
+	    break;
+
+	 case 'N':  /* nostdinc */
+	    g_nostdinc_flg = 1;
 	    break;
 
 	 case 'D':  /* define preprocessor symbol */
