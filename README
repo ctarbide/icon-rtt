@@ -1,3 +1,16 @@
+
+icon-rtt is a source-to-source translator that reads a C-like,
+RTL-derived language and emits noweb output. It was originally
+developed for the Icon runtime but is usable as a general tool for
+translating extended C semantics into literate, tangleable code.
+
+The canonical source for this version is at
+https://github.com/ctarbide/icon-rtt.
+
+The original README follows:
+
+****************************************************************
+
 README file for the Icon Programming Language source tree
 https://github.com/gtownsend/icon
 

@@ -94,6 +94,21 @@ char *id;
    return ilst;
    }
 
+struct id_lst *copy_id_lst(psrc)
+struct id_lst *psrc;
+   {
+   struct id_lst *pnew = NULL;
+   if (psrc) {
+      struct id_lst **pnext;
+      pnew = new_id_lst(psrc->id);
+      pnext = &(pnew)->next;
+      while ((psrc = psrc->next)) {
+	 pnext = &(*pnext = new_id_lst(psrc->id))->next;
+	 }
+      }
+   return pnew;
+   }
+
 /*
  * new_cs - allocate a new structure for a source of tokens created from
  *  characters.
@@ -192,7 +207,7 @@ struct token *t;
 	 t->trace = NULL;
 	 }
 #endif
-      free((char *)t);
+      free(t);
       }
    }
 
@@ -227,7 +242,7 @@ struct tok_lst *tlst;
       return;
    free_t(tlst->t);
    free_t_lst(tlst->next);
-   free((char *)tlst);
+   free(tlst);
    }
 
 /*
@@ -239,7 +254,7 @@ struct id_lst *ilst;
    if (ilst == NULL)
        return;
    free_id_lst(ilst->next);
-   free((char *)ilst);
+   free(ilst);
    }
 
 /*
@@ -253,7 +268,7 @@ struct macro *m;
       return;
    free_id_lst(m->prmlst);
    free_t_lst(m->body);
-   free((char *)m);
+   free(m);
    }
 
 /*

@@ -690,6 +690,7 @@ struct token *interp_dir()
    {
    struct token *t, *t1;
    struct macro *m;
+   struct tok_lst *tlst;
 
    /*
     * See if the caller pushed back any tokens
@@ -819,13 +820,17 @@ struct token *interp_dir()
 	    nxt_non_wh(&t1);
 	    if (t1->tok_id != Identifier)
 	       errt1(t1, "#noexpand requires an identifier pointing to macro definition");
+	    tlst = NULL;
 	    m = m_lookup(t1);
 	    if (m) {
+	       /* replace old body with a reflection, use t1 in it,
+	        * save old body in tlst for a possible backup macro
+	        */
 	       t1->flag &= ~LineChk;
 	       if (m->prmlst) {
 		  struct id_lst *p = m->prmlst;
 		  struct tok_lst **ptlst;
-		  free_t_lst(m->body);
+		  tlst = m->body;
 		  m->body = new_t_lst(t1);
 		  ptlst = &(m->body->next = new_t_lst(new_token('(', "(", "", 0)))->next;
 		  ptlst = &(*ptlst = new_t_lst(new_token(Identifier, p->id, "", 0)))->next;
@@ -833,20 +838,42 @@ struct token *interp_dir()
 		     ptlst = &(*ptlst = new_t_lst(new_token(',', ",", "", 0)))->next;
 		     ptlst = &(*ptlst = new_t_lst(new_token(Identifier, p->id, "", 0)))->next;
 		     }
-		  ptlst = &(*ptlst = new_t_lst(new_token(')', ")", "", 0)))->next;
+		  *ptlst = new_t_lst(new_token(')', ")", "", 0));
+		  }
+	       else if (m->category == 0) {	/* 0-args macro */
+		  struct tok_lst **ptlst;
+		  tlst = m->body;
+		  m->body = new_t_lst(t1);
+		  ptlst = &(m->body->next = new_t_lst(new_token('(', "(", "", 0)))->next;
+		  *ptlst = new_t_lst(new_token(')', ")", "", 0));
 		  }
 	       else {
-		  free_t_lst(m->body);
+		  tlst = m->body;
 		  m->body = new_t_lst(t1);
-		  m->category = 0;
 		  }
 	       }
 	    else {
 	       errt1(t1, "syntax error for #noexpand, macro not found");
 	       }
 	    t1 = next_tok();
-	    if (t1->tok_id != PpDirEnd)
-	       errt1(t1, "syntax error for #noexpand");
+	    if (t1->tok_id != PpDirEnd) {
+	       if (t1->tok_id == WhiteSpace)
+		  nxt_non_wh(&t1);
+	       if (t1->tok_id == Identifier) {
+		  /* expandable backup macro option
+		   */
+		  m_install(t1, m->category, m->multi_line,
+		     copy_id_lst(m->prmlst), tlst);
+		  tlst = NULL;
+		  }
+	       else
+		  errt1(t1, "syntax error for #noexpand");
+	       t1 = next_tok();
+	       if (t1->tok_id != PpDirEnd) {
+		  errt1(t1, "syntax error for #noexpand");
+		  }
+	       }
+	    free_t_lst(tlst);
 	    free_t(t1);
 	    free(t);
 	    break;

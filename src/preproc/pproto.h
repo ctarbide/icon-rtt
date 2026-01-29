@@ -40,6 +40,7 @@ struct macro    *m_install   (struct token *mname, int category,
 struct macro      *m_lookup     (struct token *mname);
 struct char_src   *new_cs       (char *fname, FILE *f, int bufsize);
 struct id_lst     *new_id_lst   (char *id);
+struct id_lst     *copy_id_lst  (struct id_lst *psrc);
 struct macro      *new_macro    (char *mname, int category,
                                   int multi_line, struct id_lst *prmlst,
                                   struct tok_lst *body);
