@@ -3475,7 +3475,7 @@ struct node *n;
       start = get_args_names(out, start, len, n->u[0].child);
       start = get_args_names(out, start, len, n->u[1].child);
       }
-   else if (is_t(n, PrimryNd, Identifier)) {
+   else if (is_ttt(n, PrimryNd, Identifier, Type, IconType)) {
       if (start >= len) {
 	 fprintf(stderr, "Exhaustion %s:%d, too many arguments, more than %d.\n", __FILE__, __LINE__, len);
 	 exit(1);
@@ -3483,7 +3483,9 @@ struct node *n;
       out[start++] = n;
       }
    else {
-      fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+      fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	 __FILE__, __LINE__, g_fname_for___FILE__,
+	 g_line_for___LINE__);
       exit(1);
       }
    return start;
@@ -3648,20 +3650,22 @@ struct node *head, *prm_dcl;
 		  fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
 		  exit(1);
 		  }
-	       if (is_t(nd, PrimryNd, Identifier)) {
+	       if (is_ttt(nd, PrimryNd, Identifier, Type, IconType)) {
 		  if (nd->tok->image == id) {
 		     found = decl;
 		     break;
 		     }
 		  }
-	       else if ((nd2 = nav_t_is_t(nd, BinryNd, '[', 0, PrimryNd, Identifier))) {
+	       else if ((nd2 = nav_t_is_ttt(nd, BinryNd, '[', 0, PrimryNd, Identifier, Type, IconType))) {
 		  if (nd2->tok->image == id) {
 		     found = decl;
 		     break;
 		     }
 		  }
 	       else {
-		  fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+		  fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+		     __FILE__, __LINE__, g_fname_for___FILE__,
+		     g_line_for___LINE__);
 		  exit(1);
 		  }
 	       }
@@ -4388,7 +4392,10 @@ struct node *n;
 
       case PrimryNd: {
 	    int tok_id = n->tok->tok_id;
-	    if (tok_id == Identifier || tok_id == TypeDefName)
+	    if (tok_id == Identifier || tok_id == TypeDefName ||
+	       tok_id == IconType || tok_id == C_Integer ||
+	       tok_id == C_Double || tok_id == C_String
+	       )
 	       return n;
 	    }
 	 return NULL;

@@ -880,7 +880,6 @@ int nd_id1, tok_id1, child1, nd_id2;
       return is_n(nd, nd_id2);
    return NULL;
    }
-#if 0
 
 struct node *
 nav_t_is_tt(n, nd_id1, tok_id1, child1, nd_id2, tok_id21, tok_id22)
@@ -892,4 +891,14 @@ int nd_id1, tok_id1, child1, nd_id2, tok_id21, tok_id22;
       return is_tt(nd, nd_id2, tok_id21, tok_id22);
    return NULL;
    }
-#endif
+
+struct node *
+nav_t_is_ttt(n, nd_id1, tok_id1, child1, nd_id2, tok_id21, tok_id22, tok_id23)
+struct node *n;
+int nd_id1, tok_id1, child1, nd_id2, tok_id21, tok_id22, tok_id23;
+   {
+   struct node *nd;
+   if ((nd = nav_t(n, nd_id1, tok_id1, child1)))
+      return is_ttt(nd, nd_id2, tok_id21, tok_id22, tok_id23);
+   return NULL;
+   }
