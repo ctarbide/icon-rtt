@@ -1,4 +1,3 @@
-
 /*
  * Grammar for RTL. The C portion of the grammar is based on
  *  the ANSI Draft Standard - 3rd review.
@@ -793,8 +792,8 @@ selection_stmt
    ;
 
 c_type_select_lst
-   :                   c_type_select
-   | c_type_select_lst c_type_select {$$ = node2(ConCatNd, NULL, $1, $2);}
+   :                   c_type_select {$$ = node2(ConCatNd, NULL, NULL, $1);}
+   | c_type_select_lst c_type_select {$$ = node2(ConCatNd, NULL,   $1, $2);}
    ;
 
 c_type_select
@@ -1070,7 +1069,7 @@ checking_conversions
    ;
 
 type_select_lst
-   :                 type_select
+   :                 type_select {$$ = node2(ConCatNd, NULL, NULL, $1);}
    | type_select_lst type_select {$$ = node2(ConCatNd, NULL, $1, $2);}
    ;
 
@@ -1084,7 +1083,8 @@ opt_default
    ;
 
 selector_lst
-   :              i_type_name ':' {$$ = $1; free_t($2);}
+   :              i_type_name ':' {$$ = node2(ConCatNd, NULL, NULL, $1);
+                                   free_t($2);}
    | selector_lst i_type_name ':' {$$ = node2(ConCatNd, NULL, $1, $2);
                                    free_t($3);}
    ;
