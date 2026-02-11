@@ -52,18 +52,24 @@
 
 %token <t> CompatAttribute /* __attribute__ */
 %token <t> CompatAsm /* __asm__ */
-%token <t> CompatRestrict /* __restrict */
-%token <t> CompatRestrict2 /* __restrict__ */
-%token <t> CompatNoreturn /* _Noreturn */
-%token <t> CompatInline /* __inline */
+%token <t> CompatRestrict /* restrict */
 %token <t> CompatExtension /* __extension__ */
 %token <t> CompatConst /* __const */
-/* %token <t> CompatWur / * __wur */
+
+%token <t> CompatNoreturnC11 /* _Noreturn */
+%token <t> CompatNoreturnC23 /* noreturn */
+%token <t> CompatInlineC99 /* inline */
+
+/* divert system headers interception, reliable approach when
+ * paired with macros on the c side
+ */
+%token <t> CompatNoreturnRTT /* RTT_NORETURN */
+%token <t> CompatInlineRTT /* RTT_INLINE */
 
 %type <t> unary_op assign_op struct_or_union typedefname
 %type <t> identifier op_name key_const union attrb_name
 
-%type <n> any_ident storage_class_spec type_qual
+%type <n> any_ident storage_class_spec type_qual function_spec
 %type <n> primary_expr postfix_expr arg_expr_lst unary_expr cast_expr
 %type <n> multiplicative_expr additive_expr shift_expr relational_expr
 %type <n> equality_expr and_expr exclusive_or_expr inclusive_or_expr
@@ -301,7 +307,7 @@ conditional_expr
 assign_expr
    : conditional_expr
    | unary_expr assign_op assign_expr
-      {$$ = node2(BinryNd, $2, $1, $3);}
+      {$$ = node2(BinryNd, $2, node1(LValueNd, NULL, $1), $3);}
    ;
 
 assign_op
@@ -381,8 +387,10 @@ type_storcl_tqual_lst
 storcl_tqual_lst
    : storage_class_spec
    | type_qual
+   | function_spec
    | storcl_tqual_lst storage_class_spec {$$ = node2(LstNd, NULL, $1, $2);}
    | storcl_tqual_lst type_qual          {$$ = node2(LstNd, NULL, $1, $2);}
+   | storcl_tqual_lst function_spec      {$$ = node2(LstNd, NULL, $1, $2);}
    ;
 
 init_dcltor_lst
@@ -550,9 +558,16 @@ type_qual
    : Const    {$$ = node0(PrimryNd, $1);}
    | Volatile {$$ = node0(PrimryNd, $1);}
    | CompatRestrict {$$ = node0(PrimryNd, $1);}
-   | CompatRestrict2 {$$ = node0(PrimryNd, $1);}
    | CompatExtension {$$ = node0(PrimryNd, $1);}
    | CompatConst {$$ = node0(PrimryNd, $1);}
+   ;
+
+function_spec
+   : CompatInlineC99 {$$ = node0(PrimryNd, $1);}
+   | CompatInlineRTT {$$ = node0(PrimryNd, $1);}
+   | CompatNoreturnC11 {$$ = node0(PrimryNd, $1);}
+   | CompatNoreturnC23 {$$ = node0(PrimryNd, $1);}
+   | CompatNoreturnRTT {$$ = node0(PrimryNd, $1);}
    ;
 
 dcltor

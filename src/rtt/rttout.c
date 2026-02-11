@@ -52,7 +52,7 @@ static void parm_tnd      (struct sym_entry *sym);
 static void prt_runerr    (struct token *t, struct node *num,
 			       struct node *val, int indent);
 static void prt_tok       (struct token *t, int indent);
-static void prt_var       (struct node *n, int indent);
+static void prt_var       (struct node *n, int indent, int is_lvalue);
 static int     real_def      (struct node *n);
 static int     retval_dcltor (struct node *dcltor, int indent);
 static void ret_value     (struct token *t, struct node *n,
@@ -65,7 +65,7 @@ static void spcl_start    (struct sym_entry *op_params);
 static int     tdef_or_extr  (struct node *n);
 static void tend_ary      (int n);
 static void tend_init     (void);
-static void tnd_var       (struct sym_entry *sym, char *strct_ptr, char *access, int indent);
+static void tnd_var       (struct sym_entry *sym, char *strct_ptr, char *access, int indent, int is_lvalue);
 static void tok_line      (struct token *t, int indent);
 static void typ_asrt      (int typcd, struct node *desc,
 			       struct token *tok, int indent);
@@ -275,22 +275,16 @@ int indent;
 /*
  * tnd_var - output an expression to accessed a tended variable.
  */
-static void tnd_var(sym, strct_ptr, access, indent)
+static void tnd_var(sym, strct_ptr, access, indent, is_lvalue)
 struct sym_entry *sym;
 char *strct_ptr, *access;
-int indent;
+int indent, is_lvalue;
    {
-   /*
-    * A variable that is a specific block pointer type must be cast
-    *  to that pointer type in such a way that it can be used as either
-    *  an lvalue or an rvalue:  *(struct b_??? **)&???.vword.bptr
-    */
-   if (strct_ptr != NULL) {
-      prt_str("(*(struct ", indent);
+   if (!is_lvalue && strct_ptr) {
+      prt_str("((struct ", indent);
       prt_str(strct_ptr, indent);
-      prt_str("**)&", indent);
+      prt_str("*)", indent);
       }
-
    if (sym->id_type & ByRef) {
       /*
        * The tended variable is being accessed indirectly through
@@ -318,19 +312,26 @@ int indent;
 	 }
       }
    prt_str(access, indent);  /* access the vword for tended pointers */
-   if (strct_ptr != NULL)
+   if (!is_lvalue && strct_ptr)
       prt_str(")", indent);
    }
 
 /*
  * prt_var - print a variable.
  */
-static void prt_var(n, indent)
+static void prt_var(n, indent, is_lvalue)
 struct node *n;
-int indent;
+int indent, is_lvalue;
    {
    struct token *t;
    struct sym_entry *sym;
+
+   if (n->nd_id != SymNd && n->nd_id != CompNd) {
+      fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	 __FILE__, __LINE__, g_fname_for___FILE__,
+	 g_line_for___LINE__);
+      exit(1);
+      }
 
    t = n->tok;
    tok_line(t, indent); /* synchronize file name and line nuber */
@@ -340,20 +341,24 @@ int indent;
 	 /*
 	  * Simple tended descriptor.
 	  */
-	 tnd_var(sym, NULL, "", indent);
+	 tnd_var(sym, NULL, "", indent, is_lvalue);
 	 break;
       case TndStr:
 	 /*
 	  * Tended character pointer.
 	  */
-	 tnd_var(sym, NULL, ".vword.sptr", indent);
+	 tnd_var(sym, NULL, ".vword.sptr", indent, is_lvalue);
 	 break;
       case TndBlk:
 	 /*
 	  * Tended block pointer.
 	  */
-	 tnd_var(sym, sym->u.tnd_var.blk_name, ".vword.bptr",
-	    indent);
+	 if (is_lvalue)
+	    tnd_var(sym, NULL, ".vword.ptr", indent, is_lvalue);
+	 else
+	    tnd_var(sym, sym->u.tnd_var.blk_name,
+	       sym->u.tnd_var.blk_name ? ".vword.ptr" : ".vword.bptr",
+	       indent, is_lvalue);
 	 break;
       case RtParm:
       case DrfPrm:
@@ -362,13 +367,13 @@ int indent;
 	       /*
 		* Simple tended parameter.
 		*/
-	       tnd_var(sym, NULL, "", indent);
+	       tnd_var(sym, NULL, "", indent, is_lvalue);
 	       break;
 	    case PrmCStr:
 	       /*
 		* Parameter converted to a (tended) string.
 		*/
-	       tnd_var(sym, NULL, ".vword.sptr", indent);
+	       tnd_var(sym, NULL, ".vword.sptr", indent, is_lvalue);
 	       break;
 	    case PrmInt:
 	       /*
@@ -780,7 +785,7 @@ int indent;
 	       dest->u[0].sym->id_type != TndDesc))
 	    errt1(t,
 	     "dest. of C_string conv. must be tended descriptor or char *");
-	 tnd_var(dest->u[0].sym, NULL, "", indent);
+	 tnd_var(dest->u[0].sym, NULL, "", indent, 0 /* is_lvalue */);
 	 }
       else
 	 c_walk(dest, indent, 0);
@@ -899,7 +904,7 @@ int indent;
 	     * return/suspend C_double <expr>;
 	     */
 	    prt_str(rslt_loc, indent);
-	    prt_str(".vword.bptr = (union block *)alcreal(", indent);
+	    prt_str(".vword.ptr = alcreal(", indent);
 	    c_walk(n->u[0].child, indent + IndentInc, 0);
 	    prt_str(");", indent + IndentInc);
 	    ForceNl();
@@ -944,7 +949,7 @@ int indent;
 		     /*
 		      * return/suspend <type>(<block-pntr>);
 		      */
-		     ret_1_arg(t, args, typcd, ".vword.bptr = (union block *)",
+		     ret_1_arg(t, args, typcd, ".vword.ptr = ",
 			"(bp)", indent);
 		     break;
 		  case TRetDescP:
@@ -1109,7 +1114,7 @@ int indent;
    ForceNl();
    prt_str("if (", indent);
    prt_str(rslt_loc, indent);
-   prt_str(".vword.bptr == NULL) {", indent);
+   prt_str(".vword.ptr == NULL) {", indent);
    ForceNl();
    prt_str("err_msg(307, NULL);", indent + IndentInc);
    ForceNl();
@@ -1530,7 +1535,7 @@ int indent, brace, may_force_nl;
 	 /*
 	  * Identifier.
 	  */
-	 prt_var(n, indent);
+	 prt_var(n, indent, 0 /* is_lvalue */);
 	 return 1;
       case BinryNd: /* a binary expression (not necessarily infix) */
 	 switch (t->tok_id) {
@@ -1877,7 +1882,7 @@ int indent, brace, may_force_nl;
 		     prt_str(".vword.sptr = ", IndentInc);
 		     break;
 		  case TndBlk:
-		     prt_str(".vword.bptr = (union block *)",
+		     prt_str(".vword.ptr = ",
 			IndentInc);
 		     break;
 		  }
@@ -2018,11 +2023,25 @@ int indent, brace, may_force_nl;
 		  n->u[3].child, indent);
 	       return 1;
 	    }
+      case LValueNd:
+	 n1 = n->u[0].child;
+	 if (n1->nd_id == SymNd || n1->nd_id == CompNd)
+	    prt_var(n1, indent, 1 /* is_lvalue */);
+	 else
+	    c_walk(n1, indent, 0);
+	 return 1;
       case CommaNd:
 	 /*
 	  *  see usages of 'c_walk_comma'
 	  */
-	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	 fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	    __FILE__, __LINE__, g_fname_for___FILE__,
+	    g_line_for___LINE__);
+	 exit(1);
+      default:
+	 fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	    __FILE__, __LINE__, g_fname_for___FILE__,
+	    g_line_for___LINE__);
 	 exit(1);
       }
    /*NOTREACHED*/
@@ -2699,7 +2718,7 @@ int indent, brace;
 		*  statement.
 		*/
 	       prt_str("switch (", indent);
-	       prt_var(n1, indent);
+	       prt_var(n1, indent, 0 /* is_lvalue */);
 	       prt_str(") {", indent);
 	       ForceNl();
 	       fall_thru = 0;
@@ -3171,7 +3190,7 @@ static void tend_init()
 	       fprintf(g_out_file, ".d[%d].dword = F_Ptr | F_Nqual;",tnd->t_indx);
 	       ForceNl();
 	       prt_str(tendstrct, IndentInc);
-	       fprintf(g_out_file, ".d[%d].vword.bptr = (union block *)",
+	       fprintf(g_out_file, ".d[%d].vword.ptr = ",
 		   tnd->t_indx);
 	       c_walk(tnd->init, 2 * IndentInc, 0);
 	       prt_str(";", 2 * IndentInc);
@@ -3441,9 +3460,16 @@ struct node *head;
 	    case Doubl:
 	    case Unsigned:
 	    case Const:
+	    case CompatInlineC99:
+	    case CompatInlineRTT:
+	    case CompatNoreturnC11:
+	    case CompatNoreturnC23:
+	    case CompatNoreturnRTT:
 	       return 0;
 	    default:
-	       fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	       fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+		  __FILE__, __LINE__, g_fname_for___FILE__,
+		  g_line_for___LINE__);
 	       exit(1);
 	    }
 	 }
@@ -3914,7 +3940,7 @@ struct node *n;
        *  for the operation type, the prefix that makes the function
        *  name unique, and the name of the operation.
        */
-      fprintf(g_out_file, "<<impl>>=\n");
+      prt_str("<<impl>>=\n", 0);
       fprintf(g_out_file, "int %c%c%c_%s(int r_nargs, dptr r_args, dptr r_rslt, continuation r_s_cont)",
 	 uc_letter, prfx1, prfx2, cur_impl->name);
       ForceNl();
@@ -4070,7 +4096,7 @@ struct node *n;
        * Output prototype. Operations taking a variable number of arguments
        *   have an extra parameter: the number of arguments.
        */
-      fprintf(g_out_file, "<<protos>>=\n");
+      prt_str("<<protos>>=\n", 0 /* indent */);
       fprintf(g_out_file, "int %c%s(", letter, name);
       if (g_params != NULL && (g_params->id_type & VarPrm))
 	 fprintf(g_out_file, "int r_nargs, ");
@@ -4095,7 +4121,7 @@ struct node *n;
       }
    else {
       /* Output keyword prototype. */
-      fprintf(g_out_file, "<<protos>>=\n");
+      prt_str("<<protos>>=\n", 0 /* indent */);
       fprintf(g_out_file, "int %c%s(dptr r_args);\n", letter, name);
       }
 
@@ -4225,7 +4251,7 @@ struct token *t;
        */
       rslt_loc = "r_args[0]";  /* result location */
 
-      fprintf(g_out_file, "<<protos>>=\n");
+      prt_str("<<protos>>=\n", 0);
       fprintf(g_out_file, "int K%s(dptr r_args);\n", cur_impl->name);
       fprintf(g_out_file, "<<impl>>=\n");
       fprintf(g_out_file, "int K%s(dptr r_args)", cur_impl->name);
@@ -4250,7 +4276,7 @@ struct token *t;
 	    prt_str(".dword = D_Cset;", IndentInc);
 	    ForceNl();
 	    prt_str(rslt_loc, IndentInc);
-	    prt_str(".vword.bptr = (union block *)&cset_blk;", IndentInc);
+	    prt_str(".vword.ptr = &cset_blk;", IndentInc);
 	    break;
 	 case DblConst:
 	    prt_str("static struct b_real real_blk = {T_Real, ", IndentInc);
@@ -4260,7 +4286,7 @@ struct token *t;
 	    prt_str(".dword = D_Real;", IndentInc);
 	    ForceNl();
 	    prt_str(rslt_loc, IndentInc);
-	    prt_str(".vword.bptr = (union block *)&real_blk;", IndentInc);
+	    prt_str(".vword.ptr = &real_blk;", IndentInc);
 	    break;
 	 case IntConst:
 	    prt_str(rslt_loc, IndentInc);
@@ -4556,7 +4582,9 @@ struct node *n, **auxnd1, **auxnd2;
 	    return top_level_chunk_name(n, is_concrete, NULL, NULL);
 	    }
 	 else {
-	    fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	    fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	       __FILE__, __LINE__, g_fname_for___FILE__,
+	       g_line_for___LINE__);
 	    exit(1);
 	    }
 	 }

@@ -14,7 +14,7 @@ P_DOT_H = $(PP_DIR)preproc.h $(PP_DIR)pproto.h ltoken.h ../h/mproto.h\
 POBJS = pout.o pchars.o  perr.o pmem.o  bldtok.o macro.o preproc.o\
 	evaluate.o files.o gettok.o pinit.o
 
-COBJS = ../common/getopt.o ../common/time.o ../common/filepart.o \
+COBJS = ../common/getopt.o ../common/filepart.o \
 	  ../common/identify.o ../common/strtbl.o ../common/alloc.o \
 	  ../common/rtdb.o ../common/munix.o ../common/literals.o \
 	  ../common/lconcat.o ../common/strlcat.o ../common/strlcpy.o \

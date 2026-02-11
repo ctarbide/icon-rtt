@@ -1,8 +1,8 @@
 include ../../Makedefs
 
 
-OBJS =	getopt.o time.o filepart.o identify.o strtbl.o rtdb.o \
-	munix.o literals.o alloc.o getopt.o time.o xwindow.o lconcat.o \
+OBJS =	getopt.o filepart.o identify.o strtbl.o rtdb.o \
+	munix.o literals.o alloc.o getopt.o xwindow.o lconcat.o \
 	strlcat.o strlcpy.o localely.o
 
 common:		$(OBJS)

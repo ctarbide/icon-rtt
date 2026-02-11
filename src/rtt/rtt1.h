@@ -180,12 +180,13 @@ extern int abs_ret; /* type from abstract return statement */
 #define CompNd   14 /* compound statement */
 #define AbstrNd  15 /* abstract type computation */
 #define IcnTypNd 16 /* name of an Icon type */
+#define LValueNd 17 /* a node on the left side of an assignment */
 
 #define NewNode(size) alloc_node(size)
 
 union field {
    struct node *child;
-   struct sym_entry *sym;   /* used with SymNd & CompNd*/
+   struct sym_entry *sym;   /* used with SymNd & CompNd */
    };
 
 struct node {

@@ -966,7 +966,7 @@ int const_cast;
 		     ilc_str(".vword.sptr = ");
 		     break;
 		  case TndBlk:
-		     ilc_str(".vword.bptr = (union block *)");
+		     ilc_str(".vword.ptr = ");
 		     break;
 		  }
 	       ilc_walk(sym->u.tnd_var.init, 0, 0);  /* initial value */

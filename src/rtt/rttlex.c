@@ -117,16 +117,22 @@ void init_lex()
       sym_add_c_keyword(Volatile,      spec_str("volatile"));
       sym_add_c_keyword(While,         spec_str("while"));
 
-      /* compat */
+      /* compatibility with c99, gcc etc */
       sym_add_c_keyword(CompatAttribute,  spec_str("__attribute__"));
       sym_add_c_keyword(CompatAsm,        spec_str("__asm__"));
-      sym_add_c_keyword(CompatRestrict,   spec_str("__restrict"));
-      sym_add_c_keyword(CompatRestrict2,  spec_str("__restrict__"));
-      sym_add_c_keyword(CompatNoreturn,   spec_str("_Noreturn"));
-      sym_add_c_keyword(CompatInline,     spec_str("__inline"));
+      sym_add_c_keyword(CompatRestrict,   spec_str("restrict"));
       sym_add_c_keyword(CompatExtension,  spec_str("__extension__"));
       sym_add_c_keyword(CompatConst,      spec_str("__const"));
-      /* sym_add_c_keyword(CompatWur,        spec_str("__wur")); / * __attribute__((__warn_unused_result__)) */
+
+      sym_add_c_keyword(CompatNoreturnC11,   spec_str("_Noreturn"));
+      sym_add_c_keyword(CompatNoreturnC23,   spec_str("noreturn"));
+      sym_add_c_keyword(CompatInlineC99,     spec_str("inline"));
+
+      /* chosen to not clash with the c standard and reach the c side
+       * without system macros intervention
+       */
+      sym_add_c_keyword(CompatNoreturnRTT,   spec_str("RTT_NORETURN"));
+      sym_add_c_keyword(CompatInlineRTT,     spec_str("RTT_INLINE"));
 
       if (is__RTT_PURE_C__)
 	 return;
@@ -152,7 +158,10 @@ void init_lex()
       sym_add_rtt_keyword(Exact,         spec_str("exact"));
       sym_add_rtt_keyword(Fail,          spec_str("fail"));
       sym_add_rtt_keyword(Function,      spec_str("function"));
-      sym_add_rtt_keyword(Inline,        spec_str("inline"));
+
+      /* was "inline", changed to avoid clash with C99's inline */
+      sym_add_rtt_keyword(Inline,        spec_str("in_line"));
+
       sym_add_rtt_keyword(Is,            spec_str("is"));
       sym_add_rtt_keyword(Keyword,       spec_str("keyword"));
       sym_add_rtt_keyword(Len_case,      spec_str("len_case"));

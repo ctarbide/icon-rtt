@@ -26,7 +26,8 @@ static char *nd_id_names[] = {
    "13-ExactCnv", /* (exact)integer or (exact)C_integer conversion */
    "14-CompNd", /* compound statement */
    "15-AbstrNd", /* abstract type computation */
-   "16-IcnTypNd" /* name of an Icon type */
+   "16-IcnTypNd", /* name of an Icon type */
+   "17-LValueNd" /* a node on the left side of an assignment */
    };
 
 #if defined(TRACE_NODE_MEMBER) && defined(TRACE_NODE_ADD_INFO)
@@ -368,7 +369,7 @@ struct node *n;
           */
          free_tree(n->u[0].child);
          sym = n->u[1].sym;
-         while (sym != NULL) {
+         while (sym) {
             sym1 = sym;
             sym = sym->u.tnd_var.next;
             free_sym(sym1);
@@ -394,6 +395,7 @@ struct node *n;
       case PstfxNd:
       case PreSpcNd:
       case PrefxNd:
+      case LValueNd:
          free_tree(n->u[0].child);
          /* fall thru to next case */
       case ExactCnv:
