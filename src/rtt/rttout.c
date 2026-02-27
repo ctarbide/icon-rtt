@@ -1,6 +1,32 @@
 
 #include "rtt.h"
 
+/*#define DEBUG*/
+/*#define VERBOSE_PRT_CSTR*/
+
+#ifdef VERBOSE_PRT_CSTR
+#define Lit(x) #x
+#define WrapLit(x) Lit(x)
+#define PRT_CSTR(a,b) prt_str(a " /*" WrapLit(__LINE__) "*/",b)
+#define PRT_STR(a,b) (prt_str(a,b),prt_str(" /*" WrapLit(__LINE__) "*/",b))
+#define PRT_TOK(a,b) (prt_tok(a,b),prt_str(" /*" WrapLit(__LINE__) "*/",b))
+#else
+#define PRT_CSTR(a,b) prt_str(a,b)
+#define PRT_STR(a,b) prt_str(a,b)
+#define PRT_TOK(a,b) prt_tok(a,b)
+#endif
+
+#ifdef DEBUG
+#define debugger DEBUG_BREAK()
+char* DEBUG_BREAK(void);
+char* DEBUG_BREAK()
+   {
+   return "debug break";
+   }
+#else
+#define debugger
+#endif
+
 static struct str_buf sbuf_rttout[1];
 #define sbuf sbuf_rttout
 
@@ -50,7 +76,7 @@ static int     only_proto    (struct node *n);
 static void parm_locs     (struct sym_entry *op_params);
 static void parm_tnd      (struct sym_entry *sym);
 static void prt_runerr    (struct token *t, struct node *num,
-			       struct node *val, int indent);
+			       struct node *val, int indent, int brace);
 static void prt_tok       (struct token *t, int indent);
 static void prt_var       (struct node *n, int indent, int is_lvalue);
 static int     real_def      (struct node *n);
@@ -66,7 +92,6 @@ static int     tdef_or_extr  (struct node *n);
 static void tend_ary      (int n);
 static void tend_init     (void);
 static void tnd_var       (struct sym_entry *sym, char *strct_ptr, char *access, int indent, int is_lvalue);
-static void tok_line      (struct token *t, int indent);
 static void typ_asrt      (int typcd, struct node *desc,
 			       struct token *tok, int indent);
 static int     typ_case      (struct node *var, struct node *slct_lst,
@@ -200,18 +225,6 @@ int indent;
    }
 
 /*
- * tok_line - determine if a line directive is needed to synchronize the
- *  output file name and line number with an input token.
- */
-static void tok_line(t, indent)
-struct token *t;
-int indent;
-   {
-   if (no_nl) return;
-   chk_nl(indent);
-   }
-
-/*
  * prt_tok - print a token.
  */
 static void prt_tok(t, indent)
@@ -220,7 +233,7 @@ int indent;
    {
    char *s;
 
-   tok_line(t, indent); /* synchronize file name and line number */
+   chk_nl(indent);
 
    /*
     * Most tokens contain a string of their exact image. However, string
@@ -257,7 +270,7 @@ static void untend(indent)
 int indent;
    {
    ForceNl();
-   prt_str("tend = ", indent);
+   PRT_CSTR("tend = ", indent);
    fprintf(g_out_file, "%s.previous;", tendstrct);
    ForceNl();
    /*
@@ -265,9 +278,9 @@ int indent;
     *  malloced. If so, it must be freed.
     */
    if (varargs) {
-      prt_str("if (r_tendp != (struct tend_desc *)&r_tend)", indent);
+      PRT_CSTR("if (r_tendp != (struct tend_desc *)&r_tend)", indent);
       ForceNl();
-      prt_str("free((pointer)r_tendp);", 2 * indent);
+      PRT_CSTR("free((pointer)r_tendp);", 2 * indent);
       ForceNl();
       }
    }
@@ -281,9 +294,9 @@ char *strct_ptr, *access;
 int indent, is_lvalue;
    {
    if (!is_lvalue && strct_ptr) {
-      prt_str("((struct ", indent);
+      PRT_CSTR("((struct ", indent);
       prt_str(strct_ptr, indent);
-      prt_str("*)", indent);
+      PRT_CSTR("*)", indent);
       }
    if (sym->id_type & ByRef) {
       /*
@@ -291,9 +304,9 @@ int indent, is_lvalue;
        *  a pointer (that is, it is accessed as the argument to a body
        *  function); dereference its identifier.
        */
-      prt_str("(*", indent);
+      PRT_CSTR("(*", indent);
       prt_str(sym->image, indent);
-      prt_str(")", indent);
+      PRT_CSTR(")", indent);
       }
    else {
       if (sym->t_indx >= 0) {
@@ -307,13 +320,13 @@ int indent, is_lvalue;
 	 /*
 	  * This is a direct access to an operation parameter.
 	  */
-	 prt_str("r_args[", indent);
+	 PRT_CSTR("r_args[", indent);
 	 fprintf(g_out_file, "%d]", sym->u.param_info.param_num + 1);
 	 }
       }
-   prt_str(access, indent);  /* access the vword for tended pointers */
+   PRT_STR(access, indent);  /* access the vword for tended pointers */
    if (!is_lvalue && strct_ptr)
-      prt_str(")", indent);
+      PRT_CSTR(")", indent);
    }
 
 /*
@@ -334,7 +347,6 @@ int indent, is_lvalue;
       }
 
    t = n->tok;
-   tok_line(t, indent); /* synchronize file name and line nuber */
    sym = n->u[0].sym;
    switch (sym->id_type & ~ByRef) {
       case TndDesc:
@@ -398,7 +410,7 @@ int indent, is_lvalue;
 	 /*
 	  * Parameter representing variable part of argument list.
 	  */
-	 prt_str("(&", indent);
+	 PRT_CSTR("(&", indent);
 	 if (sym->t_indx >= 0)
 	    fprintf(g_out_file, "%s.d[%d])", tendstrct, sym->t_indx);
 	 else
@@ -408,7 +420,7 @@ int indent, is_lvalue;
 	 /*
 	  * Length of variable part of argument list.
 	  */
-	 prt_str("(r_nargs - ", indent);
+	 PRT_CSTR("(r_nargs - ", indent);
 	 fprintf(g_out_file, "%d)", g_params->u.param_info.param_num);
 	 break;
       case RsltLoc:
@@ -430,10 +442,10 @@ int indent, is_lvalue;
 	  *  a level of pointer dereferencing.
 	  */
 	 if (sym->id_type & ByRef)
-	    prt_str("(*",indent);
+	    PRT_CSTR("(*",indent);
 	 prt_str(sym->image, indent);
 	 if (sym->id_type & ByRef)
-	    prt_str(")",indent);
+	    PRT_CSTR(")",indent);
 	 break;
       }
    }
@@ -502,25 +514,26 @@ struct node *expr;
 /*
  * prt_runerr - print code to implement runerr().
  */
-static void prt_runerr(t, num, val, indent)
+static void prt_runerr(t, num, val, indent, brace)
 struct token *t;
 struct node *num, *val;
-int indent;
+const int indent;
+const int brace; /* do we already have braces? */
    {
    if (op_type == OrdFunc)
       errt1(t, "'runerr' may not be used in an ordinary C function");
-
-   tok_line(t, indent);  /* synchronize file name and line number */
-   prt_str("{", indent);
-   ForceNl();
-   prt_str("err_msg(", indent);
+   if (!brace) {
+      PRT_CSTR(" {", indent);
+      ForceNl();
+      }
+   PRT_CSTR("err_msg(", indent);
    c_walk(num, indent, 0);                /* error number */
    if (val == NULL)
-      prt_str(", NULL);", indent);        /* no offending value */
+      PRT_CSTR(", NULL);", indent);        /* no offending value */
    else {
-      prt_str(", &(", indent);
+      PRT_CSTR(", &(", indent);
       c_walk(val, indent, 0);             /* offending value */
-      prt_str("));", indent);
+      PRT_CSTR("));", indent);
       }
    /*
     * Handle error conversion. Indicate that operation may fail because
@@ -528,7 +541,9 @@ int indent;
     */
    cur_impl->ret_flag |= DoesEFail;
    failure(indent, 1);
-   prt_str("}", indent);
+   if (!brace) {
+      PRT_CSTR("}", indent);
+      }
    ForceNl();
    }
 
@@ -562,23 +577,21 @@ struct node *desc;
 struct token *tok;
 int indent;
    {
-   tok_line(tok, indent);
-
    if (typcd == str_typ) {
       /*
        * Check dword for the absense of a "not qualifier" flag.
        */
-      prt_str("(!((", indent);
+      PRT_CSTR("(!((", indent);
       c_walk(desc, indent, 0);
-      prt_str(").dword & F_Nqual))", indent);
+      PRT_CSTR(").dword & F_Nqual))", indent);
       }
    else if (typcd == TypVar) {
       /*
        * Check dword for the presense of a "variable" flag.
        */
-      prt_str("(((", indent);
+      PRT_CSTR("(((", indent);
       c_walk(desc, indent, 0);
-      prt_str(").dword & D_Var) == D_Var)", indent);
+      PRT_CSTR(").dword & D_Var) == D_Var)", indent);
       }
    else if (typcd == int_typ) {
       /*
@@ -586,22 +599,20 @@ int indent;
        *  an ordinary integer or a large integer.
        */
       ForceNl();
-      prt_str("(((", indent);
+      PRT_CSTR("(((", indent);
       c_walk(desc, indent, 0);
-      prt_str(").dword == (word)D_Integer) || ((", indent);
+      PRT_CSTR(").dword == (uword)D_Integer) || ((", indent);
       c_walk(desc, indent, 0);
-      prt_str(").dword == (word)D_Lrgint))", indent);
+      PRT_CSTR(").dword == (uword)D_Lrgint))", indent);
       ForceNl();
       }
    else {
       /*
        * Check dword for a specific type code.
        */
-      prt_str("((", indent);
+      PRT_CSTR("((", indent);
       c_walk(desc, indent, 0);
-      prt_str(").dword == (word)D_", indent);
-      prt_str(typ_name(typcd, tok), indent);
-      prt_str(")", indent);
+      fprintf(g_out_file, ").dword == (uword)D_%s)", typ_name(typcd, tok));
       }
    }
 
@@ -628,15 +639,15 @@ int indent;
 	  * We have reached the function name. Replace it with "r_retval"
 	  *  and tell caller we have found it.
 	  */
-	 prt_str("r_retval", indent);
+	 PRT_CSTR("r_retval", indent);
 	 return IsId;
       case PrefxNd:
 	 /*
 	  * (...)
 	  */
-	 prt_str("(", indent);
+	 PRT_CSTR("(", indent);
 	 flag = retval_dcltor(dcltor->u[0].child, indent);
-	 prt_str(")", indent);
+	 PRT_CSTR(")", indent);
 	 return flag;
       case BinryNd:
 	 if (dcltor->tok->tok_id == ')') {
@@ -646,9 +657,9 @@ int indent;
 	     *  list including parentheses.
 	     */
 	    if (retval_dcltor(dcltor->u[0].child, indent) == NotId) {
-	       prt_str("(", indent);
+	       PRT_CSTR("(", indent);
 	       c_walk(dcltor->u[1].child, indent, 0);
-	       prt_str(")", indent);
+	       PRT_CSTR(")", indent);
 	       }
 	    }
 	 else {
@@ -656,9 +667,9 @@ int indent;
 	     * Array.
 	     */
 	    retval_dcltor(dcltor->u[0].child, indent);
-	    prt_str("[", indent);
+	    PRT_CSTR("[", indent);
 	    c_walk(dcltor->u[1].child, indent, 0);
-	    prt_str("]", indent);
+	    PRT_CSTR("]", indent);
 	    }
 	 return NotId;
       }
@@ -683,8 +694,6 @@ int indent;
    if (src->nd_id == SymNd && src->u[0].sym->id_type & VarPrm)
       errt1(t, "converting entire variable part of param list not supported");
 
-   tok_line(t, indent); /* synchronize file name and line number */
-
    /*
     * Initial assumptions: result of conversion is a tended location
     *   and is not tended C string.
@@ -698,7 +707,7 @@ int indent;
    *  default value is passed by-reference instead of by-value.
    */
    prt_str(cnv_name(typcd, dflt, &dflt_to_ptr), indent);
-   prt_str("(", indent);
+   PRT_CSTR("(", indent);
 
    /*
     * Determine what parameter scope, if any, is established by this
@@ -727,28 +736,28 @@ int indent;
    /*
     * Output source of conversion.
     */
-   prt_str("&(", indent);
+   PRT_CSTR("&(", indent);
    c_walk(src, indent, 0);
-   prt_str("), ", indent);
+   PRT_CSTR("), ", indent);
 
    /*
     * If there is a default value, output it, taking its address if necessary.
     */
    if (dflt != NULL) {
       if (dflt_to_ptr)
-	 prt_str("&(", indent);
+	 PRT_CSTR("&(", indent);
       c_walk(dflt, indent, 0);
       if (dflt_to_ptr)
-	 prt_str("), ", indent);
+	 PRT_CSTR("), ", indent);
       else
-	 prt_str(", ", indent);
+	 PRT_CSTR(", ", indent);
       }
 
    /*
     * Output the destination of the conversion. This may or may not be
     *  the same as the source.
     */
-   prt_str("&(", indent);
+   PRT_CSTR("&(", indent);
    if (dest == NULL) {
       /*
        * Convert "in place", changing the location of a paramater if needed.
@@ -790,7 +799,7 @@ int indent;
       else
 	 c_walk(dest, indent, 0);
       }
-   prt_str("))", indent);
+   PRT_CSTR("))", indent);
    }
 
 /*
@@ -891,12 +900,12 @@ int indent;
 	     * return/suspend C_integer <expr>;
 	     */
 	    prt_str(rslt_loc, indent);
-	    prt_str(".vword.integr = ", indent);
+	    PRT_CSTR(".vword.integr = ", indent);
 	    c_walk(n->u[0].child, indent + IndentInc, 0);
-	    prt_str(";", indent);
+	    PRT_CSTR(";", indent);
 	    ForceNl();
 	    prt_str(rslt_loc, indent);
-	    prt_str(".dword = D_Integer;", indent);
+	    PRT_CSTR(".dword = D_Integer;", indent);
 	    chkabsret(t, int_typ);  /* compare return with abstract return */
 	    return;
 	 case C_Double:
@@ -904,12 +913,12 @@ int indent;
 	     * return/suspend C_double <expr>;
 	     */
 	    prt_str(rslt_loc, indent);
-	    prt_str(".vword.ptr = alcreal(", indent);
+	    PRT_CSTR(".vword.ptr = alcreal(", indent);
 	    c_walk(n->u[0].child, indent + IndentInc, 0);
-	    prt_str(");", indent + IndentInc);
+	    PRT_CSTR(");", indent + IndentInc);
 	    ForceNl();
 	    prt_str(rslt_loc, indent);
-	    prt_str(".dword = D_Real;", indent);
+	    PRT_CSTR(".dword = D_Real;", indent);
 	    /*
 	     * The allocation of the real block may fail.
 	     */
@@ -921,14 +930,14 @@ int indent;
 	     * return/suspend C_string <expr>;
 	     */
 	    prt_str(rslt_loc, indent);
-	    prt_str(".vword.sptr = ", indent);
+	    PRT_CSTR(".vword.sptr = ", indent);
 	    c_walk(n->u[0].child, indent + IndentInc, 0);
-	    prt_str(";", indent);
+	    PRT_CSTR(";", indent);
 	    ForceNl();
 	    prt_str(rslt_loc, indent);
-	    prt_str(".dword = strlen(", indent);
+	    PRT_CSTR(".dword = strlen(", indent);
 	    prt_str(rslt_loc, indent);
-	    prt_str(".vword.sptr);", indent);
+	    PRT_CSTR(".vword.sptr);", indent);
 	    chkabsret(t, str_typ); /* compare return with abstract return */
 	    return;
 	 }
@@ -970,7 +979,7 @@ int indent;
 		     /*
 		      * return/suspend <type>(<integer>);
 		      */
-		     ret_1_arg(t, args, typcd, ".vword.integr = (word)",
+		     ret_1_arg(t, args, typcd, ".vword.uintgr = (uword)",
 			"(i)", indent);
 		     break;
 		  case TRetSpcl:
@@ -982,14 +991,14 @@ int indent;
 			   args->u[0].child->nd_id == CommaNd)
 			   errt1(t, "wrong no. of args for string(n, s)");
 			prt_str(rslt_loc, indent);
-			prt_str(".vword.sptr = ", indent);
+			PRT_CSTR(".vword.sptr = ", indent);
 			c_walk(args->u[1].child, indent + IndentInc, 0);
-			prt_str(";", indent);
+			PRT_CSTR(";", indent);
 			ForceNl();
 			prt_str(rslt_loc, indent);
-			prt_str(".dword = ", indent);
+			PRT_CSTR(".dword = ", indent);
 			c_walk(args->u[0].child, indent + IndentInc, 0);
-			prt_str(";", indent);
+			PRT_CSTR(";", indent);
 			}
 		     else if (typcd == stv_typ) {
 			/*
@@ -1000,17 +1009,17 @@ int indent;
 			   args->u[0].child->u[0].child->nd_id == CommaNd)
 			   errt1(t, "wrong no. of args for tvsubs(dp, i, j)");
 			no_nl = 1;
-			prt_str("SubStr(&", indent);
+			PRT_CSTR("SubStr(&", indent);
 			prt_str(rslt_loc, indent);
-			prt_str(", ", indent);
+			PRT_CSTR(", ", indent);
 			c_walk(args->u[0].child->u[0].child, indent + IndentInc,
 			   0);
-			prt_str(", ", indent + IndentInc);
+			PRT_CSTR(", ", indent + IndentInc);
 			c_walk(args->u[1].child, indent + IndentInc, 0);
-			prt_str(", ", indent + IndentInc);
+			PRT_CSTR(", ", indent + IndentInc);
 			c_walk(args->u[0].child->u[1].child, indent + IndentInc,
 			  0);
-			prt_str(");", indent + IndentInc);
+			PRT_CSTR(");", indent + IndentInc);
 			no_nl = 0;
 			/*
 			 * The allocation of the substring trapped variable
@@ -1030,12 +1039,12 @@ int indent;
 	       if (args == NULL || args->nd_id == CommaNd)
 		  errt1(t, "wrong no. of args for named_var(dp)");
 	       prt_str(rslt_loc, indent);
-	       prt_str(".vword.descptr = ", indent);
+	       PRT_CSTR(".vword.descptr = ", indent);
 	       c_walk(args, indent + IndentInc, 0);
-	       prt_str(";", indent);
+	       PRT_CSTR(";", indent);
 	       ForceNl();
 	       prt_str(rslt_loc, indent);
-	       prt_str(".dword = D_Var;", indent);
+	       PRT_CSTR(".dword = D_Var;", indent);
 	       chkabsret(t, TypVar); /* compare return with abstract return */
 	       return;
 	    case Struct_var:
@@ -1046,16 +1055,16 @@ int indent;
 		  args->u[0].child->nd_id == CommaNd)
 		  errt1(t, "wrong no. of args for struct_var(dp, bp)");
 	       prt_str(rslt_loc, indent);
-	       prt_str(".vword.descptr = (dptr)", indent);
+	       PRT_CSTR(".vword.descptr = (dptr)", indent);
 	       c_walk(args->u[1].child, indent + IndentInc, 0);
-	       prt_str(";", indent);
+	       PRT_CSTR(";", indent);
 	       ForceNl();
 	       prt_str(rslt_loc, indent);
-	       prt_str(".dword = D_Var + ((word *)", indent);
+	       PRT_CSTR(".dword = D_Var + ((word *)", indent);
 	       c_walk(args->u[0].child, indent + IndentInc, 0);
-	       prt_str(" - (word *)", indent+IndentInc);
+	       PRT_CSTR(" - (word *)", indent+IndentInc);
 	       prt_str(rslt_loc, indent);
-	       prt_str(".vword.descptr);", indent+IndentInc);
+	       PRT_CSTR(".vword.descptr);", indent+IndentInc);
 	       ForceNl();
 	       chkabsret(t, TypVar); /* compare return with abstract return */
 	       return;
@@ -1068,9 +1077,9 @@ int indent;
     *  a descriptor.
     */
    prt_str(rslt_loc, indent);
-   prt_str(" = ", indent);
+   PRT_CSTR(" = ", indent);
    c_walk(n, indent + IndentInc, 0);
-   prt_str(";", indent);
+   PRT_CSTR(";", indent);
    chkabsret(t, SomeType); /* check for preceding abstract return */
    }
 
@@ -1092,16 +1101,14 @@ char *vwrd_asgn, *arg_rep;
    prt_str(rslt_loc, indent);
    prt_str(vwrd_asgn, indent);
    c_walk(args, indent + IndentInc, 0);
-   prt_str(";", indent);
+   PRT_CSTR(";", indent);
    ForceNl();
 
    /*
     * Assignment to dword of result descriptor.
     */
    prt_str(rslt_loc, indent);
-   prt_str(".dword = D_", indent);
-   prt_str(icontypes[typcd].cap_id, indent);
-   prt_str(";", indent);
+   fprintf(g_out_file, ".dword = D_%s;", icontypes[typcd].cap_id);
    }
 
 /*
@@ -1112,11 +1119,11 @@ static void chk_rsltblk(indent)
 int indent;
    {
    ForceNl();
-   prt_str("if (", indent);
+   PRT_CSTR("if (", indent);
    prt_str(rslt_loc, indent);
-   prt_str(".vword.ptr == NULL) {", indent);
+   PRT_CSTR(".vword.ptr == NULL) {", indent);
    ForceNl();
-   prt_str("err_msg(307, NULL);", indent + IndentInc);
+   PRT_CSTR("err_msg(307, NULL);", indent + IndentInc);
    ForceNl();
    /*
     * Handle error conversion. Indicate that operation may fail because
@@ -1124,7 +1131,7 @@ int indent;
     */
    cur_impl->ret_flag |= DoesEFail;
    failure(indent + IndentInc, 1);
-   prt_str("}", indent + IndentInc);
+   PRT_CSTR("}", indent + IndentInc);
    ForceNl();
    }
 
@@ -1132,32 +1139,32 @@ int indent;
  * failure - produce code for fail or efail.
  */
 static void failure(indent, brace)
-int indent, brace;
+const int indent, brace;
    {
    /*
     * If there are tended variables, they must be removed from the tended
     *  list. The C function may or may not return an explicit signal.
     */
    ForceNl();
-   if (ntend != 0) {
+   if (ntend) {
       if (!brace)
-	 prt_str("{", indent);
+	 PRT_CSTR("{", indent);
       untend(indent);
       ForceNl();
       if (fnc_ret == RetSig)
-	 prt_str("return A_Resume;", indent);
+	 PRT_CSTR("return A_Resume;", indent);
       else
-	 prt_str("return;", indent);
+	 PRT_CSTR("return;", indent);
       if (!brace) {
 	 ForceNl();
-	 prt_str("}", indent);
+	 PRT_CSTR("}", indent);
 	 }
       }
    else
       if (fnc_ret == RetSig)
-	 prt_str("return A_Resume;", indent);
+	 PRT_CSTR("return A_Resume;", indent);
       else
-	 prt_str("return;", indent);
+	 PRT_CSTR("return;", indent);
    ForceNl();
    }
 
@@ -1168,14 +1175,14 @@ int indent, brace;
  */
 int c_walk(n, indent, brace)
 struct node *n;
-int indent, brace;
+const int indent, brace;
    {
    return c_walk_nl(n, indent, brace, 1);
    }
 
 static int c_walk_nl(n, indent, brace, may_force_nl)
 struct node *n;
-int indent, brace, may_force_nl;
+const int indent, brace, may_force_nl;
    {
    struct token *t;
    struct node *n1, *n2;
@@ -1212,7 +1219,7 @@ int indent, brace, may_force_nl;
 	       return 0;
 	    case Break:
 	       prt_tok(t, indent);
-	       prt_str(";", indent);
+	       PRT_CSTR(";", indent);
 	       ForceNl();
 	       does_break = 1;
 	       return 0;
@@ -1221,9 +1228,9 @@ int indent, brace, may_force_nl;
 		* Other "primary" expressions are just their token image,
 		*  possibly followed by a semicolon.
 		*/
-	       prt_tok(t, indent);
+	       PRT_TOK(t, indent);
 	       if (t->tok_id == Continue) {
-		  prt_str(";", indent);
+		  PRT_CSTR(";", indent);
 		  ForceNl();
 		  }
 	       return 1;
@@ -1232,9 +1239,9 @@ int indent, brace, may_force_nl;
 	 switch (t->tok_id) {
 	    case Sizeof:
 	       prt_tok(t, indent);                /* sizeof */
-	       prt_str("(", indent);
+	       PRT_CSTR("(", indent);
 	       c_walk(n->u[0].child, indent, 0);
-	       prt_str(")", indent);
+	       PRT_CSTR(")", indent);
 	       return 1;
 	    case '{':
 	       /*
@@ -1242,7 +1249,7 @@ int indent, brace, may_force_nl;
 		*/
 	       if ((n1 = is_t(n->u[0].child, CommaNd, ','))) {
 		  int counter;
-		  prt_tok(t, indent + IndentInc);     /* { */
+		  PRT_TOK(t, indent + IndentInc);     /* { */
 		  ForceNl();
 		  counter = 1;
 		  c_walk_comma(n1->u[0].child, NULL, indent + IndentInc * 2,
@@ -1250,20 +1257,20 @@ int indent, brace, may_force_nl;
 		  c_walk_comma(n1->u[1].child, n1->tok, indent + IndentInc * 2,
 		     brace, may_force_nl, &counter, WHEN_NL_INITIALIZER_LIST);
 		  ForceNl();
-		  prt_str("}", indent + IndentInc * 2);
+		  PRT_CSTR("}", indent + IndentInc * 2);
 		  }
 	       else if ((n1 = is_t(n->u[0].child, PrefxNd, '{'))) {
-		  prt_tok(t, indent);     /* { */
-		  c_walk(n1, indent, 0);
-		  prt_str("}", indent);
+		  PRT_TOK(t, indent);     /* { */
+		  c_walk(n1, indent, 0 /* brace */);
+		  PRT_CSTR("}", indent);
 		  }
 	       else {
 		  if (is_a(n->u[0].child, PrimryNd) == NULL)
 		     /* multiple items, force nl */
 		     ForceNl();
-		  prt_tok(t, indent + IndentInc);     /* { */
+		  PRT_TOK(t, indent + IndentInc);     /* { */
 		  c_walk(n->u[0].child, indent + IndentInc, 0);
-		  prt_str("}", indent + IndentInc);
+		  PRT_CSTR("}", indent + IndentInc);
 		  }
 	       return 1;
 	    case PassThru:
@@ -1279,7 +1286,7 @@ int indent, brace, may_force_nl;
 	       return 1;
 	    case CompatAsm:
 	       prt_tok(t, indent);                /* __asm__ */
-	       prt_str("(", indent);
+	       PRT_CSTR("(", indent);
 	       ForceNl();
 	       if ((n1 = is_tt(n->u[0].child, CommaNd, ',', ':'))) {
 		  int counter = 1;
@@ -1290,27 +1297,27 @@ int indent, brace, may_force_nl;
 		  }
 	       else
 		  c_walk(n->u[0].child, indent, 0);
-	       prt_str(")", indent);
+	       PRT_CSTR(")", indent);
 	       return 1;
 	    case Default:
 	       ForceNl();
-	       prt_tok(t, indent);
+	       PRT_TOK(t, indent);
 	       if (is_t(n->u[0].child, CompNd, '{')) {
-		  prt_str(": ", indent);
-		  fall_thru = c_walk(n->u[0].child, indent + IndentInc * 2, 0);
+		  PRT_CSTR(": ", indent);
+		  fall_thru = c_walk(n->u[0].child, indent + IndentInc * 2, 0 /* brace */);
 		  }
 	       else {
-		  prt_str(":", indent);
+		  PRT_CSTR(":", indent);
 		  ForceNl();
-		  fall_thru = c_walk(n->u[0].child, indent + IndentInc, 0);
+		  fall_thru = c_walk(n->u[0].child, indent + IndentInc, 0 /* brace */);
 		  }
 	       may_brnchto = 1;
 	       return fall_thru;
 	    case Goto:
 	       prt_tok(t, indent);                 /* goto */
-	       prt_str(" ", indent);
+	       PRT_CSTR(" ", indent);
 	       c_walk(n->u[0].child, indent, 0);
-	       prt_str(";", indent);
+	       PRT_CSTR(";", indent);
 	       ForceNl();
 	       return 0;
 	    case Return:
@@ -1340,7 +1347,7 @@ int indent, brace, may_force_nl;
 		      */
 		     if (!brace) {
 			ForceNl();
-			prt_str("{", indent);
+			PRT_CSTR("{", indent);
 			}
 		     if (does_call(n1)) {
 			/*
@@ -1354,26 +1361,26 @@ int indent, brace, may_force_nl;
 			ForceNl();
 			if (op_type == OrdFunc) {
 			   just_type(fnc_head->u[0].child, indent, 0);
-			   prt_str(" ", indent);
+			   PRT_CSTR(" ", indent);
 			   retval_dcltor(fnc_head->u[1].child, indent);
-			   prt_str(";", indent);
+			   PRT_CSTR(";", indent);
 			   }
 			else if (fnc_ret == RetInt)
-			   prt_str("C_integer r_retval;", indent);
+			   PRT_CSTR("C_integer r_retval;", indent);
 			else    /* fnc_ret == RetDbl */
-			   prt_str("double r_retval;", indent);
+			   PRT_CSTR("double r_retval;", indent);
 			ForceNl();
 
 			/*
 			 * Output code to compute the return value, untend
 			 *  the variable, then return the value.
 			 */
-			prt_str("r_retval = ", indent);
+			PRT_CSTR("r_retval = ", indent);
 			c_walk(n1, indent + IndentInc, 0);
-			prt_str(";", indent);
+			PRT_CSTR(";", indent);
 			untend(indent);
 			ForceNl();
-			prt_str("return r_retval;", indent);
+			PRT_CSTR("return r_retval;", indent);
 			}
 		     else {
 			/*
@@ -1384,13 +1391,13 @@ int indent, brace, may_force_nl;
 			untend(indent);
 			ForceNl();
 			prt_tok(t, indent);    /* return */
-			prt_str(" ", indent);
+			PRT_CSTR(" ", indent);
 			c_walk(n1, indent, 0);
-			prt_str(";", indent);
+			PRT_CSTR(";", indent);
 			}
 		     if (!brace) {
 			ForceNl();
-			prt_str("}", indent);
+			PRT_CSTR("}", indent);
 			}
 		     ForceNl();
 		     }
@@ -1401,10 +1408,10 @@ int indent, brace, may_force_nl;
 		      */
 		     prt_tok(t, indent);     /* return */
 		     if (n1 != NULL) {
-			prt_str(" ", indent);
+			PRT_CSTR(" ", indent);
 			c_walk(n1, indent, 0);
 			}
-		     prt_str(";", indent);
+		     PRT_CSTR(";", indent);
 		     }
 		  ForceNl();
 		  /*
@@ -1425,21 +1432,23 @@ int indent, brace, may_force_nl;
 		   */
 		  cur_impl->ret_flag |= DoesRet;
 		  ForceNl();
+		  ind = indent;
 		  if (!brace) {
-		     prt_str("{", indent);
+		     PRT_CSTR("{", indent);
+		     ind += IndentInc;
 		     ForceNl();
 		     }
-		  ret_value(t, n->u[0].child, indent);
+		  ret_value(t, n->u[0].child, ind);
 		  if (ntend != 0)
-		     untend(indent);
+		     untend(ind);
 		  ForceNl();
 		  if (fnc_ret == RetSig)
-		     prt_str("return A_Continue;", indent);
+		     PRT_CSTR("return A_Continue;", ind);
 		  else if (fnc_ret == RetNoVal)
-		     prt_str("return;", indent);
+		     PRT_CSTR("return;", ind);
 		  ForceNl();
 		  if (!brace) {
-		     prt_str("}", indent);
+		     PRT_CSTR("}", ind);
 		     ForceNl();
 		     }
 		  }
@@ -1451,11 +1460,11 @@ int indent, brace, may_force_nl;
 	       cur_impl->ret_flag |= DoesSusp; /* note suspension */
 	       ForceNl();
 	       if (!brace) /* already brace? */
-		  prt_str("{", indent);
+		  PRT_CSTR("{", indent);
 	       ForceNl();
-	       prt_str("int signal;", indent + IndentInc);
+	       PRT_CSTR("int signal;", indent + IndentInc);
 	       ForceNl();
-	       ret_value(t, n->u[0].child, indent);
+	       ret_value(t, n->u[0].child, indent + IndentInc);
 	       ForceNl();
 	       /*
 		* The operator suspends by calling the success continuation
@@ -1469,29 +1478,30 @@ int indent, brace, may_force_nl;
 	       if (iconx_flg) {
 		  prt_str(
 		     "if ((signal = interp(G_Csusp, r_args)) != A_Resume) {",
-			indent);
+			indent + IndentInc);
 		  }
 	       else {
-		  prt_str("if (r_s_cont == (continuation)NULL) {", indent);
+		  PRT_CSTR("if (r_s_cont == (continuation)NULL) {", indent);
 		  if (ntend != 0)
 		     untend(indent + IndentInc);
 		  ForceNl();
-		  prt_str("return A_Continue;", indent + IndentInc);
+		  PRT_CSTR("return A_Continue;", indent + IndentInc);
 		  ForceNl();
-		  prt_str("}", indent + IndentInc);
+		  PRT_CSTR("}", indent + IndentInc);
 		  ForceNl();
-		  prt_str("else if ((signal = (*r_s_cont)()) != A_Resume) {",
+		  PRT_CSTR("else if ((signal = (*r_s_cont)()) != A_Resume) {",
 		     indent);
 		  }
 	       ForceNl();
 	       if (ntend != 0)
 		  untend(indent + IndentInc);
 	       ForceNl();
-	       prt_str("return signal;", indent + IndentInc);
+	       PRT_CSTR("return signal;", indent + IndentInc);
 	       ForceNl();
-	       prt_str("}", indent + IndentInc);
+	       PRT_CSTR("}", indent + IndentInc);
+	       ForceNl();
 	       if (!brace) {
-		  prt_str("}", indent);
+		  PRT_CSTR("}", indent);
 		  ForceNl();
 		  }
 	       return 1;
@@ -1501,14 +1511,14 @@ int indent, brace, may_force_nl;
 		*/
 	       prt_tok(t, indent);     /* ( */
 	       fall_thru = c_walk(n->u[0].child, indent, 0);
-	       prt_str(")", indent);
+	       PRT_CSTR(")", indent);
 	       return fall_thru;
 	    default:
 	       /*
 		* All other prefix expressions are printed as the token
 		*  image of the operation followed by the operand.
 		*/
-	       prt_tok(t, indent);
+	       PRT_TOK(t, indent);
 	       c_walk(n->u[0].child, indent, 0);
 	       return 1;
 	    }
@@ -1529,7 +1539,7 @@ int indent, brace, may_force_nl;
 	  */
 	 prt_tok(t, indent);
 	 c_walk(n->u[0].child, indent, 0);
-	 prt_str(" ", indent);
+	 PRT_CSTR(" ", indent);
 	 return 1;
       case SymNd: /* a symbol (identifier) node */
 	 /*
@@ -1544,9 +1554,9 @@ int indent, brace, may_force_nl;
 		* subscripting expression or declaration: <expr> [ <expr> ]
 		*/
 	       c_walk(n->u[0].child, indent, 0);
-	       prt_str("[", indent);
+	       PRT_CSTR("[", indent);
 	       c_walk(n->u[1].child, indent, 0);
-	       prt_str("]", indent);
+	       PRT_CSTR("]", indent);
 	       return 1;
 	    case '(':
 	       /*
@@ -1554,7 +1564,7 @@ int indent, brace, may_force_nl;
 		*/
 	       prt_tok(t, indent);  /* ) */
 	       c_walk(n->u[0].child, indent, 0);
-	       prt_str(")", indent);
+	       PRT_CSTR(")", indent);
 	       c_walk(n->u[1].child, indent, 0);
 	       return 1;
 	    case ')':
@@ -1567,7 +1577,7 @@ int indent, brace, may_force_nl;
 		  }
 	       n2 = NULL;
 	       c_walk(n->u[0].child, indent, 0);
-	       prt_str("(", indent);
+	       PRT_CSTR("(", indent);
 	       if ((n1 = is_t(n->u[0].child, PrimryNd, Identifier)) &&
 		     n1->tok && n1->tok->image == g_str___ASM__) {
 		  if ((n2 = is_t(n->u[1].child, PrefxNd, PassThru))) {
@@ -1595,19 +1605,19 @@ int indent, brace, may_force_nl;
 		*/
 	       prt_tok(t, indent);   /* struct or union */
 	       if (n->u[0].child) {
-		  prt_str(" ", indent);
+		  PRT_CSTR(" ", indent);
 		  c_walk(n->u[0].child, indent, 0);
 		  }
 	       if (n->u[1].child != NULL) {
 		  /*
 		   * Field declaration list.
 		   */
-		  prt_str(" {", indent);
+		  PRT_CSTR(" {", indent);
 		  ForceNl();
 		  c_walk_struct_items(n->u[1].child, indent + IndentInc,
 		     0, may_force_nl);
 		  ForceNl();
-		  prt_str("}", indent + IndentInc);
+		  PRT_CSTR("}", indent + IndentInc);
 		  }
 	       return 1;
 	    case Enum:
@@ -1617,14 +1627,14 @@ int indent, brace, may_force_nl;
 		*/
 	       prt_tok(t, indent);   /* enum */
 	       if (n->u[0].child) {
-		  prt_str(" ", indent);
+		  PRT_CSTR(" ", indent);
 		  c_walk(n->u[0].child, indent, 0);
 		  }
 	       if (n->u[1].child != NULL) {
 		  /*
 		   * enumerator list.
 		   */
-		  prt_str(" {", indent);
+		  PRT_CSTR(" {", indent);
 		  ForceNl();
 
 		  if ((n1 = is_t(n->u[1].child, CommaNd, ','))) {
@@ -1638,7 +1648,7 @@ int indent, brace, may_force_nl;
 		     c_walk(n->u[1].child, indent + IndentInc, 0);
 
 		  ForceNl();
-		  prt_str("}", indent + IndentInc);
+		  PRT_CSTR("}", indent + IndentInc);
 		  }
 	       return 1;
 	    case ';':
@@ -1657,7 +1667,7 @@ int indent, brace, may_force_nl;
 		     when_nl = WHEN_NL_DECLARATOR_LIST;
 		     }
 		  else if (is_a(n->u[0].child, PrimryNd)) {
-		     prt_str(" ", indent);
+		     PRT_CSTR(" ", indent);
 		     when_nl = WHEN_NL_PRIMARY_DECLARATOR_LIST;
 		     }
 		  else
@@ -1673,7 +1683,7 @@ int indent, brace, may_force_nl;
 		     c_walk(n->u[0].child, indent, 0);
 		  if ((n2 = n->u[1].child)) {
 		     if (n1)
-			prt_str(" ", indent);
+			PRT_CSTR(" ", indent);
 		     c_walk(n2, indent, 0);
 		     }
 		  prt_tok(t, indent);  /* ; */
@@ -1686,7 +1696,7 @@ int indent, brace, may_force_nl;
 		*/
 	       c_walk(n->u[0].child, indent, 0);
 	       prt_tok(t, indent);   /* : */
-	       prt_str(" ", indent);
+	       PRT_CSTR(" ", indent);
 	       fall_thru = c_walk(n->u[1].child, indent, 0);
 	       may_brnchto = 1;
 	       return fall_thru;
@@ -1696,22 +1706,22 @@ int indent, brace, may_force_nl;
 		*/
 	       ForceNl();
 	       prt_tok(t, indent);
-	       prt_str(" ", indent);
+	       PRT_CSTR(" ", indent);
 	       c_walk(n->u[0].child, indent, 0);
 	       if (is_t(n->u[1].child, CompNd, '{')) {
-		  prt_str(": ", indent);
-		  fall_thru = c_walk(n->u[1].child, indent + IndentInc * 2, 0);
+		  PRT_CSTR(": ", indent);
+		  fall_thru = c_walk(n->u[1].child, indent + IndentInc * 2, 0 /* brace */);
 		  }
 	       else if (
 		     is_t(n->u[1].child, BinryNd, Case) ||
 		     is_t(n->u[1].child, PrefxNd, Default)) {
-		  prt_str(":", indent);
-		  fall_thru = c_walk(n->u[1].child, indent, 0);
+		  PRT_CSTR(":", indent);
+		  fall_thru = c_walk(n->u[1].child, indent, 0 /* brace */);
 		  }
 	       else {
-		  prt_str(":", indent);
+		  PRT_CSTR(":", indent);
 		  ForceNl();
-		  fall_thru = c_walk(n->u[1].child, indent + IndentInc, 0);
+		  fall_thru = c_walk(n->u[1].child, indent + IndentInc, 0 /* brace */);
 		  }
 	       may_brnchto = 1;
 	       return fall_thru;
@@ -1721,10 +1731,10 @@ int indent, brace, may_force_nl;
 		*/
 	       found_switch = 1;
 	       prt_tok(t, indent);  /* switch */
-	       prt_str(" (", indent);
+	       PRT_CSTR(" (", indent);
 	       c_walk(n->u[0].child, indent, 0);
-	       prt_str(")", indent);
-	       prt_str(" ", indent);
+	       PRT_CSTR(")", indent);
+	       PRT_CSTR(" ", indent);
 	       save_break = does_break;
 	       fall_thru = c_walk(n->u[1].child, indent + IndentInc, 0);
 	       fall_thru |= does_break;
@@ -1733,14 +1743,14 @@ int indent, brace, may_force_nl;
 	    case While: {
 	       struct node *n0;
 	       /*
-		* While ( <expr> ) <statement>
+		* while ( <expr> ) <statement>
 		*/
 	       n0 = n->u[0].child;
 	       prt_tok(t, indent);  /* while */
-	       prt_str(" (", indent);
+	       PRT_CSTR(" (", indent);
 	       c_walk(n0, indent, 0);
-	       prt_str(")", indent);
-	       prt_str(" ", indent);
+	       PRT_CSTR(")", indent);
+	       PRT_CSTR(" ", indent);
 	       save_break = does_break;
 	       c_walk(n->u[1].child, indent + IndentInc, 0);
 	       /*
@@ -1761,13 +1771,13 @@ int indent, brace, may_force_nl;
 		* do <statement> <while> ( <expr> )
 		*/
 	       prt_tok(t, indent);  /* do */
-	       prt_str(" ", indent);
+	       PRT_CSTR(" ", indent);
 	       c_walk_nl(n->u[0].child, indent + IndentInc, 0, 0);
-	       prt_str(" while (", indent + IndentInc);
+	       PRT_CSTR(" while (", indent + IndentInc);
 	       save_break = does_break;
 	       c_walk(n->u[1].child, indent, 0);
 	       does_break = save_break;
-	       prt_str(");", indent);
+	       PRT_CSTR(");", indent);
 	       ForceNl();
 	       return 1;
 	    case '.':
@@ -1784,7 +1794,7 @@ int indent, brace, may_force_nl;
 		* runerr ( <error-number> )
 		* runerr ( <error-number> , <offending-value> )
 		*/
-	       prt_runerr(t, n->u[0].child, n->u[1].child, indent);
+	       prt_runerr(t, n->u[0].child, n->u[1].child, indent, brace);
 	       return 0;
 	    case Is:
 	       /*
@@ -1799,9 +1809,9 @@ int indent, brace, may_force_nl;
 		*  are printed with spaces around the operator.
 		*/
 	       c_walk(n->u[0].child, indent, 0);
-	       prt_str(" ", indent);
+	       PRT_CSTR(" ", indent);
 	       prt_tok(t, indent);
-	       prt_str(" ", indent);
+	       PRT_CSTR(" ", indent);
 	       c_walk(n->u[1].child, indent, 0);
 	       return 1;
 	    }
@@ -1813,7 +1823,7 @@ int indent, brace, may_force_nl;
 	  */
 	 c_walk(n->u[0].child, indent, 0);
 	 if (is_t(n->u[1].child, BinryNd, ';') == NULL)
-	    prt_str(" ", indent);
+	    PRT_CSTR(" ", indent);
 	 c_walk(n->u[1].child, indent, 0);
 	 return 1;
       case ConCatNd: /* two ajacent pieces of code with no other syntax */
@@ -1825,19 +1835,15 @@ int indent, brace, may_force_nl;
 	 ind = indent;
 	 if (is_t(n->u[0].child, CompNd, '{'))
 	    ind += IndentInc;
-	 if (c_walk(n->u[0].child, ind, 0)) {
-	    ind = indent;
-	    if (is_t(n->u[1].child, CompNd, '{'))
-	       ind += IndentInc;
-	    return c_walk(n->u[1].child, ind, 0);
-	    }
+	 if (c_walk(n->u[0].child, ind, 0 /* brace */))
+	    return c_walk(n->u[1].child, ind, 0 /* brace */);
 	 else {
 	    /*
 	     * Cannot directly reach the second piece of code, see if
 	     *  it is possible to branch into it.
 	     */
 	    may_brnchto = 0;
-	    fall_thru = c_walk(n->u[1].child, indent, 0);
+	    fall_thru = c_walk(n->u[1].child, ind, 0);
 	    return may_brnchto & fall_thru;
 	    }
       case StrDclNd: /* structure field declaration */
@@ -1847,7 +1853,7 @@ int indent, brace, may_force_nl;
 	  */
 	 c_walk(n->u[0].child, indent, 0);
 	 if (n->u[1].child != NULL) {
-	    prt_str(": ", indent);
+	    PRT_CSTR(": ", indent);
 	    c_walk(n->u[1].child, indent, 0);
 	    }
 	 return 1;
@@ -1855,17 +1861,19 @@ int indent, brace, may_force_nl;
 	 /*
 	  * Compound statement.
 	  */
-	 if (brace)
-	    tok_line(t, indent); /* just synch. file name and line number */
-	 else {
+	 ind = indent;
+	 if (!brace) {
 	    if (g_nl && indent) { /* probably anonymous */
-	       prt_tok(t, indent - IndentInc);  /* { */
+	       ind += IndentInc;
+	       PRT_TOK(t, indent);  /* { */
 	       }
-	    else
-	       prt_tok(t, indent);  /* { */
+	    else {
+	       PRT_CSTR(" ", indent);
+	       PRT_TOK(t, indent);  /* { */
+	       }
 	    }
 	 ForceNl();
-	 c_walk(n->u[0].child, indent, 0);
+	 c_walk(n->u[0].child, ind, 1 /* brace */);
 	 /*
 	  * we are in an inner block. tended locations may need to
 	  *  be set to values from declaration initializations.
@@ -1876,18 +1884,18 @@ int indent, brace, may_force_nl;
 	       fprintf(g_out_file, ".d[%d]", sym->t_indx);
 	       switch (sym->id_type) {
 		  case TndDesc:
-		     prt_str(" = ", IndentInc);
+		     PRT_CSTR(" = ", IndentInc);
 		     break;
 		  case TndStr:
-		     prt_str(".vword.sptr = ", IndentInc);
+		     PRT_CSTR(".vword.sptr = ", IndentInc);
 		     break;
 		  case TndBlk:
-		     prt_str(".vword.ptr = ",
+		     PRT_CSTR(".vword.ptr = ",
 			IndentInc);
 		     break;
 		  }
 	       c_walk(sym->u.tnd_var.init, 2 * IndentInc, 0);
-	       prt_str(";", 2 * IndentInc);
+	       PRT_CSTR(";", 2 * IndentInc);
 	       ForceNl();
 	       }
 	    }
@@ -1896,19 +1904,19 @@ int indent, brace, may_force_nl;
 	  *  may be required for a one-statement body; we already
 	  *  have a set.
 	  */
-	 do {
+	 {
 	    int brace1 = n->u[0].child == NULL && n->u[1].sym == NULL;
 	    if (found_switch) {
 	       found_switch = 0;
-	       fall_thru = c_walk_cat(n->u[2].child, indent, brace1);
+	       fall_thru = c_walk_cat(n->u[2].child, ind, brace1);
 	       }
 	    else
-	       fall_thru = c_walk(n->u[2].child, indent, brace1);
-	    } while (0);
+	       fall_thru = c_walk(n->u[2].child, ind, brace1);
+	    }
 
 	 if (!brace) {
 	    ForceNl();
-	    prt_str("}", indent);
+	    PRT_CSTR("}", ind);
 	    }
 	 if (may_force_nl)
 	    ForceNl();
@@ -1920,11 +1928,11 @@ int indent, brace, may_force_nl;
 		* <expr> ? <expr> : <expr>
 		*/
 	       c_walk(n->u[0].child, indent, 0);
-	       prt_str(" ", indent);
+	       PRT_CSTR(" ", indent);
 	       prt_tok(t, indent);  /* ? */
-	       prt_str(" ", indent);
+	       PRT_CSTR(" ", indent);
 	       c_walk(n->u[1].child, indent, 0);
-	       prt_str(" : ", indent);
+	       PRT_CSTR(" : ", indent);
 	       c_walk(n->u[2].child, indent, 0);
 	       return 1;
 	    case If:
@@ -1932,17 +1940,17 @@ int indent, brace, may_force_nl;
 		* if ( <expr> ) <statement>
 		* if ( <expr> ) <statement> else <statement>
 		*/
-	       prt_tok(t, indent);  /* if */
-	       prt_str(" (", indent);
+	       PRT_TOK(t, indent);  /* if */
+	       PRT_CSTR(" (", indent);
 	       c_walk(n->u[0].child, indent + IndentInc, 0);
 	       n1 = n->u[1].child;
-	       if (is_t(n1, CompNd, '{') == NULL) {
-		  prt_str(")", indent);
+	       if (is_t(n1, CompNd, '{') || is_n(n1, QuadNd) || is_t(n1, BinryNd, Runerr))
+		  PRT_CSTR(")", indent);
+	       else {
+		  PRT_CSTR(")", indent);
 		  ForceNl();
 		  }
-	       else
-		  prt_str(") ", indent);
-	       fall_thru = c_walk(n1, indent + IndentInc, 0);
+	       fall_thru = c_walk(n1, indent + IndentInc, 0 /* brace */);
 	       if (is_t(n1, PstfxNd, ';'))
 		  ForceNl();
 	       n1 = n->u[2].child;
@@ -1955,15 +1963,15 @@ int indent, brace, may_force_nl;
 		   */
 		  ForceNl();
 		  if (is_t(n1, CompNd, '{') || is_t(n1, TrnryNd, If))
-		     prt_str("else ", indent);
+		     PRT_CSTR("else ", indent);
 		  else {
-		     prt_str("else", indent);
+		     PRT_CSTR("else", indent);
 		     ForceNl();
-		     }
+		  }
 		  ind = indent;
 		  if (is_t(n1, TrnryNd, If) == NULL)
 		     ind += IndentInc;
-		  fall_thru |= c_walk(n1, ind, 0);
+		  fall_thru |= c_walk(n1, ind, 0 /* brace */);
 		  if (is_t(n1, PstfxNd, ';'))
 		     ForceNl();
 		  }
@@ -1990,23 +1998,23 @@ int indent, brace, may_force_nl;
 	       /*
 		* for ( <expr> ; <expr> ; <expr> ) <statement>
 		*/
-	       prt_tok(t, indent);  /* for */
-	       prt_str(" (", indent);
+	       PRT_TOK(t, indent);  /* for */
+	       PRT_CSTR(" (", indent);
 	       c_walk(n->u[0].child, indent, 0);
-	       prt_str("; ", indent);
+	       PRT_CSTR("; ", indent);
 	       c_walk(n->u[1].child, indent, 0);
-	       prt_str("; ", indent);
+	       PRT_CSTR("; ", indent);
 	       c_walk(n->u[2].child, indent, 0);
 	       save_break = does_break;
 	       n1 = n->u[3].child;
 
 	       if (is_t(n1, CompNd, '{'))
-		  prt_str(") ", indent);
+		  PRT_CSTR(") ", indent);
 	       else {
-		  prt_str(")", indent);
+		  PRT_CSTR(")", indent);
 		  ForceNl();
 		  }
-	       c_walk(n1, indent + IndentInc, 0);
+	       c_walk(n1, indent + IndentInc, 0 /* brace */);
 	       if (is_t(n1, PstfxNd, ';'))
 		  ForceNl();
 	       if (n->u[1].child == NULL && !does_break)
@@ -2171,7 +2179,7 @@ void clr_prmloc()
  */
 static int typ_case(var, slct_lst, dflt, walk, maybe_var, indent)
 struct node *var, *slct_lst, *dflt;
-int (*walk)(struct node *n, int xindent, int brace);
+int (*walk)(struct node *n, const int xindent, const int brace);
 int maybe_var, indent;
    {
    struct node *lst, *select, *slctor;
@@ -2217,15 +2225,15 @@ int maybe_var, indent;
 	     *  first clause output?
 	     */
 	    if (fnd_slctrs)
-	       prt_str(" || ", indent);
+	       PRT_CSTR(" || ", indent);
 	    else {
 	       ForceNl();
 	       if (first)
 		  first = 0;
 	       else {
-		  prt_str("else ", indent);
+		  PRT_CSTR("else ", indent);
 		  }
-	       prt_str("if (", indent);
+	       PRT_CSTR("if (", indent);
 	       fnd_slctrs = 1;
 	       }
 
@@ -2249,13 +2257,13 @@ int maybe_var, indent;
 	  *  paramter locations caused by type conversions within the
 	  *  clause.
 	  */
-	 prt_str(") {", indent + IndentInc);
+	 PRT_CSTR(") {", indent + IndentInc);
 	 ForceNl();
 	 if ((*walk)(select->u[1].child, indent + IndentInc, 1)) {
 	    fall_thru |= 1;
 	    mrg_prmloc(end_prms);
 	    }
-	 prt_str("}", indent + IndentInc);
+	 PRT_CSTR("}", indent + IndentInc);
 	 ForceNl();
 	 ld_prmloc(strt_prms);
 	 }
@@ -2270,11 +2278,11 @@ int maybe_var, indent;
 	  * There are no cases to handle with a switch statement, but there
 	  *  is a default clause; handle it with an "else".
 	  */
-	 prt_str("else {", indent);
+	 PRT_CSTR("else {", indent);
 	 ForceNl();
 	 fall_thru |= (*walk)(dflt, indent + IndentInc, 1);
 	 ForceNl();
-	 prt_str("}", indent + IndentInc);
+	 PRT_CSTR("}", indent + IndentInc);
 	 ForceNl();
 	 }
       }
@@ -2284,7 +2292,7 @@ int maybe_var, indent;
        *   clause.
        */
       if (!first)
-	 prt_str("else ", indent);
+	 PRT_CSTR("else ", indent);
 
       /*
        * A switch statement cannot handle types that are not simple type
@@ -2294,21 +2302,21 @@ int maybe_var, indent;
        */
       if (maybe_str || maybe_var) {
 	 dflt_lbl = g_lbl_num++;      /* allocate a label number */
-	 prt_str("{", indent);
+	 PRT_CSTR("{", indent);
 	 ForceNl();
-	 prt_str("if (((", indent);
+	 PRT_CSTR("if (((", indent);
 	 c_walk(var, indent + IndentInc, 0);
-	 prt_str(").dword & D_Typecode) != D_Typecode) ", indent);
+	 PRT_CSTR(").dword & D_Typecode) != D_Typecode) ", indent);
 	 ForceNl();
-	 prt_str("goto L", indent + IndentInc);
-	 fprintf(g_out_file, "%d;  /* default */ ", dflt_lbl);
+	 chk_nl(indent + IndentInc);
+	 fprintf(g_out_file, "goto L%d;  /* default */ ", dflt_lbl);
 	 ForceNl();
 	 }
 
       no_nl = 1; /* suppress #line directives */
-      prt_str("switch (Type(", indent);
+      PRT_CSTR("switch (Type(", indent);
       c_walk(var, indent + IndentInc, 0);
-      prt_str(")) {", indent + IndentInc);
+      PRT_CSTR(")) {", indent + IndentInc);
       no_nl = 0;
       ForceNl();
 
@@ -2335,13 +2343,12 @@ int maybe_var, indent;
 
 	       if (typcd == int_typ) {
 		 ForceNl();
-		 prt_str("case T_Lrgint:  ", indent + IndentInc);
+		 PRT_CSTR("case T_Lrgint: ", indent + IndentInc);
 		 ForceNl();
 	       }
 
-	       prt_str("case T_", indent + IndentInc);
-	       prt_str(s, indent + IndentInc);
-	       prt_str(": ", indent + IndentInc);
+	       chk_nl(indent + IndentInc);
+	       fprintf(g_out_file, "case T_%s: ", s);
 	       }
 	    }
 	 if (fnd_slctrs) {
@@ -2355,7 +2362,7 @@ int maybe_var, indent;
 	    if ((*walk)(select->u[1].child, indent + 2 * IndentInc, 0)) {
 	       fall_thru |= 1;
 	       ForceNl();
-	       prt_str("break;", indent + 2 * IndentInc);
+	       PRT_CSTR("break;", indent + 2 * IndentInc);
 	       mrg_prmloc(end_prms);
 	       }
 	    ForceNl();
@@ -2370,11 +2377,11 @@ int maybe_var, indent;
 	  *  within the clause.
 	  */
 	 ForceNl();
-	 prt_str("default:", indent + 1 * IndentInc);
+	 PRT_CSTR("default:", indent + 1 * IndentInc);
 	 ForceNl();
 	 if (maybe_str || maybe_var) {
-	    prt_str("L", 0);
-	    fprintf(g_out_file, "%d: ;  /* default */", dflt_lbl);
+	    chk_nl(0);
+	    fprintf(g_out_file, "L%d: ; /* default */", dflt_lbl);
 	    ForceNl();
 	    }
 	 if ((*walk)(dflt, indent + 2 * IndentInc, 0)) {
@@ -2384,7 +2391,7 @@ int maybe_var, indent;
 	 ForceNl();
 	 ld_prmloc(strt_prms);
 	 }
-      prt_str("}", indent + IndentInc);
+      PRT_CSTR("}", indent + IndentInc);
 
       if (maybe_str || maybe_var) {
 	 if (dflt == NULL) {
@@ -2393,11 +2400,11 @@ int maybe_var, indent;
 	     *  the label.
 	     */
 	    ForceNl();
-	    prt_str("L", 0);
-	    fprintf(g_out_file, "%d: ;  /* default */", dflt_lbl);
+	    chk_nl(0);
+	    fprintf(g_out_file, "L%d: ; /* default */", dflt_lbl);
 	    }
 	 ForceNl();
-	 prt_str("}", indent + IndentInc);
+	 PRT_CSTR("}", indent + IndentInc);
 	 }
       ForceNl();
       }
@@ -2486,14 +2493,14 @@ int indent;
    {
    int fall_thru;
 
-   prt_str("case ", indent);
+   PRT_CSTR("case ", indent);
    prt_tok(sel->tok, indent + IndentInc);           /* integer selection */
-   prt_str(":", indent + IndentInc);
-   fall_thru = rt_walk(sel->u[0].child, indent + IndentInc, 0);/* clause body */
+   PRT_CSTR(":", indent + IndentInc);
+   fall_thru = rt_walk(sel->u[0].child, indent + IndentInc, 0 /* brace */);/* clause body */
    ForceNl();
 
    if (fall_thru) {
-      prt_str("break;", indent + IndentInc);
+      PRT_CSTR("break;", indent + IndentInc);
       ForceNl();
       /*
        * Remember any changes to paramter locations caused by type conversions
@@ -2512,7 +2519,7 @@ int indent;
  */
 static int rt_walk(n, indent, brace)
 struct node *n;
-int indent, brace;
+const int indent, brace;
    {
    struct token *t, *t1;
    struct node *n1, *errnum;
@@ -2521,7 +2528,7 @@ int indent, brace;
    if (n == NULL)
       return 1;
 
-   t =  n->tok;
+   t = n->tok;
 
    switch (n->nd_id) {
       case PrefxNd:
@@ -2530,20 +2537,22 @@ int indent, brace;
 	       /*
 		* RTL code: { <actions> }
 		*/
-	       if (brace)
-		  tok_line(t, indent); /* just synch file name and line num */
-	       else
-		  prt_tok(t, indent);  /* { */
-	       fall_thru = rt_walk(n->u[0].child, indent, 1);
+#if 1
 	       if (!brace)
-		  prt_str("}", indent);
+		  PRT_TOK(t, indent);  /* { */
+	       fall_thru = rt_walk(n->u[0].child, indent, 1 /* brace */);
+	       if (!brace)
+		  PRT_CSTR("}", indent);
+#else
+	       fall_thru = rt_walk(n->u[0].child, indent, 0 /* brace */);
+#endif
 	       return fall_thru;
 	    case '!':
 	       /*
 		* RTL type-checking and conversions: ! <simple-type-check>
 		*/
 	       prt_tok(t, indent);
-	       rt_walk(n->u[0].child, indent, 0);
+	       rt_walk(n->u[0].child, indent, 0 /* brace */);
 	       return 1;
 	    case Body:
 	    case Inline:
@@ -2564,7 +2573,7 @@ int indent, brace;
 		* RTL code: runerr( <message-number> )
 		*           runerr( <message-number>, <descriptor> )
 		*/
-	       prt_runerr(t, n->u[0].child, n->u[1].child, indent);
+	       prt_runerr(t, n->u[0].child, n->u[1].child, indent, brace);
 
 	       /*
 		* Execution cannot continue on this execution path.
@@ -2577,11 +2586,11 @@ int indent, brace;
 		*   <type-check> && <type_check>
 		*/
 	       chk_conj(n->u[0].child);  /* is a warning needed? */
-	       rt_walk(n->u[0].child, indent, 0);
-	       prt_str(" ", indent);
+	       rt_walk(n->u[0].child, indent, 0 /* brace */);
+	       PRT_CSTR(" ", indent);
 	       prt_tok(t, indent);       /* && */
-	       prt_str(" ", indent);
-	       rt_walk(n->u[1].child, indent, 0);
+	       PRT_CSTR(" ", indent);
+	       rt_walk(n->u[1].child, indent, 0 /* brace */);
 	       return 1;
 	    case Is:
 	       /*
@@ -2630,11 +2639,13 @@ int indent, brace;
 	       else_prms = new_prmloc();
 	       sv_prmloc(else_prms);
 
-	       prt_tok(t, indent);       /* if */
-	       prt_str(" (", indent);
+	       ForceNl();
+	       PRT_TOK(t, indent);       /* if */
+	       PRT_CSTR(" (", indent);
 	       n1 = n->u[0].child;
-	       rt_walk(n1, indent + IndentInc, 0);   /* type check */
-	       prt_str(") {", indent);
+	       rt_walk(n1, indent + IndentInc, 0 /* brace */);   /* type check */
+	       PRT_CSTR(") {", indent);
+	       ForceNl();
 
 	       /*
 		* If the condition is negated, the failure path is to the "then"
@@ -2650,9 +2661,9 @@ int indent, brace;
 	       /*
 		* Then Clause.
 		*/
-	       fall_thru = rt_walk(n->u[1].child, indent + IndentInc, 1);
+	       fall_thru = rt_walk(n->u[1].child, indent + IndentInc, 1 /* brace */);
 	       ForceNl();
-	       prt_str("}", indent + IndentInc);
+	       PRT_CSTR("}", indent + IndentInc);
 
 	       /*
 		* Determine if there is an else clause and merge parameter
@@ -2673,13 +2684,13 @@ int indent, brace;
 		     sv_prmloc(then_prms);
 		  ld_prmloc(else_prms);
 		  ForceNl();
-		  prt_str("else {", indent);
-		  if (rt_walk(n1, indent + IndentInc, 1)) {  /* else clause */
+		  PRT_CSTR("else {", indent);
+		  if (rt_walk(n1, indent + IndentInc, 1 /* brace */)) {  /* else clause */
 		     fall_thru = 1;
 		     mrg_prmloc(then_prms);
 		     }
 		  ForceNl();
-		  prt_str("}", indent + IndentInc);
+		  PRT_CSTR("}", indent + IndentInc);
 		  ld_prmloc(then_prms);
 		  }
 	       ForceNl();
@@ -2717,9 +2728,9 @@ int indent, brace;
 		* The len_case statement is implemented as a C switch
 		*  statement.
 		*/
-	       prt_str("switch (", indent);
+	       PRT_CSTR("switch (", indent);
 	       prt_var(n1, indent, 0 /* is_lvalue */);
-	       prt_str(") {", indent);
+	       PRT_CSTR(") {", indent);
 	       ForceNl();
 	       fall_thru = 0;
 	       for (n1 = n->u[1].child; n1->nd_id == ConCatNd;
@@ -2732,11 +2743,11 @@ int indent, brace;
 	       /*
 		* Handle default clause.
 		*/
-	       prt_str("default:", indent + IndentInc);
+	       PRT_CSTR("default:", indent + IndentInc);
 	       ForceNl();
-	       fall_thru |= rt_walk(n->u[2].child, indent + 2 * IndentInc, 0);
+	       fall_thru |= rt_walk(n->u[2].child, indent + 2 * IndentInc, 0 /* brace */);
 	       ForceNl();
-	       prt_str("}", indent + IndentInc);
+	       PRT_CSTR("}", indent + IndentInc);
 	       ForceNl();
 
 	       /*
@@ -2839,14 +2850,13 @@ int indent, brace;
 	       /*
 		* Try converting both arguments to a C_integer.
 		*/
-	       tok_line(t, indent);
-	       prt_str("if (", indent);
+	       PRT_CSTR("if (", indent);
 	       cnv_fnc(t, TypECInt, n->u[0].child, NULL, NULL, indent);
-	       prt_str(" && ", indent);
+	       PRT_CSTR(" && ", indent);
 	       cnv_fnc(t, TypECInt, n->u[1].child, NULL, NULL, indent);
-	       prt_str(") ", indent);
+	       PRT_CSTR(") ", indent);
 	       ForceNl();
-	       if (rt_walk(n1->u[0].child, indent + IndentInc, 0)) {
+	       if (rt_walk(n1->u[0].child, indent + IndentInc, 0 /* brace */)) {
 		  fall_thru |= 1;
 		  mrg_prmloc(end_prms);
 		  }
@@ -2856,14 +2866,13 @@ int indent, brace;
 		* Try converting both arguments to an integer.
 		*/
 	       ld_prmloc(strt_prms);
-	       tok_line(t, indent);
-	       prt_str("else if (", indent);
+	       PRT_CSTR("else if (", indent);
 	       cnv_fnc(t, TypEInt, n->u[0].child, NULL, NULL, indent);
-	       prt_str(" && ", indent);
+	       PRT_CSTR(" && ", indent);
 	       cnv_fnc(t, TypEInt, n->u[1].child, NULL, NULL, indent);
-	       prt_str(") ", indent);
+	       PRT_CSTR(") ", indent);
 	       ForceNl();
-	       if (rt_walk(n1->u[1].child, indent + IndentInc, 0)) {
+	       if (rt_walk(n1->u[1].child, indent + IndentInc, 0 /* brace */)) {
 		  fall_thru |= 1;
 		  mrg_prmloc(end_prms);
 		  }
@@ -2873,34 +2882,32 @@ int indent, brace;
 		* Try converting both arguments to a C_double
 		*/
 	       ld_prmloc(strt_prms);
-	       prt_str("else {", indent);
+	       PRT_CSTR("else {", indent);
 	       ForceNl();
-	       tok_line(t, indent + IndentInc);
-	       prt_str("if (!", indent + IndentInc);
+	       PRT_CSTR("if (!", indent + IndentInc);
 	       cnv_fnc(t, TypCDbl, n->u[0].child, NULL, NULL,
 		  indent + IndentInc);
-	       prt_str(")", indent + IndentInc);
+	       PRT_CSTR(")", indent + IndentInc);
 	       ForceNl();
 	       sv_prmloc(tmp_prms);   /* use original parm locs for error */
 	       ld_prmloc(strt_prms);
-	       prt_runerr(t, errnum, n->u[0].child, indent + 2 * IndentInc);
+	       prt_runerr(t, errnum, n->u[0].child, indent + 2 * IndentInc, brace);
 	       ld_prmloc(tmp_prms);
-	       tok_line(t, indent + IndentInc);
-	       prt_str("if (!", indent + IndentInc);
+	       PRT_CSTR("if (!", indent + IndentInc);
 	       cnv_fnc(t, TypCDbl, n->u[1].child, NULL, NULL,
 		  indent + IndentInc);
-	       prt_str(") ", indent + IndentInc);
+	       PRT_CSTR(") ", indent + IndentInc);
 	       ForceNl();
 	       sv_prmloc(tmp_prms);   /* use original parm locs for error */
 	       ld_prmloc(strt_prms);
-	       prt_runerr(t, errnum, n->u[1].child, indent + 2 * IndentInc);
+	       prt_runerr(t, errnum, n->u[1].child, indent + 2 * IndentInc, brace);
 	       ld_prmloc(tmp_prms);
-	       if (rt_walk(n1->u[2].child, indent + IndentInc, 0)) {
+	       if (rt_walk(n1->u[2].child, indent + IndentInc, 0 /* brace */)) {
 		  fall_thru |= 1;
 		  mrg_prmloc(end_prms);
 		  }
 	       ForceNl();
-	       prt_str("}", indent + IndentInc);
+	       PRT_CSTR("}", indent + IndentInc);
 	       ForceNl();
 
 	       ld_prmloc(end_prms);
@@ -2958,35 +2965,35 @@ struct sym_entry *op_params; /* operation parameters or NULL */
        *  time. Produce code to check for this.
        */
       cur_impl->ret_flag |= DoesEFail;  /* error conversion from allocation */
-      prt_str("struct tend_desc *r_tendp;", IndentInc);
+      PRT_CSTR("struct tend_desc *r_tendp;", IndentInc);
       ForceNl();
-      prt_str("int r_n;\n", IndentInc);
+      PRT_CSTR("int r_n;\n", IndentInc);
       ++g_line;
       ForceNl();
-      prt_str("if (r_nargs <= ", IndentInc);
+      PRT_CSTR("if (r_nargs <= ", IndentInc);
       fprintf(g_out_file, "%d)", op_params->u.param_info.param_num + VArgAlwnc);
       ForceNl();
-      prt_str("r_tendp = (struct tend_desc *)&r_tend;", 2 * IndentInc);
+      PRT_CSTR("r_tendp = (struct tend_desc *)&r_tend;", 2 * IndentInc);
       ForceNl();
-      prt_str("else {", IndentInc);
+      PRT_CSTR("else {", IndentInc);
       ForceNl();
       prt_str(
        "r_tendp = (struct tend_desc *)malloc((sizeof(struct tend_desc)",
 	 2 * IndentInc);
       ForceNl();
-      prt_str("", 3 * IndentInc);
+      chk_nl(3 * IndentInc);
       fprintf(g_out_file, "+ (r_nargs + %d) * sizeof(struct descrip)));",
 	 ntend - 2 - op_params->u.param_info.param_num);
       ForceNl();
-      prt_str("if (r_tendp == NULL) {", 2 * IndentInc);
+      PRT_CSTR("if (r_tendp == NULL) {", 2 * IndentInc);
       ForceNl();
-      prt_str("err_msg(305, NULL);", 3 * IndentInc);
+      PRT_CSTR("err_msg(305, NULL);", 3 * IndentInc);
       ForceNl();
-      prt_str("return A_Resume;", 3 * IndentInc);
+      PRT_CSTR("return A_Resume;", 3 * IndentInc);
       ForceNl();
-      prt_str("}", 3 * IndentInc);
+      PRT_CSTR("}", 3 * IndentInc);
       ForceNl();
-      prt_str("}", 2 * IndentInc);
+      PRT_CSTR("}", 2 * IndentInc);
       ForceNl();
       tendstrct = "(*r_tendp)";
       }
@@ -3004,12 +3011,12 @@ struct sym_entry *op_params; /* operation parameters or NULL */
        *  to dereference or copy this into its portion of the tended
        *  array.
        */
-      prt_str("for (r_n = ", IndentInc);
+      PRT_CSTR("for (r_n = ", IndentInc);
       fprintf(g_out_file, "%d; r_n < r_nargs; ++r_n)",
 	  op_params->u.param_info.param_num);
       ForceNl();
       if (op_params->id_type & DrfPrm) {
-	 prt_str("deref(&r_args[r_n], &", IndentInc * 2);
+	 PRT_CSTR("deref(&r_args[r_n], &", IndentInc * 2);
 	 fprintf(g_out_file, "%s.d[r_n + %d]);", tendstrct, ntend - 1 -
 	    op_params->u.param_info.param_num);
 	 }
@@ -3043,7 +3050,7 @@ struct sym_entry *op_params; /* operation parameters or NULL */
        * If there are not enough arguments to supply a value for this
        *  parameter, set it to the null value.
        */
-      prt_str("if (", IndentInc);
+      PRT_CSTR("if (", IndentInc);
       fprintf(g_out_file, "r_nargs > %d) {", sym->u.param_info.param_num);
       ForceNl();
       parm_tnd(sym);
@@ -3052,7 +3059,7 @@ struct sym_entry *op_params; /* operation parameters or NULL */
 	 parm_tnd(sym1);
 	 }
       ForceNl();
-      prt_str("} else {", IndentInc);
+      PRT_CSTR("} else {", IndentInc);
       ForceNl();
       prt_str(tendstrct, IndentInc * 2);
       fprintf(g_out_file, ".d[%d].dword = D_Null;", sym->t_indx);
@@ -3062,7 +3069,7 @@ struct sym_entry *op_params; /* operation parameters or NULL */
 	 fprintf(g_out_file, ".d[%d].dword = D_Null;", sym1->t_indx);
 	 }
       ForceNl();
-      prt_str("}", 2 * IndentInc);
+      PRT_CSTR("}", 2 * IndentInc);
       ForceNl();
       if (sym1 == NULL)
 	 sym = sym->u.param_info.next;
@@ -3083,9 +3090,9 @@ struct sym_entry *op_params; /* operation parameters or NULL */
 	 fprintf(g_out_file, ".num = %d;", ntend);
       ForceNl();
       prt_str(tendstrct, IndentInc);
-      prt_str(".previous = tend;", IndentInc);
+      PRT_CSTR(".previous = tend;", IndentInc);
       ForceNl();
-      prt_str("tend = (struct tend_desc *)&", IndentInc);
+      PRT_CSTR("tend = (struct tend_desc *)&", IndentInc);
       fprintf(g_out_file, "%s;", tendstrct);
       ForceNl();
       }
@@ -3101,12 +3108,12 @@ struct sym_entry *op_params;
    {
    ForceNl();
    if (g_n_tmp_str > 0) {
-      prt_str("char r_sbuf[", IndentInc);
+      PRT_CSTR("char r_sbuf[", IndentInc);
       fprintf(g_out_file, "%d][MaxCvtLen];", g_n_tmp_str);
       ForceNl();
       }
    if (g_n_tmp_cset > 0) {
-      prt_str("struct b_cset r_cbuf[", IndentInc);
+      PRT_CSTR("struct b_cset r_cbuf[", IndentInc);
       fprintf(g_out_file, "%d];", g_n_tmp_cset);
       ForceNl();
       }
@@ -3125,16 +3132,16 @@ int n;
    {
    if (n == 0)
       return;
-   prt_str("struct {", IndentInc);
+   PRT_CSTR("struct {", IndentInc);
    ForceNl();
-   prt_str("struct tend_desc *previous;", 2 * IndentInc);
+   PRT_CSTR("struct tend_desc *previous;", 2 * IndentInc);
    ForceNl();
-   prt_str("int num;", 2 * IndentInc);
+   PRT_CSTR("int num;", 2 * IndentInc);
    ForceNl();
-   prt_str("struct descrip d[", 2 * IndentInc);
+   PRT_CSTR("struct descrip d[", 2 * IndentInc);
    fprintf(g_out_file, "%d];", n);
    ForceNl();
-   prt_str("} r_tend;\n", 2 * IndentInc);
+   PRT_CSTR("} r_tend;\n", 2 * IndentInc);
    ++g_line;
    ForceNl();
    }
@@ -3160,7 +3167,7 @@ static void tend_init()
 	    else {
 	       fprintf(g_out_file, ".d[%d] = ", tnd->t_indx);
 	       c_walk(tnd->init, 2 * IndentInc, 0);
-	       prt_str(";", 2 * IndentInc);
+	       PRT_CSTR(";", 2 * IndentInc);
 	       }
 	    break;
 	 case TndStr:
@@ -3176,7 +3183,7 @@ static void tend_init()
 	       prt_str(tendstrct, IndentInc);
 	       fprintf(g_out_file, ".d[%d].vword.sptr = ", tnd->t_indx);
 	       c_walk(tnd->init, 2 * IndentInc, 0);
-	       prt_str(";", 2 * IndentInc);
+	       PRT_CSTR(";", 2 * IndentInc);
 	       }
 	    break;
 	 case TndBlk:
@@ -3193,7 +3200,7 @@ static void tend_init()
 	       fprintf(g_out_file, ".d[%d].vword.ptr = ",
 		   tnd->t_indx);
 	       c_walk(tnd->init, 2 * IndentInc, 0);
-	       prt_str(";", 2 * IndentInc);
+	       PRT_CSTR(";", 2 * IndentInc);
 	       }
 	    break;
 	 }
@@ -3212,7 +3219,7 @@ struct sym_entry *sym;
     *  or copied.
     */
    if (sym->id_type & DrfPrm) {
-      prt_str("deref(&r_args[", IndentInc * 2);
+      PRT_CSTR("deref(&r_args[", IndentInc * 2);
       fprintf(g_out_file, "%d], &%s.d[%d]);", sym->u.param_info.param_num,
 	 tendstrct, sym->t_indx);
       }
@@ -3252,13 +3259,13 @@ struct sym_entry *op_params;
    else
       op_params->t_indx = ntend++;
    if (op_params->u.param_info.non_tend & PrmInt) {
-      prt_str("C_integer r_i", IndentInc);
-      fprintf(g_out_file, "%d;", op_params->u.param_info.param_num);
+      chk_nl(IndentInc);
+      fprintf(g_out_file, "C_integer r_i%d;", op_params->u.param_info.param_num);
       ForceNl();
       }
    if (op_params->u.param_info.non_tend & PrmDbl) {
-      prt_str("double r_d", IndentInc);
-      fprintf(g_out_file, "%d;", op_params->u.param_info.param_num);
+      chk_nl(IndentInc);
+      fprintf(g_out_file, "double r_d%d;", op_params->u.param_info.param_num);
       ForceNl();
       }
    }
@@ -3423,7 +3430,7 @@ struct node *n;
    if (idx == 0)
       free_tree(n);
    else {
-      prt_str("@", 0);
+      PRT_CSTR("@", 0);
       ForceNl();
       }
    }
@@ -3534,53 +3541,6 @@ int start, len;
       }
    return start;
    }
-#if 0
-
-static int get_declarations(out, start, len, n)
-struct node **out, *n;
-int start, len;
-   {
-   if (n->nd_id == LstNd) {
-      start = get_declarations(out, start, len, n->u[0].child);
-      start = get_declarations(out, start, len, n->u[1].child);
-      }
-   else if (n->nd_id == BinryNd && n->tok->tok_id == ';') {
-      struct node *nd;
-      if (start >= len) {
-	 fprintf(stderr, "Exhaustion %s:%d, too many arguments, more than %d.\n", __FILE__, __LINE__, len);
-	 exit(1);
-	 }
-      if ((nd = n->u[1].child)) {
-	 if (nd->nd_id == ConCatNd) {
-	    out[start++] = copy_tree(n);
-	    }
-	 else if (nd->nd_id == CommaNd) {
-	    int nchildren, i;
-	    struct node *children[MAX_NCHILDREN], *typedefname;
-	    nchildren = get_comma_children(children, 0, sizeof(children)/sizeof(*children), nd);
-	    typedefname = n->u[0].child;
-	    for (i=0; i<nchildren; i++) {
-	       out[start++] = node2(BinryNd,
-		  new_token(';', ";", __FILE__, __LINE__),
-		  copy_tree(typedefname),
-		  copy_tree(children[i]));
-	       }
-	    }
-	 }
-      else {
-	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
-	 exit(1);
-	 }
-      }
-   else {
-      fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
-      exit(1);
-      }
-   return start;
-   }
-#endif
-
-#if 1
 
 static int get_declarations_as_list(out, start, len, n)
 struct node **out, *n;
@@ -3625,7 +3585,6 @@ int start, len;
       }
    return start;
    }
-#endif
 
 static struct node *header_k_and_r_to_ansi(head, prm_dcl)
 struct node *head, *prm_dcl;
@@ -3768,7 +3727,6 @@ struct node *head, *prm_dcl, *block;
 
    if ((fnc_name = is_t(nd1, PrimryNd, Identifier)) == NULL) {
       if ((fnc_name = nav_t_n_t_is_t(nd1, PrefxNd, '(', 0, ConCatNd, 1, BinryNd, ')', 0, PrimryNd, Identifier)) == NULL) {
-	 fprintf(stderr, "/""*%d,%s*""/\n", __LINE__, node_name(nd1));
 	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
 	 exit(1);
 	 }
@@ -3776,33 +3734,28 @@ struct node *head, *prm_dcl, *block;
 
    if (no_proto_for(fnc_name->tok->image) == NULL) {
       if (is_static_function(head_ansi))
-	 prt_str("<<protos - static>>=\n",  0);
+	 PRT_CSTR("<<protos - static>>=\n",  0);
       else
-	 prt_str("<<protos>>=\n",  0);
+	 PRT_CSTR("<<protos>>=\n",  0);
       c_walk(head_ansi, 0, 0);
-      prt_str(";", 0);
+      PRT_CSTR(";", 0);
       ForceNl();
       }
 
-   prt_str("<<impl>>=\n",  0);
+   PRT_CSTR("<<impl>>=\n",  0);
    c_walk(head_ansi, 0, 0);
    ForceNl();
 
    /*
     * Handle outer block.
     */
-   prt_tok(block->tok, IndentInc);          /* { */
+   PRT_TOK(block->tok, IndentInc);          /* { */
    ForceNl();
 
    c_walk(block->u[0].child, IndentInc, 0); /* non-tended declarations */
    spcl_dcls(NULL);                         /* tended declarations */
    no_ret_val = 1;
-   do {
-      int ind = IndentInc;
-      if (is_t(block->u[2].child, CompNd, '{'))
-	 ind += IndentInc;
-      c_walk(block->u[2].child, ind, 0); /* statement list */
-   } while (0);
+   c_walk(block->u[2].child, IndentInc, 0); /* statement list */
    if (ntend != 0 && no_ret_val) {
       /*
        * This function contains no return statements with values, assume
@@ -3812,7 +3765,7 @@ struct node *head, *prm_dcl, *block;
       untend(IndentInc);
       }
    ForceNl();
-   prt_str("}\n@", IndentInc);
+   PRT_CSTR("}\n@", IndentInc);
    ForceNl();
 
    /*
@@ -3940,11 +3893,11 @@ struct node *n;
        *  for the operation type, the prefix that makes the function
        *  name unique, and the name of the operation.
        */
-      prt_str("<<impl>>=\n", 0);
-      fprintf(g_out_file, "int %c%c%c_%s(int r_nargs, dptr r_args, dptr r_rslt, continuation r_s_cont)",
+      PRT_CSTR("<<impl>>=\n", 0);
+      fprintf(g_out_file, "int %c%c%c_%s(uword r_nargs, dptr r_args, dptr r_rslt, continuation r_s_cont)",
 	 uc_letter, prfx1, prfx2, cur_impl->name);
       ForceNl();
-      prt_str("{", IndentInc);
+      PRT_CSTR("{", IndentInc);
       ForceNl();
       g_fname = cname;
 
@@ -3953,13 +3906,13 @@ struct node *n;
        */
       for (sym = g_decl_lst; sym != NULL; sym = sym->u.declare_var.next) {
 	 c_walk(sym->u.declare_var.tqual, IndentInc, 0);
-	 prt_str(" ", IndentInc);
+	 PRT_CSTR(" ", IndentInc);
 	 c_walk(sym->u.declare_var.dcltor, IndentInc, 0);
 	 if ((n1 = sym->u.declare_var.init) != NULL) {
-	    prt_str(" = ", IndentInc);
+	    PRT_CSTR(" = ", IndentInc);
 	    c_walk(n1, IndentInc, 0);
 	    }
-	 prt_str(";", IndentInc);
+	 PRT_CSTR(";", IndentInc);
 	 }
 
       /*
@@ -3969,7 +3922,7 @@ struct node *n;
        */
       spcl_dcls(g_params);
 
-      if (rt_walk(n, IndentInc, 0)) {  /* body of operation */
+      if (rt_walk(n, IndentInc, 0 /* brace */)) {  /* body of operation */
 	 if (n->nd_id == ConCatNd)
 	    s = n->u[1].child->tok->fname;
 	 else
@@ -3980,7 +3933,7 @@ struct node *n;
 	 }
 
       ForceNl();
-      prt_str("}\n@", IndentInc);
+      PRT_CSTR("}\n@", IndentInc);
       ForceNl();
       if (fclose(g_out_file) != 0)
 	 err2("cannot close ", cname);
@@ -4044,7 +3997,7 @@ struct node *n;
    struct sym_entry *sym;
    struct node *n1;
    int nparms, has_underef;
-   char letter = '?', *name, *s;
+   char letter = '?', *name, *s, *rtt_type;
 
    /*
     * Note how result location is accessed in generated code.
@@ -4082,13 +4035,22 @@ struct node *n;
     */
    switch (op_type) {
       case Function:
+	 rtt_type = "RTT_FUNCTION";
 	 letter = 'Z';
 	 break;
       case Keyword:
+	 rtt_type = "RTT_KEYWORD";
 	 letter = 'K';
 	 break;
       case Operator:
+	 rtt_type = "RTT_OPERATOR";
 	 letter = 'O';
+	 break;
+      default:
+	 fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	    __FILE__, __LINE__, g_fname_for___FILE__,
+	    g_line_for___LINE__);
+	 exit(1);
 	 }
 
    if (op_type != Keyword) {
@@ -4096,10 +4058,10 @@ struct node *n;
        * Output prototype. Operations taking a variable number of arguments
        *   have an extra parameter: the number of arguments.
        */
-      prt_str("<<protos>>=\n", 0 /* indent */);
-      fprintf(g_out_file, "int %c%s(", letter, name);
+      PRT_CSTR("<<protos>>=\n", 0 /* indent */);
+      fprintf(g_out_file, "%s int %c%s(", rtt_type, letter, name);
       if (g_params != NULL && (g_params->id_type & VarPrm))
-	 fprintf(g_out_file, "int r_nargs, ");
+	 fprintf(g_out_file, "uword r_nargs, ");
       fprintf(g_out_file, "dptr r_args);\n");
 
       /*
@@ -4121,8 +4083,8 @@ struct node *n;
       }
    else {
       /* Output keyword prototype. */
-      prt_str("<<protos>>=\n", 0 /* indent */);
-      fprintf(g_out_file, "int %c%s(dptr r_args);\n", letter, name);
+      PRT_CSTR("<<protos>>=\n", 0 /* indent */);
+      fprintf(g_out_file, "%s int %c%s(dptr r_args);\n", rtt_type, letter, name);
       }
 
    /*
@@ -4130,12 +4092,12 @@ struct node *n;
     *   have an extra parameter: the number of arguments.
     */
    fprintf(g_out_file, "<<impl>>=\n");
-   fprintf(g_out_file, "int %c%s(", letter, name);
+   fprintf(g_out_file, "%s int %c%s(", rtt_type, letter, name);
    if (g_params != NULL && (g_params->id_type & VarPrm))
-      fprintf(g_out_file, "int r_nargs, ");
+      fprintf(g_out_file, "uword r_nargs, ");
    fprintf(g_out_file, "dptr r_args)");
    ForceNl();
-   prt_str("{", IndentInc);
+   PRT_CSTR("{", IndentInc);
    ForceNl();
 
    /*
@@ -4143,13 +4105,13 @@ struct node *n;
     */
    for (sym = g_decl_lst; sym != NULL; sym = sym->u.declare_var.next) {
       c_walk(sym->u.declare_var.tqual, IndentInc, 0);
-      prt_str(" ", IndentInc);
+      PRT_CSTR(" ", IndentInc);
       c_walk(sym->u.declare_var.dcltor, IndentInc, 0);
       if ((n1 = sym->u.declare_var.init) != NULL) {
-	 prt_str(" = ", IndentInc);
+	 PRT_CSTR(" = ", IndentInc);
 	 c_walk(n1, IndentInc, 0);
 	 }
-      prt_str(";", IndentInc);
+      PRT_CSTR(";", IndentInc);
       }
 
    /*
@@ -4159,7 +4121,7 @@ struct node *n;
    spcl_start(g_params);
    tend_ary(ntend);
    if (has_underef && g_params != NULL && g_params->id_type == (VarPrm | DrfPrm))
-      prt_str("int r_n;\n", IndentInc);
+      PRT_CSTR("int r_n;\n", IndentInc);
    tend_init();
 
    /*
@@ -4174,11 +4136,11 @@ struct node *n;
 	     * There is a variable part of the parameter list and it
 	     *  must be dereferenced.
 	     */
-	    prt_str("for (r_n = ", IndentInc);
+	    PRT_CSTR("for (r_n = ", IndentInc);
 	    fprintf(g_out_file, "%d; r_n <= r_nargs; ++r_n)",
 		sym->u.param_info.param_num + 1);
 	    ForceNl();
-	    prt_str("Deref(r_args[r_n]);", IndentInc * 2);
+	    PRT_CSTR("Deref(r_args[r_n]);", IndentInc * 2);
 	    ForceNl();
 	    }
 	 sym = sym->u.param_info.next;
@@ -4194,11 +4156,11 @@ struct node *n;
 	     *  dereferened in-place (this is the usual case).
 	     */
 	    if (sym->t_indx == -1) {
-	       prt_str("Deref(r_args[", IndentInc * 2);
+	       PRT_CSTR("Deref(r_args[", IndentInc * 2);
 	       fprintf(g_out_file, "%d]);", sym->u.param_info.param_num + 1);
 	       }
 	    else {
-	       prt_str("deref(&r_args[", IndentInc * 2);
+	       PRT_CSTR("deref(&r_args[", IndentInc * 2);
 	       fprintf(g_out_file, "%d], &r_tend.d[%d]);",
 		  sym->u.param_info.param_num + 1, sym->t_indx);
 	       }
@@ -4213,16 +4175,16 @@ struct node *n;
     *  list.
     */
    if (ntend != 0) {
-      prt_str("r_tend.num = ", IndentInc);
+      PRT_CSTR("r_tend.num = ", IndentInc);
       fprintf(g_out_file, "%d;", ntend);
       ForceNl();
-      prt_str("r_tend.previous = tend;", IndentInc);
+      PRT_CSTR("r_tend.previous = tend;", IndentInc);
       ForceNl();
-      prt_str("tend = (struct tend_desc *)&r_tend;", IndentInc);
+      PRT_CSTR("tend = (struct tend_desc *)&r_tend;", IndentInc);
       ForceNl();
       }
 
-   if (rt_walk(n, IndentInc, 0)) { /* body of operation */
+   if (rt_walk(n, IndentInc, 0 /* brace */)) { /* body of operation */
       if (n->nd_id == ConCatNd)
 	 s = n->u[1].child->tok->fname;
       else
@@ -4232,7 +4194,7 @@ struct node *n;
 	  cur_impl->name);
       }
    ForceNl();
-   prt_str("}\n@", IndentInc);
+   PRT_CSTR("}\n@", IndentInc);
    ForceNl();
    }
 
@@ -4251,57 +4213,57 @@ struct token *t;
        */
       rslt_loc = "r_args[0]";  /* result location */
 
-      prt_str("<<protos>>=\n", 0);
-      fprintf(g_out_file, "int K%s(dptr r_args);\n", cur_impl->name);
+      PRT_CSTR("<<protos>>=\n", 0);
+      fprintf(g_out_file, "RTT_KEYCONST int K%s(dptr r_args);\n", cur_impl->name);
       fprintf(g_out_file, "<<impl>>=\n");
-      fprintf(g_out_file, "int K%s(dptr r_args)", cur_impl->name);
+      fprintf(g_out_file, "RTT_KEYCONST int K%s(dptr r_args)", cur_impl->name);
       ForceNl();
-      prt_str("{", IndentInc);
+      PRT_CSTR("{", IndentInc);
       ForceNl();
       switch (t->tok_id) {
 	 case StrLit:
 	    prt_str(rslt_loc, IndentInc);
-	    prt_str(".vword.sptr = \"", IndentInc);
+	    PRT_CSTR(".vword.sptr = \"", IndentInc);
 	    n = prt_i_str(g_out_file, t->image, (int)strlen(t->image));
-	    prt_str("\";", IndentInc);
+	    PRT_CSTR("\";", IndentInc);
 	    ForceNl();
 	    prt_str(rslt_loc, IndentInc);
 	    fprintf(g_out_file, ".dword = %d;", n);
 	    break;
 	 case CharConst:
-	    prt_str("static struct b_cset cset_blk = ", IndentInc);
+	    PRT_CSTR("static struct b_cset cset_blk = ", IndentInc);
 	    cset_init(g_out_file, bitvect(t->image, (int)strlen(t->image)));
 	    ForceNl();
 	    prt_str(rslt_loc, IndentInc);
-	    prt_str(".dword = D_Cset;", IndentInc);
+	    PRT_CSTR(".dword = D_Cset;", IndentInc);
 	    ForceNl();
 	    prt_str(rslt_loc, IndentInc);
-	    prt_str(".vword.ptr = &cset_blk;", IndentInc);
+	    PRT_CSTR(".vword.ptr = &cset_blk;", IndentInc);
 	    break;
 	 case DblConst:
-	    prt_str("static struct b_real real_blk = {T_Real, ", IndentInc);
+	    PRT_CSTR("static struct b_real real_blk = {T_Real, ", IndentInc);
 	    fprintf(g_out_file, "%s};", t->image);
 	    ForceNl();
 	    prt_str(rslt_loc, IndentInc);
-	    prt_str(".dword = D_Real;", IndentInc);
+	    PRT_CSTR(".dword = D_Real;", IndentInc);
 	    ForceNl();
 	    prt_str(rslt_loc, IndentInc);
-	    prt_str(".vword.ptr = &real_blk;", IndentInc);
+	    PRT_CSTR(".vword.ptr = &real_blk;", IndentInc);
 	    break;
 	 case IntConst:
 	    prt_str(rslt_loc, IndentInc);
-	    prt_str(".dword = D_Integer;", IndentInc);
+	    PRT_CSTR(".dword = D_Integer;", IndentInc);
 	    ForceNl();
 	    prt_str(rslt_loc, IndentInc);
-	    prt_str(".vword.integr = ", IndentInc);
+	    PRT_CSTR(".vword.integr = ", IndentInc);
 	    prt_str(t->image, IndentInc);
-	    prt_str(";", IndentInc);
+	    PRT_CSTR(";", IndentInc);
 	    break;
 	 }
       ForceNl();
-      prt_str("return A_Continue;", IndentInc);
+      PRT_CSTR("return A_Continue;", IndentInc);
       ForceNl();
-      prt_str("}\n@", IndentInc);
+      PRT_CSTR("}\n@", IndentInc);
       ForceNl();
       }
    else {
@@ -4351,11 +4313,11 @@ void passthrudir(n, v)
 struct token *n, *v;
    {
    ForceNl();
-   prt_str("<<", 0);
+   PRT_CSTR("<<", 0);
    prt_str(n->image, 0);
-   prt_str(">>=\n", 0);
+   PRT_CSTR(">>=\n", 0);
    prt_str(v->image, 0);
-   prt_str("\n@", 0);
+   PRT_CSTR("\n@", 0);
    ForceNl();
    }
 
@@ -4680,17 +4642,17 @@ struct node *n, **auxnd1, **auxnd2;
 
 static int c_walk_cat(n, indent, brace)
 struct node *n;
-int indent, brace;
+const int indent, brace;
    {
-   int fall_thru;
+   int fall_thru, newindent = indent;
    struct node *nd;
    if ((nd = nav_n(n, ConCatNd, 0))) {
       fall_thru = c_walk_cat(nd, indent, 0);
       return fall_thru | c_walk_cat(n->u[1].child, indent, 0);
       }
-   if (!is_t(n, BinryNd, Case) && !is_t(n, PrefxNd, Default))
-      indent += IndentInc;
-   return c_walk(n, indent, brace);
+   if (is_t(n, BinryNd, Case) == NULL && is_t(n, PrefxNd, Default) == NULL)
+      newindent += IndentInc;
+   return c_walk(n, newindent, brace);
    }
 #if 0
 
@@ -4706,7 +4668,8 @@ struct node *n;
 static void c_walk_comma(n, t, indent, brace, may_force_nl, counter, when_nl)
 struct node *n;
 struct token *t;
-int indent, brace, *counter, may_force_nl, when_nl;
+const int indent, brace;
+int *counter, may_force_nl, when_nl;
    {
    if (is_tt(n, CommaNd, ',', ':')) {
       c_walk_comma(n->u[0].child, NULL, indent, brace, may_force_nl, counter, when_nl);
@@ -4725,7 +4688,7 @@ int indent, brace, *counter, may_force_nl, when_nl;
 	    ForceNl();
 	    }
 	 else {
-	    prt_str(" ", indent);
+	    PRT_CSTR(" ", indent);
 	    (*counter)++;
 	    }
 	 }
@@ -4741,7 +4704,7 @@ int indent, brace, *counter, may_force_nl, when_nl;
 
 static void c_walk_struct_items(n, indent, brace, may_force_nl)
 struct node *n;
-int indent, brace, may_force_nl;
+const int indent, brace, may_force_nl;
    {
    struct node *nd1;
    if ((nd1 = is_n(n, LstNd))) {
@@ -4753,7 +4716,7 @@ int indent, brace, may_force_nl;
       int counter;
 
       c_walk(n->u[0].child, indent, brace);
-      prt_str(" ", indent);
+      PRT_CSTR(" ", indent);
 
       counter = 1;
       c_walk_comma(nd1->u[0].child, NULL, indent + IndentInc, brace,

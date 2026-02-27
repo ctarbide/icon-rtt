@@ -277,7 +277,8 @@ struct node *stmts;
       char buf[100];
       token_name(tok, buf, sizeof(buf));
       n->trace = concat(
-	 "CompNd:", buf, ":[",
+	 node_id_name(n->nd_id),
+	 ":", buf, ":[",
 	 node_name(dcls), "]:[",
 	 sym_name(g_dcl_stk->tended), "]:[",
 	 node_name(stmts), "]",
