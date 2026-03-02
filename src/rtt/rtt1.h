@@ -23,8 +23,10 @@ struct srcfile {
    struct srcfile *next;
    };
 
-#define ForceNl() g_nl = 1;
+#define ForceNl() (g_nl = 1, g_spc = 0)
+#define ForceSpc() g_spc = 1
 extern int g_nl;  /* flag: a new-line is needed in the output */
+extern int g_spc; /* flag: a space is needed in the output */
 
 extern int g_passthru;
 

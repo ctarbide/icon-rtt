@@ -63,6 +63,7 @@ static void cnv_fnc       (struct token *t, int typcd,
 			       struct node *dest, int indent);
 static void chk_conj      (struct node *n);
 static void chk_nl        (int indent);
+static void chk_spc        (void);
 static void chk_rsltblk   (int indent);
 static void comp_def      (struct node *n);
 static int     does_call     (struct node *expr);
@@ -117,6 +118,7 @@ static void c_walk_comma(struct node *n, struct token *t, int indent, int brace,
    int may_force_nl, int *counter, int when_nl);
 static void c_walk_struct_items(struct node *n, int indent, int brace,
    int may_force_nl);
+static void prt_closing_parenthesis(struct node *nxt, int indent);
 
 int op_type = OrdFunc;  /* type of operation */
 char lc_letter;         /* f = function, o = operator, k = keyword */
@@ -130,6 +132,7 @@ int g_nxt_cbuf;         /* next cset buffer index */
 int abs_ret = SomeType; /* type from abstract return(s) */
 
 int g_nl = 0;           /* flag indicating the a new-line should be output */
+int g_spc = 0;          /* flag indicating the a new-space should be output */
 static int no_nl = 0;   /* flag to suppress line directives */
 
 static int ntend;       /* number of tended descriptor needed */
@@ -156,6 +159,15 @@ static void chk_nl(int indent)
       for (col = 0; col < indent; ++col)
 	 putc(' ', g_out_file);
       g_nl = 0;
+      g_spc = 0;
+      }
+   }
+
+static void chk_spc(void)
+   {
+   if (g_spc) {
+      putc(' ', g_out_file);
+      g_spc = 0;
       }
    }
 
@@ -278,9 +290,9 @@ int indent;
     *  malloced. If so, it must be freed.
     */
    if (varargs) {
-      PRT_CSTR("if (r_tendp != (struct tend_desc *)&r_tend)", indent);
+      PRT_CSTR("if (r_tendp != &r_tend)", indent);
       ForceNl();
-      PRT_CSTR("free((pointer)r_tendp);", 2 * indent);
+      PRT_CSTR("free(r_tendp);", 2 * indent);
       ForceNl();
       }
    }
@@ -420,8 +432,8 @@ int indent, is_lvalue;
 	 /*
 	  * Length of variable part of argument list.
 	  */
-	 PRT_CSTR("(r_nargs - ", indent);
-	 fprintf(g_out_file, "%d)", g_params->u.param_info.param_num);
+	 chk_nl(indent);
+	 fprintf(g_out_file, "(r_nargs - %d)", g_params->u.param_info.param_num);
 	 break;
       case RsltLoc:
 	 /*
@@ -523,7 +535,8 @@ const int brace; /* do we already have braces? */
    if (op_type == OrdFunc)
       errt1(t, "'runerr' may not be used in an ordinary C function");
    if (!brace) {
-      PRT_CSTR(" {", indent);
+      chk_spc();
+      PRT_CSTR("{", indent);
       ForceNl();
       }
    PRT_CSTR("err_msg(", indent);
@@ -900,7 +913,7 @@ int indent;
 	     * return/suspend C_integer <expr>;
 	     */
 	    prt_str(rslt_loc, indent);
-	    PRT_CSTR(".vword.integr = ", indent);
+	    PRT_CSTR(".vword.uintgr = ", indent);
 	    c_walk(n->u[0].child, indent + IndentInc, 0);
 	    PRT_CSTR(";", indent);
 	    ForceNl();
@@ -1249,6 +1262,7 @@ const int indent, brace, may_force_nl;
 		*/
 	       if ((n1 = is_t(n->u[0].child, CommaNd, ','))) {
 		  int counter;
+		  chk_spc();
 		  PRT_TOK(t, indent + IndentInc);     /* { */
 		  ForceNl();
 		  counter = 1;
@@ -1260,6 +1274,7 @@ const int indent, brace, may_force_nl;
 		  PRT_CSTR("}", indent + IndentInc * 2);
 		  }
 	       else if ((n1 = is_t(n->u[0].child, PrefxNd, '{'))) {
+		  chk_spc();
 		  PRT_TOK(t, indent);     /* { */
 		  c_walk(n1, indent, 0 /* brace */);
 		  PRT_CSTR("}", indent);
@@ -1268,6 +1283,7 @@ const int indent, brace, may_force_nl;
 		  if (is_a(n->u[0].child, PrimryNd) == NULL)
 		     /* multiple items, force nl */
 		     ForceNl();
+		  chk_spc();
 		  PRT_TOK(t, indent + IndentInc);     /* { */
 		  c_walk(n->u[0].child, indent + IndentInc, 0);
 		  PRT_CSTR("}", indent + IndentInc);
@@ -1340,13 +1356,13 @@ const int indent, brace, may_force_nl;
 			   n1 = n1->u[0].child;
 			}
 		     }
-		  if (ntend != 0) {
+		  if (ntend) {
 		     /*
 		      * There are tended variables that must be removed from
 		      *  the tended list.
 		      */
 		     if (!brace) {
-			ForceNl();
+			chk_spc();
 			PRT_CSTR("{", indent);
 			}
 		     if (does_call(n1)) {
@@ -1439,7 +1455,7 @@ const int indent, brace, may_force_nl;
 		     ForceNl();
 		     }
 		  ret_value(t, n->u[0].child, ind);
-		  if (ntend != 0)
+		  if (ntend)
 		     untend(ind);
 		  ForceNl();
 		  if (fnc_ret == RetSig)
@@ -1482,7 +1498,7 @@ const int indent, brace, may_force_nl;
 		  }
 	       else {
 		  PRT_CSTR("if (r_s_cont == (continuation)NULL) {", indent);
-		  if (ntend != 0)
+		  if (ntend)
 		     untend(indent + IndentInc);
 		  ForceNl();
 		  PRT_CSTR("return A_Continue;", indent + IndentInc);
@@ -1493,12 +1509,12 @@ const int indent, brace, may_force_nl;
 		     indent);
 		  }
 	       ForceNl();
-	       if (ntend != 0)
+	       if (ntend)
 		  untend(indent + IndentInc);
 	       ForceNl();
-	       PRT_CSTR("return signal;", indent + IndentInc);
+	       PRT_CSTR("return signal;", indent + IndentInc * 2);
 	       ForceNl();
-	       PRT_CSTR("}", indent + IndentInc);
+	       PRT_CSTR("}", indent + IndentInc * 2);
 	       ForceNl();
 	       if (!brace) {
 		  PRT_CSTR("}", indent);
@@ -1527,6 +1543,7 @@ const int indent, brace, may_force_nl;
 	  * All postfix expressions are printed as the operand followed
 	  *  by the token image of the operation.
 	  */
+	 chk_spc();
 	 fall_thru = c_walk(n->u[0].child, indent, 0);
 	 prt_tok(t, indent);
 	 if (t->tok_id == ';')
@@ -1734,7 +1751,7 @@ const int indent, brace, may_force_nl;
 	       PRT_CSTR(" (", indent);
 	       c_walk(n->u[0].child, indent, 0);
 	       PRT_CSTR(")", indent);
-	       PRT_CSTR(" ", indent);
+	       ForceSpc();
 	       save_break = does_break;
 	       fall_thru = c_walk(n->u[1].child, indent + IndentInc, 0);
 	       fall_thru |= does_break;
@@ -1749,8 +1766,7 @@ const int indent, brace, may_force_nl;
 	       prt_tok(t, indent);  /* while */
 	       PRT_CSTR(" (", indent);
 	       c_walk(n0, indent, 0);
-	       PRT_CSTR(")", indent);
-	       PRT_CSTR(" ", indent);
+	       prt_closing_parenthesis(n->u[1].child, indent);
 	       save_break = does_break;
 	       c_walk(n->u[1].child, indent + IndentInc, 0);
 	       /*
@@ -1771,9 +1787,13 @@ const int indent, brace, may_force_nl;
 		* do <statement> <while> ( <expr> )
 		*/
 	       prt_tok(t, indent);  /* do */
-	       PRT_CSTR(" ", indent);
-	       c_walk_nl(n->u[0].child, indent + IndentInc, 0, 0);
-	       PRT_CSTR(" while (", indent + IndentInc);
+	       ForceSpc();
+	       n1 = n->u[0].child;
+	       c_walk_nl(n1, indent + IndentInc, 0, 0);
+	       if (is_t(n1, CompNd, '{'))
+		  ForceSpc();
+	       chk_spc();
+	       PRT_CSTR("while (", indent + IndentInc);
 	       save_break = does_break;
 	       c_walk(n->u[1].child, indent, 0);
 	       does_break = save_break;
@@ -1865,10 +1885,11 @@ const int indent, brace, may_force_nl;
 	 if (!brace) {
 	    if (g_nl && indent) { /* probably anonymous */
 	       ind += IndentInc;
+	       chk_spc();
 	       PRT_TOK(t, indent);  /* { */
 	       }
 	    else {
-	       PRT_CSTR(" ", indent);
+	       chk_spc();
 	       PRT_TOK(t, indent);  /* { */
 	       }
 	    }
@@ -1940,16 +1961,11 @@ const int indent, brace, may_force_nl;
 		* if ( <expr> ) <statement>
 		* if ( <expr> ) <statement> else <statement>
 		*/
+	       chk_nl(indent);
 	       PRT_TOK(t, indent);  /* if */
 	       PRT_CSTR(" (", indent);
 	       c_walk(n->u[0].child, indent + IndentInc, 0);
-	       n1 = n->u[1].child;
-	       if (is_t(n1, CompNd, '{') || is_n(n1, QuadNd) || is_t(n1, BinryNd, Runerr))
-		  PRT_CSTR(")", indent);
-	       else {
-		  PRT_CSTR(")", indent);
-		  ForceNl();
-		  }
+	       prt_closing_parenthesis(n1 = n->u[1].child, indent + IndentInc);
 	       fall_thru = c_walk(n1, indent + IndentInc, 0 /* brace */);
 	       if (is_t(n1, PstfxNd, ';'))
 		  ForceNl();
@@ -2007,13 +2023,7 @@ const int indent, brace, may_force_nl;
 	       c_walk(n->u[2].child, indent, 0);
 	       save_break = does_break;
 	       n1 = n->u[3].child;
-
-	       if (is_t(n1, CompNd, '{'))
-		  PRT_CSTR(") ", indent);
-	       else {
-		  PRT_CSTR(")", indent);
-		  ForceNl();
-		  }
+	       prt_closing_parenthesis(n1, indent);
 	       c_walk(n1, indent + IndentInc, 0 /* brace */);
 	       if (is_t(n1, PstfxNd, ';'))
 		  ForceNl();
@@ -2538,8 +2548,10 @@ const int indent, brace;
 		* RTL code: { <actions> }
 		*/
 #if 1
-	       if (!brace)
+	       if (!brace) {
+		  chk_spc();
 		  PRT_TOK(t, indent);  /* { */
+		  }
 	       fall_thru = rt_walk(n->u[0].child, indent, 1 /* brace */);
 	       if (!brace)
 		  PRT_CSTR("}", indent);
@@ -2965,20 +2977,20 @@ struct sym_entry *op_params; /* operation parameters or NULL */
        *  time. Produce code to check for this.
        */
       cur_impl->ret_flag |= DoesEFail;  /* error conversion from allocation */
-      PRT_CSTR("struct tend_desc *r_tendp;", IndentInc);
+      PRT_CSTR("pointer r_tendp;", IndentInc);
       ForceNl();
       PRT_CSTR("int r_n;\n", IndentInc);
       ++g_line;
       ForceNl();
-      PRT_CSTR("if (r_nargs <= ", IndentInc);
-      fprintf(g_out_file, "%d)", op_params->u.param_info.param_num + VArgAlwnc);
+      chk_nl(IndentInc);
+      fprintf(g_out_file, "if (r_nargs <= %d)", op_params->u.param_info.param_num + VArgAlwnc);
       ForceNl();
-      PRT_CSTR("r_tendp = (struct tend_desc *)&r_tend;", 2 * IndentInc);
+      PRT_CSTR("r_tendp = &r_tend;", 2 * IndentInc);
       ForceNl();
       PRT_CSTR("else {", IndentInc);
       ForceNl();
       prt_str(
-       "r_tendp = (struct tend_desc *)malloc((sizeof(struct tend_desc)",
+       "r_tendp = malloc((sizeof(struct tend_desc)",
 	 2 * IndentInc);
       ForceNl();
       chk_nl(3 * IndentInc);
@@ -3011,8 +3023,8 @@ struct sym_entry *op_params; /* operation parameters or NULL */
        *  to dereference or copy this into its portion of the tended
        *  array.
        */
-      PRT_CSTR("for (r_n = ", IndentInc);
-      fprintf(g_out_file, "%d; r_n < r_nargs; ++r_n)",
+      chk_nl(IndentInc);
+      fprintf(g_out_file, "for (r_n = %d; r_n < r_nargs; ++r_n)",
 	  op_params->u.param_info.param_num);
       ForceNl();
       if (op_params->id_type & DrfPrm) {
@@ -3050,8 +3062,8 @@ struct sym_entry *op_params; /* operation parameters or NULL */
        * If there are not enough arguments to supply a value for this
        *  parameter, set it to the null value.
        */
-      PRT_CSTR("if (", IndentInc);
-      fprintf(g_out_file, "r_nargs > %d) {", sym->u.param_info.param_num);
+      chk_nl(IndentInc);
+      fprintf(g_out_file, "if (r_nargs > %d) {", sym->u.param_info.param_num);
       ForceNl();
       parm_tnd(sym);
       if (sym1 != NULL) {
@@ -3081,7 +3093,7 @@ struct sym_entry *op_params; /* operation parameters or NULL */
     * Finish setting up the tended array structure and link it into the tended
     *  list.
     */
-   if (ntend != 0) {
+   if (ntend) {
       prt_str(tendstrct, IndentInc);
       if (varargs)
 	 fprintf(g_out_file, ".num = %d + Max(r_nargs - %d, 0);", ntend - 1,
@@ -3092,8 +3104,8 @@ struct sym_entry *op_params; /* operation parameters or NULL */
       prt_str(tendstrct, IndentInc);
       PRT_CSTR(".previous = tend;", IndentInc);
       ForceNl();
-      PRT_CSTR("tend = (struct tend_desc *)&", IndentInc);
-      fprintf(g_out_file, "%s;", tendstrct);
+      chk_nl(IndentInc);
+      fprintf(g_out_file, "tend = &%s;", tendstrct);
       ForceNl();
       }
    }
@@ -3749,6 +3761,7 @@ struct node *head, *prm_dcl, *block;
    /*
     * Handle outer block.
     */
+   chk_spc();
    PRT_TOK(block->tok, IndentInc);          /* { */
    ForceNl();
 
@@ -3756,7 +3769,7 @@ struct node *head, *prm_dcl, *block;
    spcl_dcls(NULL);                         /* tended declarations */
    no_ret_val = 1;
    c_walk(block->u[2].child, IndentInc, 0); /* statement list */
-   if (ntend != 0 && no_ret_val) {
+   if (ntend && no_ret_val) {
       /*
        * This function contains no return statements with values, assume
        *  that the programmer is using the implicit return at the end
@@ -4060,9 +4073,14 @@ struct node *n;
        */
       PRT_CSTR("<<protos>>=\n", 0 /* indent */);
       fprintf(g_out_file, "%s int %c%s(", rtt_type, letter, name);
-      if (g_params != NULL && (g_params->id_type & VarPrm))
+#if 0
+      if (g_params && (g_params->id_type & VarPrm))
 	 fprintf(g_out_file, "uword r_nargs, ");
       fprintf(g_out_file, "dptr r_args);\n");
+#else
+      /* unified function signature */
+      fprintf(g_out_file, "uword r_nargs, dptr r_args);\n");
+#endif
 
       /*
        * Output procedure block.
@@ -4093,9 +4111,14 @@ struct node *n;
     */
    fprintf(g_out_file, "<<impl>>=\n");
    fprintf(g_out_file, "%s int %c%s(", rtt_type, letter, name);
+#if 0
    if (g_params != NULL && (g_params->id_type & VarPrm))
       fprintf(g_out_file, "uword r_nargs, ");
    fprintf(g_out_file, "dptr r_args)");
+#else
+   /* unified function signature */
+   fprintf(g_out_file, "uword r_nargs, dptr r_args)");
+#endif
    ForceNl();
    PRT_CSTR("{", IndentInc);
    ForceNl();
@@ -4136,8 +4159,8 @@ struct node *n;
 	     * There is a variable part of the parameter list and it
 	     *  must be dereferenced.
 	     */
-	    PRT_CSTR("for (r_n = ", IndentInc);
-	    fprintf(g_out_file, "%d; r_n <= r_nargs; ++r_n)",
+	    chk_nl(IndentInc);
+	    fprintf(g_out_file, "for (r_n = %d; r_n <= r_nargs; ++r_n)",
 		sym->u.param_info.param_num + 1);
 	    ForceNl();
 	    PRT_CSTR("Deref(r_args[r_n]);", IndentInc * 2);
@@ -4156,12 +4179,12 @@ struct node *n;
 	     *  dereferened in-place (this is the usual case).
 	     */
 	    if (sym->t_indx == -1) {
-	       PRT_CSTR("Deref(r_args[", IndentInc * 2);
-	       fprintf(g_out_file, "%d]);", sym->u.param_info.param_num + 1);
+	       chk_nl(IndentInc * 2);
+	       fprintf(g_out_file, "Deref(r_args[%d]);", sym->u.param_info.param_num + 1);
 	       }
 	    else {
-	       PRT_CSTR("deref(&r_args[", IndentInc * 2);
-	       fprintf(g_out_file, "%d], &r_tend.d[%d]);",
+	       chk_nl(IndentInc * 2);
+	       fprintf(g_out_file, "deref(&r_args[%d], &r_tend.d[%d]);",
 		  sym->u.param_info.param_num + 1, sym->t_indx);
 	       }
 	    }
@@ -4174,13 +4197,13 @@ struct node *n;
     * Finish setting up the tended array structure and link it into the tended
     *  list.
     */
-   if (ntend != 0) {
-      PRT_CSTR("r_tend.num = ", IndentInc);
-      fprintf(g_out_file, "%d;", ntend);
+   if (ntend) {
+      chk_nl(IndentInc);
+      fprintf(g_out_file, "r_tend.num = %d;", ntend);
       ForceNl();
       PRT_CSTR("r_tend.previous = tend;", IndentInc);
       ForceNl();
-      PRT_CSTR("tend = (struct tend_desc *)&r_tend;", IndentInc);
+      PRT_CSTR("tend = &r_tend;", IndentInc);
       ForceNl();
       }
 
@@ -4255,7 +4278,7 @@ struct token *t;
 	    PRT_CSTR(".dword = D_Integer;", IndentInc);
 	    ForceNl();
 	    prt_str(rslt_loc, IndentInc);
-	    PRT_CSTR(".vword.integr = ", IndentInc);
+	    PRT_CSTR(".vword.uintgr = ", IndentInc);
 	    prt_str(t->image, IndentInc);
 	    PRT_CSTR(";", IndentInc);
 	    break;
@@ -4738,5 +4761,26 @@ struct node *n;
    if (is_t(n, PrimryNd, TypeDefName)) {
       n->tok->tok_id = Identifier;
       node_update_trace(n);
+      }
+   }
+
+static void prt_closing_parenthesis(nxt, indent)
+struct node *nxt; /* next element */
+int indent;
+{
+   if (is_t(nxt, CompNd, '{') || is_n(nxt, QuadNd) || is_t(nxt, BinryNd, Runerr)) {
+      PRT_CSTR(")", indent);
+      ForceSpc();
+      }
+   else {
+      PRT_CSTR(")", indent);
+      if (ntend && is_t(nxt, PrefxNd, Return))
+	 /*
+	  * 'return' gets expanded to a block to handle tended
+	  * descriptors
+	  */
+	 ForceSpc();
+      else
+	 ForceNl();
       }
    }
