@@ -1528,7 +1528,7 @@ struct node *n;
 	 fprintf(g_out_file, "int ");
 	 break;
       case RetInt:
-	 fprintf(g_out_file, "C_integer ");
+	 fprintf(g_out_file, "uword ");
 	 break;
       case RetDbl:
 	 fprintf(g_out_file, "double ");

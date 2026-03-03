@@ -1,7 +1,8 @@
 void            addrmlst     (char *fname, FILE *f);
 void            advance_tok  (struct token **tp);
 int                chk_eq_sign  (void);
-struct token      *copy_t       (struct token *t);
+struct token      *copy_t    (struct token *t);
+struct token      *copy_t_ex (struct token *t, char *fname, int line);
 void            err1         (char *s);
 void            err2         (char *s1, char *s2);
 void            errfl1       (char *f, int l, char *s);

@@ -27,7 +27,8 @@ static char *nd_id_names[] = {
    "14-CompNd", /* compound statement */
    "15-AbstrNd", /* abstract type computation */
    "16-IcnTypNd", /* name of an Icon type */
-   "17-LValueNd" /* a node on the left side of an assignment */
+   "17-LValueNd", /* a node on the left side of an assignment */
+   "18-TopLvlNd" /* top-level holder for normalized nodes */
    };
 
 #if defined(TRACE_NODE_MEMBER) && defined(TRACE_NODE_ADD_INFO)
@@ -35,13 +36,17 @@ static void token_name(struct token *tok, char *buf, size_t bufsz);
 static void token_name(struct token *tok, char *buf, size_t bufsz)
    {
    if (tok) {
-      if (32 < tok->tok_id && tok->tok_id < 127)
+      if (tok->tok_id == '[')
+	 snprintf(buf, bufsz, "LEFT-SQUARE-BRACKET");
+      else if (tok->tok_id == ']')
+	 snprintf(buf, bufsz, "RIGHT-SQUARE-BRACKET");
+      else if (32 < tok->tok_id && tok->tok_id < 127)
 	 snprintf(buf, bufsz, "'%c'", tok->tok_id);
       else
 	 snprintf(buf, bufsz, "%d/\"%s\"", tok->tok_id, tok->image);
       }
    else
-      snprintf(buf, bufsz, "nulltok");
+      *buf = '\0';
    }
 #endif
 
@@ -133,14 +138,14 @@ struct node *n1, *n2;
    else {
       if (id == LstNd) {
 	 n->trace = concat(
-	    "list:[",
+	    "list::[",
 	    node_name(n1), "]:[",
 	    node_name(n2), "]",
 	    NULL);
 	 }
       else if (id == ConCatNd) {
 	 n->trace = concat(
-	    "cat:[",
+	    "cat::[",
 	    node_name(n1), "]:[",
 	    node_name(n2), "]",
 	    NULL);
@@ -246,7 +251,7 @@ struct token *tok;
       do {
 	 char buf[100];
 	 token_name(tok, buf, sizeof(buf));
-	 n->trace = concat("sym:", buf, NULL);
+	 n->trace = concat(node_id_name(n->nd_id), ":", buf, NULL);
 	 } while (0);
 #endif
       return n;
@@ -390,6 +395,7 @@ struct node *n;
       case ConCatNd:
       case LstNd:
       case StrDclNd:
+      case TopLvlNd:
          free_tree(n->u[1].child);
          /* fall thru to next case */
       case IcnTypNd:
@@ -568,7 +574,7 @@ struct node *n;
 	 if (n->trace)
 	    free(n->trace);
 	 n->trace = concat(
-	    "list:[",
+	    "list::[",
 	    node_name(n->u[0].child), "]:[",
 	    node_name(n->u[1].child), "]",
 	    NULL);
@@ -584,7 +590,7 @@ struct node *n;
 	 if (n->trace)
 	    free(n->trace);
 	 n->trace = concat(
-	    "cat:[",
+	    "cat::[",
 	    node_name(n->u[0].child), "]:[",
 	    node_name(n->u[1].child), "]",
 	    NULL);
@@ -802,6 +808,17 @@ int nd_id1, nd_id2, tok_id1, child1, child2;
    }
 
 struct node *
+nav_t_t(n, nd_id1, tok_id1, child1, nd_id2, tok_id2, child2)
+struct node *n;
+int nd_id1, nd_id2, tok_id1, tok_id2, child1, child2;
+   {
+   struct node *nd;
+   if ((nd = nav_t(n, nd_id1, tok_id1, child1)))
+      return nav_t(nd, nd_id2, tok_id2, child2);
+   return NULL;
+   }
+
+struct node *
 nav_n_n_t(n, nd_id1, child1, nd_id2, child2, nd_id3, tok_id3, child3)
 struct node *n;
 int nd_id1, nd_id2, nd_id3, tok_id3;
@@ -810,6 +827,32 @@ int child1, child2, child3;
    struct node *nd1, *nd2;
    if ((nd1 = nav_n(n, nd_id1, child1)))
       if ((nd2 = nav_n_t(nd1, nd_id2, child2, nd_id3, tok_id3, child3)))
+	 return nd2;
+   return NULL;
+   }
+
+struct node *
+nav_n_t_is_t(n, nd_id1, child1, nd_id2, tok_id2, child2, nd_id3, tok_id3)
+struct node *n;
+int nd_id1, nd_id2, nd_id3, tok_id2, tok_id3;
+int child1, child2;
+   {
+   struct node *nd1, *nd2;
+   if ((nd1 = nav_n_t(n, nd_id1, child1, nd_id2, tok_id2, child2)))
+      if ((nd2 = is_t(nd1, nd_id3, tok_id3)))
+	 return nd2;
+   return NULL;
+   }
+
+struct node *
+nav_t_n_is_t(n, nd_id1, tok_id1, child1, nd_id2, child2, nd_id3, tok_id3)
+struct node *n;
+int nd_id1, nd_id2, nd_id3, tok_id1, tok_id3;
+int child1, child2;
+   {
+   struct node *nd1, *nd2;
+   if ((nd1 = nav_t_n(n, nd_id1, tok_id1, child1, nd_id2, child2)))
+      if ((nd2 = is_t(nd1, nd_id3, tok_id3)))
 	 return nd2;
    return NULL;
    }
@@ -903,5 +946,18 @@ int nd_id1, tok_id1, child1, nd_id2, tok_id21, tok_id22, tok_id23;
    struct node *nd;
    if ((nd = nav_t(n, nd_id1, tok_id1, child1)))
       return is_ttt(nd, nd_id2, tok_id21, tok_id22, tok_id23);
+   return NULL;
+   }
+
+struct node *
+nav_t_n_is_ttt(n, nd_id1, tok_id1, child1, nd_id2, child2, nd_id3, tok_id31, tok_id32, tok_id33)
+struct node *n;
+int nd_id1, nd_id2, nd_id3, tok_id1, tok_id31, tok_id32, tok_id33;
+int child1, child2;
+   {
+   struct node *nd1, *nd2;
+   if ((nd1 = nav_t_n(n, nd_id1, tok_id1, child1, nd_id2, child2)))
+      if ((nd2 = is_ttt(nd1, nd_id3, tok_id31, tok_id32, tok_id33)))
+	 return nd2;
    return NULL;
    }

@@ -4,16 +4,20 @@
 /*#define DEBUG*/
 /*#define VERBOSE_PRT_CSTR*/
 
-#ifdef VERBOSE_PRT_CSTR
 #define Lit(x) #x
 #define WrapLit(x) Lit(x)
+#define LINED_LIT_C_STR(lit) lit "/*" WrapLit(__LINE__) "*/"
+
+#ifdef VERBOSE_PRT_CSTR
 #define PRT_CSTR(a,b) prt_str(a " /*" WrapLit(__LINE__) "*/",b)
 #define PRT_STR(a,b) (prt_str(a,b),prt_str(" /*" WrapLit(__LINE__) "*/",b))
 #define PRT_TOK(a,b) (prt_tok(a,b),prt_str(" /*" WrapLit(__LINE__) "*/",b))
+#define PRT_CONCATND(a) prt_str("/*" WrapLit(__LINE__) " ConCatNd*/", a)
 #else
 #define PRT_CSTR(a,b) prt_str(a,b)
 #define PRT_STR(a,b) prt_str(a,b)
 #define PRT_TOK(a,b) prt_tok(a,b)
+#define PRT_CONCATND(a)
 #endif
 
 #ifdef DEBUG
@@ -73,14 +77,12 @@ static int     len_sel       (struct node *sel,
 			       struct parminfo *strt_prms,
 			       struct parminfo *end_prms, int indent);
 /*static void line_dir      (int nxt_line, char *new_fname);*/
-static int     only_proto    (struct node *n);
 static void parm_locs     (struct sym_entry *op_params);
 static void parm_tnd      (struct sym_entry *sym);
 static void prt_runerr    (struct token *t, struct node *num,
 			       struct node *val, int indent, int brace);
 static void prt_tok       (struct token *t, int indent);
 static void prt_var       (struct node *n, int indent, int is_lvalue);
-static int     real_def      (struct node *n);
 static int     retval_dcltor (struct node *dcltor, int indent);
 static void ret_value     (struct token *t, struct node *n,
 			       int indent);
@@ -89,7 +91,6 @@ static void ret_1_arg     (struct token *t, struct node *args,
 			       int indent);
 static int     rt_walk       (struct node *n, int indent, int brace);
 static void spcl_start    (struct sym_entry *op_params);
-static int     tdef_or_extr  (struct node *n);
 static void tend_ary      (int n);
 static void tend_init     (void);
 static void tnd_var       (struct sym_entry *sym, char *strct_ptr, char *access, int indent, int is_lvalue);
@@ -100,8 +101,24 @@ static int     typ_case      (struct node *var, struct node *slct_lst,
 			       int (*walk)(struct node *n, int xindent,
 				 int brace), int maybe_var, int indent);
 static void untend        (int indent);
-static char *
-top_level_chunk_name(struct node *n, int is_concrete, struct node **auxnd1, struct node **auxnd2);
+
+#define MAX_DCLOUT_DATA_ITEMS 1
+
+/* this is used to normalize things like 'struct tag { ... } ident' into
+ * a separate declaration and definition
+ */
+struct dclout_data {
+   struct {
+      int typagg;			/* type aggregator */
+      struct node *node;
+      char *chunk_name;
+   } items[MAX_DCLOUT_DATA_ITEMS];
+   int tally;
+};
+
+void tag_name_and_prefix(int id, const char **name, const char **prefix);
+struct node *normalize_decl_defn_global(struct node *n, struct node **auxndp);
+void top_level_chunk_name(struct dclout_data *data, struct node *n);
 static int is_static_function(struct node *head);
 static struct node *fnc_head_args(struct node *head);
 static int get_args_names(struct node **out, int start, int len, struct node *n);
@@ -113,12 +130,14 @@ static struct node *defining_identifier(struct node *n);
 static int c_walk_cat(struct node *n, int indent, int brace);
 static int c_walk_nl(struct node *n, int indent, int brace, int may_force_nl);
 static struct node *has_primry(struct node *n, int p);
-/* static int count_commas(struct node *n); */
 static void c_walk_comma(struct node *n, struct token *t, int indent, int brace,
    int may_force_nl, int *counter, int when_nl);
 static void c_walk_struct_items(struct node *n, int indent, int brace,
    int may_force_nl);
-static void prt_closing_parenthesis(struct node *nxt, int indent);
+static int prt_closing_parenthesis(struct node *nxt, int indent);
+static int handle_next_indentation(struct node *nxt, int indent);
+static int prt_else(struct node *nxt, int indent);
+static int does_it_produce_a_compound_statement(struct node *n);
 
 int op_type = OrdFunc;  /* type of operation */
 char lc_letter;         /* f = function, o = operator, k = keyword */
@@ -292,7 +311,7 @@ int indent;
    if (varargs) {
       PRT_CSTR("if (r_tendp != &r_tend)", indent);
       ForceNl();
-      PRT_CSTR("free(r_tendp);", 2 * indent);
+      PRT_CSTR("free(r_tendp);", indent + IndentInc);
       ForceNl();
       }
    }
@@ -532,30 +551,34 @@ struct node *num, *val;
 const int indent;
 const int brace; /* do we already have braces? */
    {
+   int ind;
+
+   ind = indent;
    if (op_type == OrdFunc)
       errt1(t, "'runerr' may not be used in an ordinary C function");
    if (!brace) {
       chk_spc();
-      PRT_CSTR("{", indent);
+      PRT_CSTR("{", ind);
+      ind += IndentInc;
       ForceNl();
       }
-   PRT_CSTR("err_msg(", indent);
-   c_walk(num, indent, 0);                /* error number */
+   PRT_CSTR("err_msg(", ind);
+   c_walk(num, ind, 0);                /* error number */
    if (val == NULL)
-      PRT_CSTR(", NULL);", indent);        /* no offending value */
+      PRT_CSTR(", NULL);", ind);        /* no offending value */
    else {
-      PRT_CSTR(", &(", indent);
-      c_walk(val, indent, 0);             /* offending value */
-      PRT_CSTR("));", indent);
+      PRT_CSTR(", &(", ind);
+      c_walk(val, ind, 0);             /* offending value */
+      PRT_CSTR("));", ind);
       }
    /*
     * Handle error conversion. Indicate that operation may fail because
     *  of error conversion and produce the necessary code.
     */
    cur_impl->ret_flag |= DoesEFail;
-   failure(indent, 1);
+   failure(ind, 1);
    if (!brace) {
-      PRT_CSTR("}", indent);
+      PRT_CSTR("}", ind);
       }
    ForceNl();
    }
@@ -906,7 +929,7 @@ int indent;
       return;
       }
 
-   if (n->nd_id == PrefxNd && n->tok != NULL) {
+   if (n->nd_id == PrefxNd && n->tok) {
       switch (n->tok->tok_id) {
 	 case C_Integer:
 	    /*
@@ -943,7 +966,7 @@ int indent;
 	     * return/suspend C_string <expr>;
 	     */
 	    prt_str(rslt_loc, indent);
-	    PRT_CSTR(".vword.sptr = ", indent);
+	    PRT_CSTR(".vword.sptr = (char*)", indent);
 	    c_walk(n->u[0].child, indent + IndentInc, 0);
 	    PRT_CSTR(";", indent);
 	    ForceNl();
@@ -985,7 +1008,7 @@ int indent;
 		     /*
 		      * return/suspend <type>(<char-pntr>);
 		      */
-		     ret_1_arg(t, args, typcd, ".vword.sptr = (char *)",
+		     ret_1_arg(t, args, typcd, ".vword.sptr = (char*)",
 			"(s)", indent);
 		     break;
 		  case TRetCInt:
@@ -1000,13 +1023,23 @@ int indent;
 			/*
 			 * return/suspend string(<len>, <char-pntr>);
 			 */
+			int emit_parenthesis;
 			if (args == NULL || args->nd_id != CommaNd ||
 			   args->u[0].child->nd_id == CommaNd)
 			   errt1(t, "wrong no. of args for string(n, s)");
 			prt_str(rslt_loc, indent);
-			PRT_CSTR(".vword.sptr = ", indent);
+			emit_parenthesis =
+			   is_a(args->u[1].child, SymNd) == NULL &&
+			   is_t(args->u[1].child, PrefxNd, '(') == NULL;
+			if (emit_parenthesis)
+			   PRT_CSTR(".vword.sptr = (char*)(", indent);
+			else
+			   PRT_CSTR(".vword.sptr = (char*)", indent);
 			c_walk(args->u[1].child, indent + IndentInc, 0);
-			PRT_CSTR(";", indent);
+			if (emit_parenthesis)
+			   PRT_CSTR(");", indent);
+			else
+			   PRT_CSTR(";", indent);
 			ForceNl();
 			prt_str(rslt_loc, indent);
 			PRT_CSTR(".dword = ", indent);
@@ -1073,9 +1106,9 @@ int indent;
 	       PRT_CSTR(";", indent);
 	       ForceNl();
 	       prt_str(rslt_loc, indent);
-	       PRT_CSTR(".dword = D_Var + ((word *)", indent);
+	       PRT_CSTR(".dword = D_Var + (uword)((uword*)", indent);
 	       c_walk(args->u[0].child, indent + IndentInc, 0);
-	       PRT_CSTR(" - (word *)", indent+IndentInc);
+	       PRT_CSTR(" - (uword*)", indent+IndentInc);
 	       prt_str(rslt_loc, indent);
 	       PRT_CSTR(".vword.descptr);", indent+IndentInc);
 	       ForceNl();
@@ -1154,30 +1187,35 @@ int indent;
 static void failure(indent, brace)
 const int indent, brace;
    {
+   int ind;
    /*
     * If there are tended variables, they must be removed from the tended
     *  list. The C function may or may not return an explicit signal.
     */
+   ind = indent;
    ForceNl();
    if (ntend) {
-      if (!brace)
-	 PRT_CSTR("{", indent);
-      untend(indent);
+      if (!brace) {
+	 PRT_CSTR("{", ind);
+	 ind += IndentInc;
+	 }
+      untend(ind);
       ForceNl();
       if (fnc_ret == RetSig)
-	 PRT_CSTR("return A_Resume;", indent);
+	 PRT_CSTR("return A_Resume;", ind);
       else
-	 PRT_CSTR("return;", indent);
+	 PRT_CSTR("return;", ind);
       if (!brace) {
 	 ForceNl();
-	 PRT_CSTR("}", indent);
+	 PRT_CSTR("}", ind);
 	 }
       }
-   else
+   else {
       if (fnc_ret == RetSig)
-	 PRT_CSTR("return A_Resume;", indent);
+	 PRT_CSTR("return A_Resume;", ind);
       else
-	 PRT_CSTR("return;", indent);
+	 PRT_CSTR("return;", ind);
+      }
    ForceNl();
    }
 
@@ -1215,6 +1253,7 @@ const int indent, brace, may_force_nl;
    t = n->tok;
    switch (n->nd_id) {
       case PrimryNd: /* simply a token */
+	 chk_spc();
 	 switch (t->tok_id) {
 	    case Fail:
 	       if (op_type == OrdFunc)
@@ -1249,6 +1288,7 @@ const int indent, brace, may_force_nl;
 	       return 1;
 	    }
       case PrefxNd: /* a prefix expression */
+	 chk_spc();
 	 switch (t->tok_id) {
 	    case Sizeof:
 	       prt_tok(t, indent);                /* sizeof */
@@ -1316,16 +1356,24 @@ const int indent, brace, may_force_nl;
 	       PRT_CSTR(")", indent);
 	       return 1;
 	    case Default:
+	       /*
+		* default : <statement>
+		*/
 	       ForceNl();
 	       PRT_TOK(t, indent);
-	       if (is_t(n->u[0].child, CompNd, '{')) {
-		  PRT_CSTR(": ", indent);
-		  fall_thru = c_walk(n->u[0].child, indent + IndentInc * 2, 0 /* brace */);
+	       n1 = n->u[0].child;
+	       if (is_t(n1, BinryNd, Case)) {
+		  PRT_CSTR(":", indent);
+		  fall_thru = c_walk(n1, indent, 0 /* brace */);
 		  }
 	       else {
-		  PRT_CSTR(":", indent);
-		  ForceNl();
-		  fall_thru = c_walk(n->u[0].child, indent + IndentInc, 0 /* brace */);
+		  if (is_t(n1, CompNd, '{'))
+		     PRT_CSTR(": ", indent);
+		  else {
+		     PRT_CSTR(":", indent);
+		     ForceNl();
+		     }
+		  fall_thru = c_walk(n1, indent + IndentInc, 0 /* brace */);
 		  }
 	       may_brnchto = 1;
 	       return fall_thru;
@@ -1337,7 +1385,7 @@ const int indent, brace, may_force_nl;
 	       ForceNl();
 	       return 0;
 	    case Return:
-	       if (n->u[0].child != NULL)
+	       if (n->u[0].child)
 		  no_ret_val = 0;  /* note that return statement has no value */
 
 	       if (op_type == OrdFunc || fnc_ret == RetInt ||
@@ -1348,7 +1396,7 @@ const int indent, brace, may_force_nl;
 		   *  two may legally occur when fnc_ret is RetInt or RetDbl).
 		   */
 		  n1 = n->u[0].child;
-		  if (n1 != NULL && n1->nd_id == PrefxNd && n1->tok != NULL) {
+		  if (n1 && n1->nd_id == PrefxNd && n1->tok) {
 		     switch (n1->tok->tok_id) {
 			case C_Integer:
 			case C_Double:
@@ -1361,9 +1409,11 @@ const int indent, brace, may_force_nl;
 		      * There are tended variables that must be removed from
 		      *  the tended list.
 		      */
+		     ind = indent;
 		     if (!brace) {
 			chk_spc();
-			PRT_CSTR("{", indent);
+			PRT_CSTR("{", ind);
+			ind += IndentInc;
 			}
 		     if (does_call(n1)) {
 			/*
@@ -1376,27 +1426,27 @@ const int indent, brace, may_force_nl;
 			 */
 			ForceNl();
 			if (op_type == OrdFunc) {
-			   just_type(fnc_head->u[0].child, indent, 0);
-			   PRT_CSTR(" ", indent);
-			   retval_dcltor(fnc_head->u[1].child, indent);
-			   PRT_CSTR(";", indent);
+			   just_type(fnc_head->u[0].child, ind, 0);
+			   PRT_CSTR(" ", ind);
+			   retval_dcltor(fnc_head->u[1].child, ind);
+			   PRT_CSTR(";", ind);
 			   }
 			else if (fnc_ret == RetInt)
-			   PRT_CSTR("C_integer r_retval;", indent);
+			   PRT_CSTR("C_integer r_retval;", ind);
 			else    /* fnc_ret == RetDbl */
-			   PRT_CSTR("double r_retval;", indent);
+			   PRT_CSTR("double r_retval;", ind);
 			ForceNl();
 
 			/*
 			 * Output code to compute the return value, untend
 			 *  the variable, then return the value.
 			 */
-			PRT_CSTR("r_retval = ", indent);
-			c_walk(n1, indent + IndentInc, 0);
-			PRT_CSTR(";", indent);
-			untend(indent);
+			PRT_CSTR("r_retval = ", ind);
+			c_walk(n1, ind + IndentInc, 0);
+			PRT_CSTR(";", ind);
+			untend(ind);
 			ForceNl();
-			PRT_CSTR("return r_retval;", indent);
+			PRT_CSTR("return r_retval;", ind);
 			}
 		     else {
 			/*
@@ -1404,16 +1454,16 @@ const int indent, brace, may_force_nl;
 			 *  the result value directly with a return
 			 *  statement.
 			 */
-			untend(indent);
+			untend(ind);
 			ForceNl();
-			prt_tok(t, indent);    /* return */
-			PRT_CSTR(" ", indent);
-			c_walk(n1, indent, 0);
-			PRT_CSTR(";", indent);
+			prt_tok(t, ind);    /* return */
+			ForceSpc();
+			c_walk(n1, ind, 0);
+			PRT_CSTR(";", ind);
 			}
 		     if (!brace) {
 			ForceNl();
-			PRT_CSTR("}", indent);
+			PRT_CSTR("}", ind);
 			}
 		     ForceNl();
 		     }
@@ -1423,10 +1473,8 @@ const int indent, brace, may_force_nl;
 		      *  return expression.
 		      */
 		     prt_tok(t, indent);     /* return */
-		     if (n1 != NULL) {
-			PRT_CSTR(" ", indent);
-			c_walk(n1, indent, 0);
-			}
+		     ForceSpc();
+		     c_walk(n1, indent, 0);
 		     PRT_CSTR(";", indent);
 		     }
 		  ForceNl();
@@ -1447,13 +1495,18 @@ const int indent, brace, may_force_nl;
 		   *  if the function requires one.
 		   */
 		  cur_impl->ret_flag |= DoesRet;
-		  ForceNl();
 		  ind = indent;
 		  if (!brace) {
+		     chk_spc();
 		     PRT_CSTR("{", indent);
 		     ind += IndentInc;
 		     ForceNl();
 		     }
+		  /* TODO: ret_value() has the rules needed to know if a
+		   * brace will be needed or not, together with 'ntend'
+		   * (due to 'untend') and 'brace', use this to selectively
+		   * output braces or not
+		   */
 		  ret_value(t, n->u[0].child, ind);
 		  if (ntend)
 		     untend(ind);
@@ -1475,12 +1528,15 @@ const int indent, brace, may_force_nl;
 		     );
 	       cur_impl->ret_flag |= DoesSusp; /* note suspension */
 	       ForceNl();
-	       if (!brace) /* already brace? */
-		  PRT_CSTR("{", indent);
+	       ind = indent;
+	       if (!brace) { /* already brace? */
+		  PRT_CSTR("{", ind);
+		  ind += IndentInc;
+		  }
 	       ForceNl();
-	       PRT_CSTR("int signal;", indent + IndentInc);
+	       PRT_CSTR("int signal;", ind);
 	       ForceNl();
-	       ret_value(t, n->u[0].child, indent + IndentInc);
+	       ret_value(t, n->u[0].child, ind);
 	       ForceNl();
 	       /*
 		* The operator suspends by calling the success continuation
@@ -1492,32 +1548,32 @@ const int indent, brace, may_force_nl;
 		*  is returned.
 		*/
 	       if (iconx_flg) {
-		  prt_str(
+		  PRT_STR(
 		     "if ((signal = interp(G_Csusp, r_args)) != A_Resume) {",
-			indent + IndentInc);
+			ind);
 		  }
 	       else {
-		  PRT_CSTR("if (r_s_cont == (continuation)NULL) {", indent);
+		  PRT_CSTR("if (r_s_cont == (continuation)NULL) {", ind);
 		  if (ntend)
-		     untend(indent + IndentInc);
+		     untend(ind + IndentInc);
 		  ForceNl();
-		  PRT_CSTR("return A_Continue;", indent + IndentInc);
+		  PRT_CSTR("return A_Continue;", ind + IndentInc);
 		  ForceNl();
-		  PRT_CSTR("}", indent + IndentInc);
+		  PRT_CSTR("}", ind);
 		  ForceNl();
 		  PRT_CSTR("else if ((signal = (*r_s_cont)()) != A_Resume) {",
-		     indent);
+		     ind);
 		  }
 	       ForceNl();
 	       if (ntend)
-		  untend(indent + IndentInc);
+		  untend(ind + IndentInc);
 	       ForceNl();
-	       PRT_CSTR("return signal;", indent + IndentInc * 2);
+	       PRT_CSTR("return signal;", ind + IndentInc);
 	       ForceNl();
-	       PRT_CSTR("}", indent + IndentInc * 2);
+	       PRT_CSTR("}", ind + IndentInc);
 	       ForceNl();
 	       if (!brace) {
-		  PRT_CSTR("}", indent);
+		  PRT_CSTR("}", ind);
 		  ForceNl();
 		  }
 	       return 1;
@@ -1562,9 +1618,11 @@ const int indent, brace, may_force_nl;
 	 /*
 	  * Identifier.
 	  */
+	 chk_spc();
 	 prt_var(n, indent, 0 /* is_lvalue */);
 	 return 1;
       case BinryNd: /* a binary expression (not necessarily infix) */
+	 chk_spc();
 	 switch (t->tok_id) {
 	    case '[':
 	       /*
@@ -1725,20 +1783,19 @@ const int indent, brace, may_force_nl;
 	       prt_tok(t, indent);
 	       PRT_CSTR(" ", indent);
 	       c_walk(n->u[0].child, indent, 0);
-	       if (is_t(n->u[1].child, CompNd, '{')) {
-		  PRT_CSTR(": ", indent);
-		  fall_thru = c_walk(n->u[1].child, indent + IndentInc * 2, 0 /* brace */);
-		  }
-	       else if (
-		     is_t(n->u[1].child, BinryNd, Case) ||
-		     is_t(n->u[1].child, PrefxNd, Default)) {
+	       n1 = n->u[1].child;
+	       if (is_t(n1, BinryNd, Case) || is_t(n1, PrefxNd, Default)) {
 		  PRT_CSTR(":", indent);
-		  fall_thru = c_walk(n->u[1].child, indent, 0 /* brace */);
+		  fall_thru = c_walk(n1, indent, 0 /* brace */);
 		  }
 	       else {
-		  PRT_CSTR(":", indent);
-		  ForceNl();
-		  fall_thru = c_walk(n->u[1].child, indent + IndentInc, 0 /* brace */);
+		  if (is_t(n1, CompNd, '{'))
+		     PRT_CSTR(": ", indent);
+		  else {
+		     PRT_CSTR(":", indent);
+		     ForceNl();
+		     }
+		  fall_thru = c_walk(n1, indent + IndentInc, 0 /* brace */);
 		  }
 	       may_brnchto = 1;
 	       return fall_thru;
@@ -1753,7 +1810,7 @@ const int indent, brace, may_force_nl;
 	       PRT_CSTR(")", indent);
 	       ForceSpc();
 	       save_break = does_break;
-	       fall_thru = c_walk(n->u[1].child, indent + IndentInc, 0);
+	       fall_thru = c_walk(n->u[1].child, indent, 0);
 	       fall_thru |= does_break;
 	       does_break = save_break;
 	       return fall_thru;
@@ -1762,13 +1819,14 @@ const int indent, brace, may_force_nl;
 	       /*
 		* while ( <expr> ) <statement>
 		*/
+	       ind = indent;
 	       n0 = n->u[0].child;
-	       prt_tok(t, indent);  /* while */
-	       PRT_CSTR(" (", indent);
-	       c_walk(n0, indent, 0);
-	       prt_closing_parenthesis(n->u[1].child, indent);
+	       prt_tok(t, ind);  /* while */
+	       PRT_CSTR(" (", ind);
+	       c_walk(n0, ind, 0);
+	       ind += prt_closing_parenthesis(n->u[1].child, ind);
 	       save_break = does_break;
-	       c_walk(n->u[1].child, indent + IndentInc, 0);
+	       c_walk(n->u[1].child, ind, 0);
 	       /*
 		* check for an infinite loop, while (1) ... :
 		*  a condition consisting of an IntConst with image=="1"
@@ -1786,18 +1844,23 @@ const int indent, brace, may_force_nl;
 	       /*
 		* do <statement> <while> ( <expr> )
 		*/
-	       prt_tok(t, indent);  /* do */
+	       ind = indent;
+	       prt_tok(t, ind);  /* do */
 	       ForceSpc();
 	       n1 = n->u[0].child;
-	       c_walk_nl(n1, indent + IndentInc, 0, 0);
-	       if (is_t(n1, CompNd, '{'))
+	       ind += handle_next_indentation(n1, ind);
+	       ForceSpc();
+	       c_walk_nl(n1, ind, 0, 0);
+	       if (ind == indent) { /* next element has '{' */
+		  g_nl = 0;
 		  ForceSpc();
+		  }
 	       chk_spc();
-	       PRT_CSTR("while (", indent + IndentInc);
+	       PRT_CSTR("while (", ind);
 	       save_break = does_break;
-	       c_walk(n->u[1].child, indent, 0);
+	       c_walk(n->u[1].child, ind, 0);
 	       does_break = save_break;
-	       PRT_CSTR(");", indent);
+	       PRT_CSTR(");", ind);
 	       ForceNl();
 	       return 1;
 	    case '.':
@@ -1852,20 +1915,28 @@ const int indent, brace, may_force_nl;
 	  *
 	  * Various lists of code parts that do not need space between them.
 	  */
+	 PRT_CONCATND(indent);
 	 ind = indent;
+#if 0
 	 if (is_t(n->u[0].child, CompNd, '{'))
 	    ind += IndentInc;
-	 if (c_walk(n->u[0].child, ind, 0 /* brace */))
-	    return c_walk(n->u[1].child, ind, 0 /* brace */);
-	 else {
-	    /*
-	     * Cannot directly reach the second piece of code, see if
-	     *  it is possible to branch into it.
-	     */
-	    may_brnchto = 0;
-	    fall_thru = c_walk(n->u[1].child, ind, 0);
-	    return may_brnchto & fall_thru;
+#endif
+	 if (c_walk(n->u[0].child, ind, 0 /* brace */)) {
+	    PRT_CONCATND(indent);
+	    /*fprintf(g_out_file, "/""*%d,%s*""/\n", __LINE__, node_name(n->u[1].child));*/
+	    fall_thru = c_walk(n->u[1].child, ind, 0 /* brace */);
+	    PRT_CONCATND(indent);
+	    return fall_thru;
 	    }
+	 /*
+	  * Cannot directly reach the second piece of code, see if
+	  *  it is possible to branch into it.
+	  */
+	 may_brnchto = 0;
+	 PRT_CONCATND(indent);
+	 fall_thru = c_walk(n->u[1].child, ind, 0);
+	 PRT_CONCATND(indent);
+	 return may_brnchto & fall_thru;
       case StrDclNd: /* structure field declaration */
 	 /*
 	  * Structure field declaration. Bit field declarations have
@@ -1883,15 +1954,9 @@ const int indent, brace, may_force_nl;
 	  */
 	 ind = indent;
 	 if (!brace) {
-	    if (g_nl && indent) { /* probably anonymous */
-	       ind += IndentInc;
-	       chk_spc();
-	       PRT_TOK(t, indent);  /* { */
-	       }
-	    else {
-	       chk_spc();
-	       PRT_TOK(t, indent);  /* { */
-	       }
+	    chk_spc();
+	    PRT_TOK(t, indent);  /* { */
+	    ind += IndentInc;
 	    }
 	 ForceNl();
 	 c_walk(n->u[0].child, ind, 1 /* brace */);
@@ -1908,7 +1973,7 @@ const int indent, brace, may_force_nl;
 		     PRT_CSTR(" = ", IndentInc);
 		     break;
 		  case TndStr:
-		     PRT_CSTR(".vword.sptr = ", IndentInc);
+		     PRT_CSTR(".vword.sptr = (char*)", IndentInc);
 		     break;
 		  case TndBlk:
 		     PRT_CSTR(".vword.ptr = ",
@@ -1920,6 +1985,7 @@ const int indent, brace, may_force_nl;
 	       ForceNl();
 	       }
 	    }
+#if 1
 	 /*
 	  * If there are no declarations, suppress braces that
 	  *  may be required for a one-statement body; we already
@@ -1934,6 +2000,14 @@ const int indent, brace, may_force_nl;
 	    else
 	       fall_thru = c_walk(n->u[2].child, ind, brace1);
 	    }
+#else
+	 if (found_switch) {
+	    found_switch = 0;
+	    fall_thru = c_walk_cat(n->u[2].child, ind, 1);
+	    }
+	 else
+	    fall_thru = c_walk(n->u[2].child, ind, 1);
+#endif
 
 	 if (!brace) {
 	    ForceNl();
@@ -1961,36 +2035,24 @@ const int indent, brace, may_force_nl;
 		* if ( <expr> ) <statement>
 		* if ( <expr> ) <statement> else <statement>
 		*/
-	       chk_nl(indent);
-	       PRT_TOK(t, indent);  /* if */
-	       PRT_CSTR(" (", indent);
-	       c_walk(n->u[0].child, indent + IndentInc, 0);
-	       prt_closing_parenthesis(n1 = n->u[1].child, indent + IndentInc);
-	       fall_thru = c_walk(n1, indent + IndentInc, 0 /* brace */);
+	       ind = indent;
+	       chk_nl(ind);
+	       chk_spc();
+	       PRT_TOK(t, ind);  /* if */
+	       PRT_CSTR(" (", ind);
+	       c_walk(n->u[0].child, ind, 0);
+	       ind += prt_closing_parenthesis(n1 = n->u[1].child, ind);
+	       fall_thru = c_walk(n1, ind, 0 /* brace */);
 	       if (is_t(n1, PstfxNd, ';'))
 		  ForceNl();
-	       n1 = n->u[2].child;
-	       if (n1 == NULL)
-		  fall_thru = 1;
-	       else {
-		  /*
-		   * There is an else statement. Don't indent an
-		   *  "else if"
-		   */
-		  ForceNl();
-		  if (is_t(n1, CompNd, '{') || is_t(n1, TrnryNd, If))
-		     PRT_CSTR("else ", indent);
-		  else {
-		     PRT_CSTR("else", indent);
-		     ForceNl();
-		  }
+	       if ((n1 = n->u[2].child)) { /* there is an 'else' */
 		  ind = indent;
-		  if (is_t(n1, TrnryNd, If) == NULL)
-		     ind += IndentInc;
+		  ForceNl();
+		  ind += prt_else(n1, ind);
 		  fall_thru |= c_walk(n1, ind, 0 /* brace */);
-		  if (is_t(n1, PstfxNd, ';'))
-		     ForceNl();
 		  }
+	       else
+		  fall_thru = 1;
 	       return fall_thru;
 	    case Type_case:
 	       /*
@@ -2014,17 +2076,20 @@ const int indent, brace, may_force_nl;
 	       /*
 		* for ( <expr> ; <expr> ; <expr> ) <statement>
 		*/
-	       PRT_TOK(t, indent);  /* for */
-	       PRT_CSTR(" (", indent);
-	       c_walk(n->u[0].child, indent, 0);
-	       PRT_CSTR("; ", indent);
-	       c_walk(n->u[1].child, indent, 0);
-	       PRT_CSTR("; ", indent);
-	       c_walk(n->u[2].child, indent, 0);
+	       ind = indent;
+	       PRT_TOK(t, ind);  /* for */
+	       PRT_CSTR(" (", ind);
+	       c_walk(n->u[0].child, ind, 0);
+	       PRT_CSTR(";", ind);
+	       ForceSpc();
+	       c_walk(n->u[1].child, ind, 0);
+	       PRT_CSTR(";", ind);
+	       ForceSpc();
+	       c_walk(n->u[2].child, ind, 0);
 	       save_break = does_break;
 	       n1 = n->u[3].child;
-	       prt_closing_parenthesis(n1, indent);
-	       c_walk(n1, indent + IndentInc, 0 /* brace */);
+	       ind += prt_closing_parenthesis(n1, ind);
+	       c_walk(n1, ind, 0 /* brace */);
 	       if (is_t(n1, PstfxNd, ';'))
 		  ForceNl();
 	       if (n->u[1].child == NULL && !does_break)
@@ -3193,7 +3258,7 @@ static void tend_init()
 	       fprintf(g_out_file, ".d[%d].dword = 0;", tnd->t_indx);
 	       ForceNl();
 	       prt_str(tendstrct, IndentInc);
-	       fprintf(g_out_file, ".d[%d].vword.sptr = ", tnd->t_indx);
+	       fprintf(g_out_file, ".d[%d].vword.sptr = (char*)", tnd->t_indx);
 	       c_walk(tnd->init, 2 * IndentInc, 0);
 	       PRT_CSTR(";", 2 * IndentInc);
 	       }
@@ -3272,7 +3337,7 @@ struct sym_entry *op_params;
       op_params->t_indx = ntend++;
    if (op_params->u.param_info.non_tend & PrmInt) {
       chk_nl(IndentInc);
-      fprintf(g_out_file, "C_integer r_i%d;", op_params->u.param_info.param_num);
+      fprintf(g_out_file, "uword r_i%d;", op_params->u.param_info.param_num);
       ForceNl();
       }
    if (op_params->u.param_info.non_tend & PrmDbl) {
@@ -3282,168 +3347,89 @@ struct sym_entry *op_params;
       }
    }
 
-/*
- * real_def - see if a declaration really defines storage.
- */
-static int real_def(n)
-struct node *n;
-   {
-   struct node *dcl_lst;
-
-   dcl_lst = n->u[1].child;
-   /*
-    * If no variables are being defined this must be a tag declaration.
-    */
-   if (dcl_lst == NULL)
-      return 0;
-
-   if (only_proto(dcl_lst))
-      return 0;
-
-   if (tdef_or_extr(n->u[0].child))
-      return 0;
-
-   return 1;
-   }
-
-/*
- * only_proto - see if this declarator list contains only function prototypes.
- */
-static int only_proto(n)
-struct node *n;
-   {
-   switch (n->nd_id) {
-      case CommaNd:
-	 return only_proto(n->u[0].child) & only_proto(n->u[1].child);
-      case ConCatNd:
-	 /*
-	  * Optional pointer.
-	  */
-	 return only_proto(n->u[1].child);
-      case BinryNd:
-	 switch (n->tok->tok_id) {
-	    case '=':
-#if 0
-	       /* N.B.: how having an assignment categorizes for "only proto"? */
-	       /* TODO: confirm if this is a bug */
-	       return only_proto(n->u[0].child);
-#else
-	       return 0;
-#endif
-	    case '[':
-	       /*
-		* At this point, assume array declarator is not part of
-		*  prototype.
-		*/
-	       return 0;
-	    case ')':
-	       /*
-		* Prototype (or forward declaration).
-		*/
-	       return 1;
-	    }
-      case PrefxNd:
-	 /*
-	  * Parenthesized.
-	  */
-	 return only_proto(n->u[0].child);
-      case PrimryNd:
-	 /*
-	  * At this point, assume it is not a prototype.
-	  */
-	 return 0;
-      }
-   err1("rtt internal error detected in function only_proto()");
-   /*NOTREACHED*/
-   return 0;  /* avoid gcc warning */
-   }
-
-/*
- * tdef_or_extr - see if this is a typedef or extern.
- */
-static int tdef_or_extr(n)
-struct node *n;
-   {
-   switch (n->nd_id) {
-      case LstNd:
-	 return tdef_or_extr(n->u[0].child) | tdef_or_extr(n->u[1].child);
-      case BinryNd:
-	 /*
-	  * struct, union, or enum.
-	  */
-	 return 0;
-      case PrimryNd:
-	 if (n->tok->tok_id == Extern || n->tok->tok_id == Typedef)
-	    return 1;
-	 else
-	    return 0;
-      }
-   err1("rtt internal error detected in function tdef_or_extr()");
-   /*NOTREACHED*/
-   return 0;  /* avoid gcc warning */
-   }
-
-#define MAX_DCLOUT_DATA_ITEMS 3
-struct dclout_data {
-   struct {
-      struct node *node;
-      int is_concrete;
-      char *chunk_name;
-   } items[MAX_DCLOUT_DATA_ITEMS];
-   int tally;
-};
-
-/*
- * dclout - output an ordinary global C declaration.
- */
-static void dclout0(struct dclout_data *data, struct node *n);
-static void dclout0(data, n)
-struct dclout_data *data;
-struct node *n;
-   {
-   int idx, is_concrete;
-   char *chunk_name;
-   struct node *auxnd1 = NULL, *auxnd2 = NULL;
-
-   /* this declaration defines a run-time object */
-   is_concrete = real_def(n);
-   if ((chunk_name = top_level_chunk_name(n, is_concrete, &auxnd1, &auxnd2))) {
-      if (data->tally >= MAX_DCLOUT_DATA_ITEMS) {
-	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
-	 exit(1);
-	 }
-      idx = data->tally;
-      data->items[idx].node = n;
-      data->items[idx].is_concrete = is_concrete;
-      data->items[idx].chunk_name = chunk_name;
-      data->tally++;
-      if (auxnd1)
-	 dclout0(data, auxnd1);
-      if (auxnd2)
-	 dclout0(data, auxnd2);
-      }
-   }
-
 void dclout(n)
 struct node *n;
    {
    int idx;
+   const char *aggregator;
    struct dclout_data data = {0};
-   dclout0(&data, n);
+   struct node *auxnd = NULL, *n1;
+
+   if ((n = normalize_decl_defn_global(n, &auxnd)) == NULL) {
+      /* non-concrete type, discard */
+      return;
+      }
+
+   if ((n1 = nav_t(n, BinryNd, ';', 1))) {
+      struct node *n0 = n->u[0].child;
+
+      if (nav_n_is_t(n1, ConCatNd, 1, BinryNd, ')')) {
+	 /*int tcdrain(int);*/
+	 /* a function prototype, ignore */
+	 free_tree(n);
+	 return;
+	 }
+      if (nav_n_is_t(n0, LstNd, 0, PrimryNd, Extern)) {
+	 /*extern char *optarg;*/
+	 /* an extern, ignore */
+	 free_tree(n);
+	 return;
+	 }
+      }
+
+   top_level_chunk_name(&data, n);
+   if (data.tally == 0) {
+      free_tree(n);
+      return;
+      }
+
+   assert(data.tally == 1);
+
    for (idx = 0; data.tally; data.tally--, idx++) {
-      prt_str(data.items[idx].chunk_name, 0);
-      ForceNl();
-      g_def_fnd += data.items[idx].is_concrete;
+      int typagg = data.items[idx].typagg;
+      const char *chunk_name = data.items[idx].chunk_name;
+
+      switch (typagg) {
+      case Identifier:
+	 aggregator = "globals";
+	 break;
+      case Typedef:
+	 aggregator = "typedefs";
+	 break;
+      case Struct:
+      case Union:
+	 aggregator = "structs and unions";
+	 break;
+      case Enum:
+	 aggregator = "enums";
+	 break;
+      case ';':		/* forward declarations */
+	 aggregator = "forward decls";
+	 break;
+      default:
+	 fprintf(stderr, "/""*%d,%s*""/\n", __LINE__, node_name(n));
+	 fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	    __FILE__, __LINE__, g_fname_for___FILE__,
+	    g_line_for___LINE__);
+	 exit(1);
+	 break;
+      }
+
+      chk_nl(0);
+      if (chunk_name)
+	 fprintf(g_out_file, "<<%s>>=\n<<%s>>\n<<%s>>=\n",
+	    aggregator, chunk_name, chunk_name);
+      else	/* aggregator only */
+	 fprintf(g_out_file, "<<%s>>=\n", aggregator);
+
       c_walk(data.items[idx].node, 0, 0);
-      g_def_fnd -= data.items[idx].is_concrete;
       ForceNl();
       free_tree(data.items[idx].node);
       }
-   if (idx == 0)
-      free_tree(n);
-   else {
-      PRT_CSTR("@", 0);
-      ForceNl();
+   ForceNl();
+   if (auxnd) {
+      dclout(auxnd);
+      auxnd = NULL;
       }
    }
 
@@ -3717,9 +3703,6 @@ struct node *head, *prm_dcl, *block;
    {
    struct node *head_ansi, *nd1, *fnc_name;
 
-   assert(g_def_fnd >= 0);
-   ++g_def_fnd;       /* this declaration defines a run-time object */
-
    g_nxt_sbuf = 0;    /* clear number of string buffers */
    g_nxt_cbuf = 0;    /* clear number of cset buffers */
 
@@ -3745,16 +3728,22 @@ struct node *head, *prm_dcl, *block;
       }
 
    if (no_proto_for(fnc_name->tok->image) == NULL) {
+      const char *p;
+      chk_nl(0);
       if (is_static_function(head_ansi))
-	 PRT_CSTR("<<protos - static>>=\n",  0);
+	 p = "<<protos - static>>=\n";
       else
-	 PRT_CSTR("<<protos>>=\n",  0);
+	 p = "<<protos>>=\n";
+      fprintf(g_out_file, "%s<<proto %s>>\n<<proto %s>>=\n",
+	 p, fnc_name->tok->image, fnc_name->tok->image);
       c_walk(head_ansi, 0, 0);
       PRT_CSTR(";", 0);
       ForceNl();
       }
 
-   PRT_CSTR("<<impl>>=\n",  0);
+   chk_nl(0);
+   fprintf(g_out_file, "<<impl>>=\n<<impl %s>>\n<<impl %s>>=\n",
+      fnc_name->tok->image, fnc_name->tok->image);
    c_walk(head_ansi, 0, 0);
    ForceNl();
 
@@ -3791,8 +3780,6 @@ struct node *head, *prm_dcl, *block;
    free_tree(block);
    pop_cntxt();
    clr_def();
-
-   --g_def_fnd;
    }
 
 /*
@@ -4102,7 +4089,7 @@ struct node *n;
    else {
       /* Output keyword prototype. */
       PRT_CSTR("<<protos>>=\n", 0 /* indent */);
-      fprintf(g_out_file, "%s int %c%s(dptr r_args);\n", rtt_type, letter, name);
+      fprintf(g_out_file, "%s int %c%s(uword r_nargs, dptr r_args);\n", rtt_type, letter, name);
       }
 
    /*
@@ -4237,16 +4224,16 @@ struct token *t;
       rslt_loc = "r_args[0]";  /* result location */
 
       PRT_CSTR("<<protos>>=\n", 0);
-      fprintf(g_out_file, "RTT_KEYCONST int K%s(dptr r_args);\n", cur_impl->name);
+      fprintf(g_out_file, "RTT_KEYCONST int K%s(uword r_nargs, dptr r_args);\n", cur_impl->name);
       fprintf(g_out_file, "<<impl>>=\n");
-      fprintf(g_out_file, "RTT_KEYCONST int K%s(dptr r_args)", cur_impl->name);
+      fprintf(g_out_file, "RTT_KEYCONST int K%s(uword r_nargs, dptr r_args)", cur_impl->name);
       ForceNl();
       PRT_CSTR("{", IndentInc);
       ForceNl();
       switch (t->tok_id) {
 	 case StrLit:
 	    prt_str(rslt_loc, IndentInc);
-	    PRT_CSTR(".vword.sptr = \"", IndentInc);
+	    PRT_CSTR(".vword.sptr = (char*)\"", IndentInc);
 	    n = prt_i_str(g_out_file, t->image, (int)strlen(t->image));
 	    PRT_CSTR("\";", IndentInc);
 	    ForceNl();
@@ -4405,7 +4392,8 @@ struct node *n;
 	    int tok_id = n->tok->tok_id;
 	    if (tok_id == Identifier || tok_id == TypeDefName ||
 	       tok_id == IconType || tok_id == C_Integer ||
-	       tok_id == C_Double || tok_id == C_String
+	       tok_id == C_Double || tok_id == C_String ||
+	       tok_id == Inline
 	       )
 	       return n;
 	    }
@@ -4458,113 +4446,343 @@ char *s;
    return str_install(sbuf);
    }
 
-static char *gensym(char *prefix);
+static char *gensym(const char *prefix);
 static char *gensym(prefix)
-char *prefix;
+const char *prefix;
    {
    char buf[100];
    snprintf(buf, sizeof(buf), "%s%d", prefix, sym_counter++);
    return str_install_local_sbuf(buf);
    }
 
-static char *
-top_level_chunk_name(n, is_concrete, auxnd1, auxnd2)
-int is_concrete;
-struct node *n, **auxnd1, **auxnd2;
+void
+tag_name_and_prefix(id, name, prefix)
+int id;			/* token id */
+const char **name, **prefix;
+   {
+   switch (id) {
+      case Enum:
+	 *name = "enum";
+	 *prefix = "_tag_enum_";
+	 break;
+      case Union:
+	 *name = "union";
+	 *prefix = "_tag_union_";
+	 break;
+      case Struct:
+	 *name = "struct";
+	 *prefix = "_tag_struct_";
+	 break;
+      default:
+	 fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	    __FILE__, __LINE__, g_fname_for___FILE__,
+	    g_line_for___LINE__);
+	 exit(1);
+      }
+   }
+
+struct node *new_binary_node_semicolon(struct node *left, struct node *right, const char *file, int line);
+struct node *
+new_binary_node_semicolon(left, right, file, line)
+struct node *left, *right;
+int line;
+const char *file;
+   {
+   struct token *sc;
+
+   sc = new_token(';', ";", (char*)file, line);
+   return node2(BinryNd, sc, left, right);
+   }
+
+/*
+; left-leaning binary tree, first '(cdr x)' is the last item
+
+(define (unspine x)
+  (let loop ((x x) (acc '()))
+    (if (pair? x)
+        (loop (car x) (cons (cdr x) acc))
+        (cons x acc))))
+ */
+struct node *unspine_loop(struct node *typ, struct node *n, struct node *acc);
+struct node *unspine_loop(typ, n, acc)
+struct node *typ, *n, *acc;
+   {
+   if (is_t(n, CommaNd, ',')) {
+      struct node *res, *cdr_x;
+
+      /* (cdr x) */
+      cdr_x = new_binary_node_semicolon(copy_tree(typ), n->u[1].child, __FILE__, __LINE__);
+      n->u[1].child = NULL;	/* detach (cdr x) */
+
+      /* (loop (car x) (cons (cdr x) acc)) */
+      res = unspine_loop(typ, n->u[0].child, node2(TopLvlNd, NULL, cdr_x, acc));
+      n->u[0].child = NULL;	/* detach (car x) */
+      free_tree(n);		/* free "cons cell" */
+      return res;
+      }
+   return node2(TopLvlNd, NULL, new_binary_node_semicolon(copy_tree(typ), n, __FILE__, __LINE__), acc);
+   }
+
+#define TOPLVL_NIL node2(TopLvlNd, NULL, NULL, NULL)
+struct node *unspine(struct node *typ, struct node *n);
+struct node *unspine(typ, n)
+struct node *typ, *n;
+   {
+   return unspine_loop(typ, n, TOPLVL_NIL);
+   }
+
+/* may return a root node
+ */
+struct node *
+normalize_decl_defn_global(n, auxndp)
+struct node *n, **auxndp;
+{
+   struct node *n0;
+   if ((n0 = nav_t_is_ttt(n, BinryNd, ';', 0, BinryNd, Struct, Union, Enum))) {
+      /* a struct/union/enum */
+      const char *name, *prefix;
+      struct node *tag = n0->u[0].child;	/* struct tag */
+      struct node *def = n0->u[1].child;	/* struct/union type definition */
+      struct node *var = n->u[1].child;		/* variable definition */
+
+      tag_name_and_prefix(n0->tok->tok_id, &name, &prefix);
+
+      if (tag == NULL && def) {
+	 /* unnamed struct/union, has definition but not a tag, generate a tag */
+	 char *tag_id;
+	 struct token *tag_tok;
+
+	 tag_id = gensym(prefix);
+	 tag_tok = new_token(Identifier, tag_id, __FILE__, __LINE__);
+	 n0->u[0].child = node0(PrimryNd, tag_tok);
+	 node_update_trace(n0);
+	 }
+
+      if (def && var) {
+	 /* struct type definition and global variable(s) definition simultaneously, split */
+	 struct token *type_tok, *semi_tok;
+	 struct node *tag_nd;
+
+	 type_tok = new_token(n0->tok->tok_id, (char*)name, __FILE__, __LINE__);
+	 semi_tok = new_token(';', ";", __FILE__, __LINE__);
+	 tag_nd = node0(PrimryNd, copy_t_ex(n0->u[0].child->tok, __FILE__, __LINE__));
+	 *auxndp = node2(BinryNd, semi_tok,
+	    node2(BinryNd, type_tok, tag_nd, NULL), var);
+	 n->u[1].child = NULL;	/* detach 'var' from 'n' */
+	 node_update_trace(n);
+	 }
+      }
+   else if ((n0 = nav_t_n_is_ttt(n, BinryNd, ';', 0, LstNd, 1, BinryNd, Struct, Union, Enum))) {
+      struct node *lst_nd = n->u[0].child;
+      if (is_t(lst_nd->u[0].child, PrimryNd, Typedef)) {
+	 /* a typedef struct/union/enum */
+	 const char *name, *prefix;
+	 struct node *tag = n0->u[0].child;	/* struct tag */
+	 struct node *def = n0->u[1].child;	/* struct/union type definition */
+	 struct node *var = n->u[1].child;		/* variable definition */
+
+	 tag_name_and_prefix(n0->tok->tok_id, &name, &prefix);
+
+	 if (tag == NULL && def) {
+	    /* unnamed struct/union, has definition but not a tag, generate a tag */
+	    char *tag_id;
+	    struct token *tag_tok;
+
+	    tag_id = gensym(prefix);
+	    tag_tok = new_token(Identifier, tag_id, __FILE__, __LINE__);
+	    n0->u[0].child = node0(PrimryNd, tag_tok);
+	    node_update_trace(n0);
+	    }
+
+	 if (def && var) {
+	    /* struct type definition and global variable(s) definition simultaneously, split */
+	    struct token *type_tok, *semi_tok;
+	    struct node *tag_nd;
+
+	    lst_nd->u[1].child = NULL;	/* detach n0 */
+	    n->u[0].child = n0;		/* erase 'typedef' */
+	    type_tok = new_token(n0->tok->tok_id, (char*)name, __FILE__, __LINE__);
+	    semi_tok = new_token(';', ";", __FILE__, __LINE__);
+	    tag_nd = node0(PrimryNd, copy_t_ex(n0->u[0].child->tok, __FILE__, __LINE__));
+	    lst_nd->u[1].child = node2(BinryNd, type_tok, tag_nd, NULL);
+	    *auxndp = node2(BinryNd, semi_tok, lst_nd, var);
+	    n->u[1].child = NULL;	/* detach 'var' from 'n' */
+	    node_update_trace(n);
+	    }
+	 }
+      }
+   else if ((n0 = nav_t_is_t(n, BinryNd, ';', 1, CommaNd, ','))) {
+      n0 = unspine(n->u[0].child /* typ */, n0);
+      free_tree(n->u[0].child);		/* free type */
+      n->u[0].child = NULL;		/* detach, just freed above */
+      n->u[1].child = NULL;		/* detach, freed by unspine via 'n0' */
+      free_tree(n);			/* free "cons cell" */
+      n = n0->u[0].child;		/* n = (car n) */
+      *auxndp = n0->u[1].child;		/* tail = (cdr n) */
+      n0->u[0].child = n0->u[1].child = NULL;		/* detach */
+      free_tree(n0);			/* free "cons cell" */
+      }
+   else if (is_n(n, TopLvlNd)) {
+      if (n->u[0].child == NULL) {	/* '() */
+	 assert(n->u[1].child == NULL);
+	 free_tree(n);
+	 return NULL;
+	 }
+      n0 = n->u[0].child;	/* n0 = (car n) */
+      *auxndp = n->u[1].child;	/* tail = (cdr n) */
+      n->u[0].child = n->u[1].child = NULL;	/* detach */
+      free_tree(n);		/* free "cons cell" */
+      n = n0;
+      }
+#if 0
+   else {
+      fprintf(stderr, "/""*%d,%s*""/\n", __LINE__, node_name(n));
+      }
+#endif
+   return n;
+}
+
+void
+top_level_chunk_name(data, n)
+struct dclout_data *data;
+struct node *n;
    {
    char buf[100];
    struct node *nd1;
+   int idx;
+
+   if (data->tally >= MAX_DCLOUT_DATA_ITEMS) {
+      fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	 __FILE__, __LINE__, g_fname_for___FILE__,
+	 g_line_for___LINE__);
+      exit(1);
+      }
+   idx = data->tally;
+   data->items[idx].node = n;
+
+   /*fprintf(stderr, "/""*%d,idx=%d,%s*""/\n", __LINE__, idx, node_name(n));*/
 
    if ((nd1 = nav_t(n, BinryNd, ';', 0))) {
       struct node *nd2;
 
       if (is_a(nd1, BinryNd)) {
-	 if ((nd2 = nd1->u[0].child) && is_t(nd2, PrimryNd, Identifier)) {
-	    int tag_only = nd1->u[1].child == NULL;
-	    char *type_name;
 
-	    switch (nd1->tok->tok_id) {
-	       case Enum: type_name = "enum"; break;
-	       case Union: type_name = "union"; break;
-	       case Struct: type_name = "struct"; break;
-	       default:
-		  fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
-		  exit(1);
-	       }
-	    if (tag_only && nav_t(n, BinryNd, ';', 1)) {
-	       struct node *id_nd;
-	       if ((id_nd = is_t(n->u[1].child, PrimryNd, Identifier)) && id_nd->tok->image == g_str_GENSYM) {
-		  n->u[1].child = NULL;
-		  node_update_trace(n);
-		  free(id_nd);
-		  return g_str_GENSYM;
+	 /* after struct/union normalization, a tag is always present */
+	 assert(nd1->u[0].child);
+
+	 if ((nd2 = nd1->u[0].child)) {
+	    if (is_t(nd2, PrimryNd, Identifier)) {
+	       char *type_name;
+
+	       switch (nd1->tok->tok_id) {
+		  case Enum: type_name = "enum"; break;
+		  case Union: type_name = "union"; break;
+		  case Struct: type_name = "struct"; break;
+		  default:
+		     fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+			__FILE__, __LINE__, g_fname_for___FILE__,
+			g_line_for___LINE__);
+		     exit(1);
 		  }
-	       return is_concrete ? "<<globals>>=" : NULL;
-	       }
-	    snprintf(buf, sizeof(buf),
-	       tag_only ? "<<%s tag %s>>=" : "<<%s %s>>=", type_name, nd2->tok->image);
-	    return str_install_local_sbuf(buf);
-	    }
-	 else if (nd1->u[0].child == NULL) { /* does not have tag */
-	    char *tag_id, *prefix, *type_name;
-	    int type_tok_id;
-	    struct token *tag_tok;
-	    struct node *tag_nd;
-	    switch (nd1->tok->tok_id) {
-	       case Enum:
-		  type_tok_id = Enum;
-		  type_name = "enum";
-		  prefix = "_tag_enum_";
-		  break;
-	       case Union:
-		  type_tok_id = Union;
-		  type_name = "union";
-		  prefix = "_tag_union_";
-		  break;
-	       case Struct:
-		  type_tok_id = Struct;
-		  type_name = "struct";
-		  prefix = "_tag_struct_";
-		  break;
-	       default:
-		  fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+
+	       if (nd1->u[1].child == NULL) {
+		  /* no struct/union type definition */
+
+		  if (n->u[1].child) {	/* has variable definition */
+		     struct node *id_nd, *comma_nd;
+
+		     /* also no struct/union type definition, expected after normalization */
+		     assert(nd1->u[1].child == NULL);
+
+		     if ((id_nd = is_t(n->u[1].child, PrimryNd, Identifier)) && id_nd->tok->image == g_str_GENSYM) {
+			/* TODO: add comments to this case */
+
+			/* is this still valid? */
+			fprintf(stderr, "/""*%d,%s*""/\n", __LINE__, node_name(n->u[1].child));
+			fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+			   __FILE__, __LINE__, g_fname_for___FILE__,
+			   g_line_for___LINE__);
+			exit(1);
+
+			n->u[1].child = NULL;
+			node_update_trace(n);
+			free(id_nd);
+			data->items[idx].chunk_name = g_str_GENSYM;
+			data->tally++;
+			return;
+			}
+
+		     if ((id_nd = nav_n_is_t(n->u[1].child, ConCatNd, 1, PrimryNd, Identifier))) {
+			/* one variable definition */
+			data->items[idx].typagg = Identifier;
+			snprintf(buf, sizeof(buf), "global %s", id_nd->tok->image);
+			data->items[idx].chunk_name = str_install_local_sbuf(buf);
+			data->tally++;
+			}
+		     else if ((id_nd = nav_t_n_is_t(n->u[1].child, BinryNd, '=', 0, ConCatNd, 1, PrimryNd, Identifier))) {
+			/* assignment to one variable definition */
+			data->items[idx].typagg = Identifier;
+			snprintf(buf, sizeof(buf), "global %s", id_nd->tok->image);
+			data->items[idx].chunk_name = str_install_local_sbuf(buf);
+			data->tally++;
+			}
+		     else if ((id_nd = nav_t_n_t_is_t(n->u[1].child, BinryNd, '=', 0, ConCatNd, 1, BinryNd, '[', 0, PrimryNd, Identifier))) {
+			/* array assignment to one variable definition */
+			data->items[idx].typagg = Identifier;
+			snprintf(buf, sizeof(buf), "global %s", id_nd->tok->image);
+			data->items[idx].chunk_name = str_install_local_sbuf(buf);
+			data->tally++;
+			}
+		     else if ((comma_nd = is_t(n->u[1].child, CommaNd, ','))) {
+			/* many variable definitions, add directly to globals */
+			data->items[idx].typagg = Identifier;
+			data->items[idx].chunk_name = NULL;	/* NULL means aggregate only */
+			data->tally++;
+			}
+		     else {
+			fprintf(stderr, "/""*%d,%s*""/\n", __LINE__, node_name(n->u[1].child));
+			fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+			   __FILE__, __LINE__, g_fname_for___FILE__,
+			   g_line_for___LINE__);
+			exit(1);
+			}
+		     return;
+		     }
+		  else {
+		     /* only a foward declaration, incomplete type */
+		     /* TODO: this needs a dedicated type aggregator and chunk name */
+		     data->items[idx].typagg = ';'; /* use ';' to signal forward declarations */
+		     snprintf(buf, sizeof(buf), "forward decls: %s %s", type_name, nd2->tok->image);
+		     data->items[idx].chunk_name = str_install_local_sbuf(buf);
+		     data->tally++;
+		     return;
+		     }
+		  fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+		     __FILE__, __LINE__, g_fname_for___FILE__,
+		     g_line_for___LINE__);
 		  exit(1);
-	       }
-	    tag_id = gensym(prefix);
-	    tag_tok = new_token(Identifier, tag_id, __FILE__, __LINE__);
-	    tag_nd = node0(PrimryNd, tag_tok);
-	    nd1->u[0].child = tag_nd;
-	    if ((nd2 = n->u[1].child)) {      /* has variables */
-	       struct token *type_tok, *semi_tok, *gensym_tok;
-	       n->u[1].child = NULL;
-	       type_tok = new_token(type_tok_id, type_name, __FILE__, __LINE__);
-	       semi_tok = new_token(';', ";", __FILE__, __LINE__);
-	       *auxnd1 = node2(BinryNd, semi_tok,
-		  node2(BinryNd, type_tok, copy_tree(tag_nd), NULL), nd2);
-	       gensym_tok = new_token(Identifier, g_str_GENSYM,
-		  __FILE__, __LINE__);
-	       *auxnd2 = node2(BinryNd, gensym_tok,
-		  node0(PrimryNd, copy_t(type_tok)),
-		  copy_tree(tag_nd));
+		  }
+
+	       data->items[idx].typagg = nd1->tok->tok_id;
+
+	       snprintf(buf, sizeof(buf), "%s %s", type_name, nd2->tok->image);
+	       data->items[idx].chunk_name = str_install_local_sbuf(buf);
+	       data->tally++;
+	       return;
 	       }
 	    else {
-	       struct token *type_tok, *gensym_tok;
-	       if (type_tok_id != Enum) {
-		  /* enum does not required tag nor variables, struct
-		   * or union do
-		   */
-		  fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
-		  exit(1);
-		  }
-	       type_tok = new_token(type_tok_id, type_name, __FILE__, __LINE__);
-	       gensym_tok = new_token(Identifier, g_str_GENSYM,
-		  __FILE__, __LINE__);
-	       *auxnd1 = node2(BinryNd, gensym_tok,
-		  node0(PrimryNd, type_tok),
-		  copy_tree(tag_nd));
+	       fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+		  __FILE__, __LINE__, g_fname_for___FILE__,
+		  g_line_for___LINE__);
+	       exit(1);
 	       }
-	    node_update_trace(n);
-	    return top_level_chunk_name(n, is_concrete, NULL, NULL);
+	    }
+	 else if (nd1->u[0].child == NULL) {
+	    /* does not have tag, shouldn't happen after normalization */
+	    fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	       __FILE__, __LINE__, g_fname_for___FILE__,
+	       g_line_for___LINE__);
+	    exit(1);
 	    }
 	 else {
 	    fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
@@ -4579,88 +4797,110 @@ struct node *n, **auxnd1, **auxnd2;
 	    struct node *id, *maybe_ignore;
 
 	    maybe_ignore = nav_n_is_t(nd1, LstNd, 1, PrimryNd, TypeDefName);
-	    if (maybe_ignore && maybe_ignore->tok->image == g_str_IGNORE)
-	       return NULL;
-	    if ((id = defining_identifier(n->u[1].child))) {
-	       snprintf(buf, sizeof(buf),
-		  "<<typedef %s>>=", id->tok->image);
-	       return str_install_local_sbuf(buf);
+	    if (maybe_ignore && maybe_ignore->tok->image == g_str_IGNORE) {
+	       return;
 	       }
-	    return "<<typedefs>>=";
+	    if ((id = defining_identifier(n->u[1].child))) {
+	       data->items[idx].typagg = Typedef;
+	       snprintf(buf, sizeof(buf),
+		  "typedef %s", id->tok->image);
+	       data->items[idx].chunk_name = str_install_local_sbuf(buf);
+	       data->tally++;
+	       return;
+	       }
+	    fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	       __FILE__, __LINE__, g_fname_for___FILE__,
+	       g_line_for___LINE__);
+	    exit(1);
 	    }
 	 if ((nd3 = nav_n(nd2, LstNd, 0))) {
 	    if (is_t(nd3, PrimryNd, Typedef)) {
 	       struct node *id;
 	       if ((id = defining_identifier(n->u[1].child))) {
+		  data->items[idx].typagg = Typedef;
 		  snprintf(buf, sizeof(buf),
-		     "<<typedef %s>>=", id->tok->image);
-		  return str_install_local_sbuf(buf);
+		     "typedef %s", id->tok->image);
+		  data->items[idx].chunk_name = str_install_local_sbuf(buf);
+		  data->tally++;
+		  return;
 		  }
-	       return "<<typedefs>>=";
+	       fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+		  __FILE__, __LINE__, g_fname_for___FILE__,
+		  g_line_for___LINE__);
+	       exit(1);
 	       }
-	    if (
-		  /* TODO: optimize these tests */
-		  is_tttt(nd3, PrimryNd, Const, Int, Unsigned, Static) ||
+	    if (is_tttt(nd3, PrimryNd, Const, Int, Unsigned, Static) ||
 		  is_tttt(nd3, PrimryNd, Extern, Long, CompatExtension, CompatConst)
 	       ) {
-	       if (!is_concrete)
-		  return NULL;
-	       return "<<globals>>=";
+	       struct node *id;
+	       if ((id = defining_identifier(n->u[1].child))) {
+		  data->items[idx].typagg = Identifier;
+		  snprintf(buf, sizeof(buf),
+		     "global %s", id->tok->image);
+		  data->items[idx].chunk_name = str_install_local_sbuf(buf);
+		  data->tally++;
+		  return;
+		  }
+	       fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+		  __FILE__, __LINE__, g_fname_for___FILE__,
+		  g_line_for___LINE__);
+	       exit(1);
 	       }
-	    fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	    fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	       __FILE__, __LINE__, g_fname_for___FILE__,
+	       g_line_for___LINE__);
 	    exit(1);
 	    }
-	 if (!is_concrete) /* probably just a prototype */
-	    return NULL;
-	 if (
-	       /* TODO: optimize these tests */
-	       is_ttt(nd2, PrimryNd, Const, Int, Unsigned) ||
-	       is_ttt(nd2, PrimryNd, Static, Extern, Long) ||
-	       is_tt(nd2, PrimryNd, Char, Volatile)
+	 if (is_tttt(nd2, PrimryNd, Const, Int, Unsigned, Char) ||
+	       is_tttt(nd2, PrimryNd, Static, Extern, Long, Volatile)
 	    ) {
-	    return "<<globals>>=";
+	    struct node *id;
+	    if ((id = defining_identifier(n->u[1].child))) {
+	       data->items[idx].typagg = Identifier;
+	       snprintf(buf, sizeof(buf),
+		  "global %s", id->tok->image);
+	       data->items[idx].chunk_name = str_install_local_sbuf(buf);
+	       data->tally++;
+	       return;
+	       }
+	    fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	       __FILE__, __LINE__, g_fname_for___FILE__,
+	       g_line_for___LINE__);
+	    exit(1);
 	    }
-	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	 fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	    __FILE__, __LINE__, g_fname_for___FILE__,
+	    g_line_for___LINE__);
 	 exit(1);
 	 }
-      else if (!is_concrete) /* probably just a prototype */
-	 return NULL;
-      else if (
-	    /* TODO: optimize these tests */
-	    is_ttt(nd1, PrimryNd, TypeDefName, Int, Void) ||
-	    is_ttt(nd1, PrimryNd, Char, Doubl, Unsigned) ||
-	    is_tt(nd1, PrimryNd, Long, Float)
+      else if (is_tttt(nd1, PrimryNd, TypeDefName, Int, Void, Long) ||
+	    is_tttt(nd1, PrimryNd, Char, Doubl, Unsigned, Float)
 	 ) {
-	 return "<<globals>>=";
+	 struct node *id;
+	 if ((id = defining_identifier(n->u[1].child))) {
+	    data->items[idx].typagg = Identifier;
+	    snprintf(buf, sizeof(buf),
+	       "global %s", id->tok->image);
+	    data->items[idx].chunk_name = str_install_local_sbuf(buf);
+	    data->tally++;
+	    return;
+	    }
+	 fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	    __FILE__, __LINE__, g_fname_for___FILE__,
+	    g_line_for___LINE__);
+	 exit(1);
 	 }
       else {
-	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	 fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	    __FILE__, __LINE__, g_fname_for___FILE__,
+	    g_line_for___LINE__);
 	 exit(1);
 	 }
       }
-   else if (is_t(n, BinryNd, Identifier)) {
-      char *typeimg, *idimg;
-      if (n->tok->image != g_str_GENSYM) {
-	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
-	 exit(1);
-	 }
-      free_t(n->tok);
-      n->tok = NULL;
-      typeimg = n->u[0].child->tok->image;
-      idimg = n->u[1].child->tok->image;
-      n->nd_id = ConCatNd;
-      free_tree(n->u[0].child);
-      n->u[0].child = NULL;
-      snprintf(buf, sizeof(buf), "<<%s %s>>", typeimg, idimg);
-      n->u[1].child->tok->image = str_install_local_sbuf(buf);
-      node_update_trace(n);
-      snprintf(buf, sizeof(buf), "<<untagged %ss>>=", typeimg);
-      return str_install_local_sbuf(buf);
-      }
-   else if (!is_concrete) { /* probably just a prototype */
-      return NULL;
-      }
-   return is_concrete ? "<<globals>>=" : NULL;
+   fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+      __FILE__, __LINE__, g_fname_for___FILE__,
+      g_line_for___LINE__);
+   exit(1);
    }
 
 static int c_walk_cat(n, indent, brace)
@@ -4677,16 +4917,6 @@ const int indent, brace;
       newindent += IndentInc;
    return c_walk(n, newindent, brace);
    }
-#if 0
-
-static int count_commas(n)
-struct node *n;
-   {
-   if (is_t(n, CommaNd, ','))
-      return 1 + count_commas(n->u[0].child);
-   return 0;
-   }
-#endif
 
 static void c_walk_comma(n, t, indent, brace, may_force_nl, counter, when_nl)
 struct node *n;
@@ -4763,24 +4993,74 @@ struct node *n;
       node_update_trace(n);
       }
    }
-
-static void prt_closing_parenthesis(nxt, indent)
+
+static int prt_closing_parenthesis(nxt, indent)
 struct node *nxt; /* next element */
 int indent;
 {
-   if (is_t(nxt, CompNd, '{') || is_n(nxt, QuadNd) || is_t(nxt, BinryNd, Runerr)) {
-      PRT_CSTR(")", indent);
+   int inc;
+   PRT_CSTR(")", indent);
+   if ((inc = handle_next_indentation(nxt, indent)))
+      ForceNl();
+   else
       ForceSpc();
+   return inc;
+   }
+
+static int handle_next_indentation(nxt, indent)
+struct node *nxt; /* next element */
+int indent;
+{
+   if (is_t(nxt, CompNd, '{') || is_n(nxt, QuadNd) ||
+	 is_t(nxt, BinryNd, Runerr) || does_it_produce_a_compound_statement(nxt)
+	 ) {
+      return 0;
       }
-   else {
-      PRT_CSTR(")", indent);
-      if (ntend && is_t(nxt, PrefxNd, Return))
+   return IndentInc;
+   }
+
+static int prt_else(nxt, indent)
+struct node *nxt; /* next element */
+int indent;
+{
+   int inc;
+   PRT_CSTR("else", indent);
+   if ((inc = handle_next_indentation(nxt, indent))) {
+      if (is_t(nxt, TrnryNd, If)) {
 	 /*
-	  * 'return' gets expanded to a block to handle tended
-	  * descriptors
+	  * Don't indent an "else if"
 	  */
 	 ForceSpc();
-      else
-	 ForceNl();
+	 return 0;
+	 }
+      ForceNl();
       }
+   else /* next element has '{' */
+      ForceSpc();
+   return inc;
+   }
+
+/* TODO: this is largely incomplete, see 'ret_value' for the final word
+ * on this matter, no semantic impact, just formatting, maybe handling
+ * the AST (instead of prt_str/fprintf) is the only proper solution
+ */
+static int does_it_produce_a_compound_statement(n)
+struct node *n;
+   {
+   struct node *n1;
+   if ((n1 = is_t(n, PrefxNd, Return)) && n1->u[0].child == NULL && ntend) /* return; && ntend */
+      return 1;
+   if ((n1 = nav_t(n, PrefxNd, Return, 0)) == NULL) /* not 'return something;' */
+      return 0;
+   if (ntend) /* return something; && ntend; */
+      return 1;
+   if (op_type == OrdFunc || fnc_ret == RetInt || fnc_ret == RetDbl) /* ordinary c function return */
+      return 0;
+   if (is_ttt(n1, SymNd, C_Integer, C_Double, C_String)) /* return special result */
+      return 1;
+   if (nav_t_is_t(n1, BinryNd, ')', 0, SymNd, IconType))
+      return 1;
+   if (is_t(n1, SymNd, Identifier))
+      return n1->u[0].sym->id_type == RsltLoc; /* return result; */
+   return 0;
    }

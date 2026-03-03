@@ -120,10 +120,10 @@ unsigned short *bv;
       for (n = bv[j]; n != 0; n >>= 1)
 	 size += n & 1;
    fprintf(f, "{T_Cset, %d,\n", size);
-   fprintf(f, "   cset_display(0x%x", bv[0]);
+   fprintf(f, "      cset_display(0x%x", bv[0]);
    for (j = 1; j < BVectSize; ++j)
       fprintf(f, ",0x%x", bv[j]);
-   fprintf(f, ")\n    };\n");
+   fprintf(f, ")\n      };");
    }
 
 /*

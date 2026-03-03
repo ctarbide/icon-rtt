@@ -54,7 +54,6 @@ FILE *g_out_file;
 char *inclname;
 #endif
 
-int g_def_fnd = 0;
 char *largeints = "LargeInts";
 
 int iconx_flg = 0;
@@ -330,7 +329,7 @@ char *src_file;
        *  is derived from input file name. The flag g_def_fnd indicates
        *  if anything interesting is put in the file.
        */
-      g_def_fnd = 0;
+      /* g_def_fnd = 0; */
       yyparse();  /* translate the input */
       prt_str("", 0); /* ensure last LF */
       if (fclose(g_out_file) != 0)

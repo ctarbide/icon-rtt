@@ -41,7 +41,6 @@ extern int g_passthru;
 extern int lex_state;      /* state of operator recognition */
 extern char *compiler_def; /* #define for COMPILER */
 extern FILE *g_out_file;   /* output file */
-extern int g_def_fnd;      /* C input defines something concrete */
 
 #if 0
 extern char *inclname;     /* include file to be included by C compiler */
@@ -183,6 +182,7 @@ extern int abs_ret; /* type from abstract return statement */
 #define AbstrNd  15 /* abstract type computation */
 #define IcnTypNd 16 /* name of an Icon type */
 #define LValueNd 17 /* a node on the left side of an assignment */
+#define TopLvlNd 18 /* top-level holder for normalized nodes */
 
 #define NewNode(size) alloc_node(size)
 

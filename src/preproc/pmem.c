@@ -67,6 +67,26 @@ struct token *t;
    }
 
 /*
+ * copy_t_ex - make a copy of a token.
+ */
+struct token *copy_t_ex(t, fname, line)
+struct token *t;
+int line;
+char *fname;
+   {
+   struct token *t1;
+
+   if (t == NULL)
+      return NULL;
+
+   t1 = NewStruct(token);
+   *t1 = *t;
+   t1->fname = fname;
+   t1->line = line;
+   return t1;
+   }
+
+/*
  * new_t_lst - allocate a new element for a token list.
  */
 struct tok_lst *new_t_lst(tok)
