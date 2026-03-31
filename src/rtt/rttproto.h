@@ -149,6 +149,10 @@ nav_t_n_is_t(struct node *n, int nd_id1, int tok_id1, int child1, int nd_id2,
    int child2, int nd_id3, int tok_id3);
 
 struct node *
+nav_t_n_is_a(struct node *n, int nd_id1, int tok_id1, int child1, int nd_id2,
+   int child2, int nd_id3);
+
+struct node *
 nav_t_n_is_ttt(struct node *n, int nd_id1, int tok_id1, int child1, int nd_id2,
    int child2, int nd_id3, int tok_id31, int tok_id32, int tok_id33);
 
@@ -167,6 +171,9 @@ nav_n_n_t_is_t(struct node *n, int nd_id1, int child1, int nd_id2, int child2,
 
 struct node *
 nav_n_is_t(struct node *n, int nd_id1, int child1, int nd_id2, int tok_id2);
+
+struct node *
+nav_t_is_a(struct node *n, int nd_id1, int tok_id1, int child1, int nd_id2);
 
 struct node *
 nav_t_is_n(struct node *n, int nd_id1, int tok_id1, int child1, int nd_id2);

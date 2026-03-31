@@ -133,7 +133,6 @@ extern struct sym_entry *g_params;   /* current list of parameters */
 extern struct sym_entry *g_decl_lst; /* declarations from "declare {...}" */
 extern struct init_tend *g_tend_lst; /* list of allocated tended slots */
 extern char *g_str_rslt;             /* string "result" in string table */
-extern char *g_str_FILE;             /* string "FILE" in string table */
 extern char *g_str_IGNORE;           /* string "IGNORE" in string table */
 extern char *g_str_GENSYM;           /* hidden string for special purposes */
 extern char *g_str___ASM__;          /* string "__asm__" in string table */

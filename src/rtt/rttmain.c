@@ -1,7 +1,6 @@
 
 #include "rtt.h"
 
-char *g_str_FILE;
 char *g_str_IGNORE;
 char *g_str_GENSYM;
 char *g_str___ASM__;
@@ -287,7 +286,6 @@ char *src_file;
 
    /* FILE must be treated as a typedef name.
     */
-   add_tdef((g_str_FILE = spec_str("FILE")));
    add_tdef((g_str_IGNORE = spec_str("IGNORE")));
    do {
       struct tdefnm *td;

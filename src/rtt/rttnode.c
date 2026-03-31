@@ -858,6 +858,19 @@ int child1, child2;
    }
 
 struct node *
+nav_t_n_is_a(n, nd_id1, tok_id1, child1, nd_id2, child2, nd_id3)
+struct node *n;
+int nd_id1, nd_id2, nd_id3, tok_id1;
+int child1, child2;
+   {
+   struct node *nd1, *nd2;
+   if ((nd1 = nav_t_n(n, nd_id1, tok_id1, child1, nd_id2, child2)))
+      if ((nd2 = is_a(nd1, nd_id3)))
+	 return nd2;
+   return NULL;
+   }
+
+struct node *
 nav_t_n_t(n, nd_id1, tok_id1, child1, nd_id2, child2, nd_id3, tok_id3, child3)
 struct node *n;
 int nd_id1, nd_id2, nd_id3, tok_id1, tok_id3;
@@ -913,6 +926,17 @@ int nd_id1, tok_id1, child1, nd_id2, tok_id2;
    struct node *nd;
    if ((nd = nav_t(n, nd_id1, tok_id1, child1)))
       return is_t(nd, nd_id2, tok_id2);
+   return NULL;
+   }
+
+struct node *
+nav_t_is_a(n, nd_id1, tok_id1, child1, nd_id2)
+struct node *n;
+int nd_id1, tok_id1, child1, nd_id2;
+   {
+   struct node *nd;
+   if ((nd = nav_t(n, nd_id1, tok_id1, child1)))
+      return is_a(nd, nd_id2);
    return NULL;
    }
 

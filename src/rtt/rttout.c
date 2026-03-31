@@ -117,7 +117,8 @@ struct dclout_data {
 };
 
 void tag_name_and_prefix(int id, const char **name, const char **prefix);
-struct node *normalize_decl_defn_global(struct node *n, struct node **auxndp);
+void normalize_struct(struct node *n, struct node **declp, struct node **varsp);
+struct node *normalize_toplevel(struct node *n, struct node **auxndp);
 void top_level_chunk_name(struct dclout_data *data, struct node *n);
 static int is_static_function(struct node *head);
 static struct node *fnc_head_args(struct node *head);
@@ -3355,34 +3356,38 @@ struct node *n;
    struct dclout_data data = {0};
    struct node *auxnd = NULL, *n1;
 
-   if ((n = normalize_decl_defn_global(n, &auxnd)) == NULL) {
-      /* non-concrete type, discard */
-      return;
-      }
-
    if ((n1 = nav_t(n, BinryNd, ';', 1))) {
       struct node *n0 = n->u[0].child;
 
       if (nav_n_is_t(n1, ConCatNd, 1, BinryNd, ')')) {
-	 /*int tcdrain(int);*/
 	 /* a function prototype, ignore */
 	 free_tree(n);
 	 return;
 	 }
       if (nav_n_is_t(n0, LstNd, 0, PrimryNd, Extern)) {
-	 /*extern char *optarg;*/
 	 /* an extern, ignore */
 	 free_tree(n);
 	 return;
 	 }
       }
 
+   if ((n = normalize_toplevel(n, &auxnd)) == NULL) {
+      /* non-concrete type, discard */
+      if (auxnd) {
+	 dclout(auxnd);
+	 auxnd = NULL;
+	 }
+      return;
+      }
+
+   /* 'n' is returned in 'data' to be properly freed */
    top_level_chunk_name(&data, n);
    if (data.tally == 0) {
       free_tree(n);
       return;
       }
 
+   /* before normalization 'data' could return multiple items */
    assert(data.tally == 1);
 
    for (idx = 0; data.tally; data.tally--, idx++) {
@@ -3603,7 +3608,7 @@ struct node *head, *prm_dcl;
 	 }
       t = new_token(Void, "void", __FILE__, __LINE__);
       nd->u[1].child = node0(PrimryNd, t);
-      node_update_trace(new_head);
+      NODE_UPDATE_TRACE(new_head);
       return new_head;
       }
    else if (prm_dcl) {
@@ -4430,7 +4435,9 @@ struct node *n;
       case StrDclNd:
       case AbstrNd:
       default:
-	 fprintf(stderr, "Exhaustion %s:%d.\n", __FILE__, __LINE__);
+	 fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	    __FILE__, __LINE__, g_fname_for___FILE__,
+	    g_line_for___LINE__);
 	 exit(1);
       }
       return NULL;
@@ -4481,17 +4488,50 @@ const char **name, **prefix;
       }
    }
 
-struct node *new_binary_node_semicolon(struct node *left, struct node *right, const char *file, int line);
+struct node *new_binary_node_semicolon(struct node *left, struct node *right, const char *fname, int line);
 struct node *
-new_binary_node_semicolon(left, right, file, line)
+new_binary_node_semicolon(left, right, fname, line)
 struct node *left, *right;
 int line;
-const char *file;
+const char *fname;
    {
-   struct token *sc;
+   struct token *t;
 
-   sc = new_token(';', ";", (char*)file, line);
-   return node2(BinryNd, sc, left, right);
+   t = new_token(';', ";", (char*)fname, line);
+   return node2(BinryNd, t, left, right);
+   }
+
+struct node *new_list_node(struct node *left, struct node *right);
+struct node *
+new_list_node(left, right)
+struct node *left, *right;
+   {
+   return node2(LstNd, NULL, left, right);
+   }
+
+struct node *new_static_node(const char *fname, int line);
+struct node *
+new_static_node(fname, line)
+const char *fname;
+int line;
+   {
+   return node0(PrimryNd, new_token(Static, "static", (char*)fname, line));
+   }
+
+struct node *new_typedef_node(const char *fname, int line);
+struct node *
+new_typedef_node(fname, line)
+const char *fname;
+int line;
+   {
+   return node0(PrimryNd, new_token(Typedef, "typedef", (char*)fname, line));
+   }
+
+struct node *new_toplvlnd(struct node *a, struct node *d);
+struct node *new_toplvlnd(a, d)
+struct node *a, *d;
+   {
+   return node2(TopLvlNd, NULL, a, d);
    }
 
 /*
@@ -4515,103 +4555,212 @@ struct node *typ, *n, *acc;
       n->u[1].child = NULL;	/* detach (cdr x) */
 
       /* (loop (car x) (cons (cdr x) acc)) */
-      res = unspine_loop(typ, n->u[0].child, node2(TopLvlNd, NULL, cdr_x, acc));
+      res = unspine_loop(typ, n->u[0].child, new_toplvlnd(cdr_x, acc));
       n->u[0].child = NULL;	/* detach (car x) */
       free_tree(n);		/* free "cons cell" */
       return res;
       }
-   return node2(TopLvlNd, NULL, new_binary_node_semicolon(copy_tree(typ), n, __FILE__, __LINE__), acc);
+   return new_toplvlnd(new_binary_node_semicolon(copy_tree(typ), n, __FILE__, __LINE__), acc);
    }
 
-#define TOPLVL_NIL node2(TopLvlNd, NULL, NULL, NULL)
+#define TOPLVLND_NIL new_toplvlnd(NULL, NULL)
 struct node *unspine(struct node *typ, struct node *n);
 struct node *unspine(typ, n)
 struct node *typ, *n;
    {
-   return unspine_loop(typ, n, TOPLVL_NIL);
+   return unspine_loop(typ, n, TOPLVLND_NIL);
+   }
+
+/* add storage class to simple definition */
+void add_storcls_to_simple_def(struct node *sc, struct node *n);
+void add_storcls_to_simple_def(sc, n)
+struct node *sc, *n;
+   {
+   if (nav_t_is_a(n, BinryNd, ';', 0, BinryNd) == NULL) {
+      fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	 __FILE__, __LINE__, g_fname_for___FILE__,
+	 g_line_for___LINE__);
+      }
+   n->u[0].child = new_list_node(sc, n->u[0].child);
+   NODE_UPDATE_TRACE(n->u[0].child);
+   NODE_UPDATE_TRACE(n);
+   }
+
+void add_static_to_simple_def(struct node *n, const char *fname, int line);
+void add_static_to_simple_def(n, fname, line)
+struct node *n;
+const char *fname;
+int line;
+   {
+   add_storcls_to_simple_def(new_static_node(fname, line), n);
+   }
+
+void add_typedef_to_simple_def(struct node *n, const char *fname, int line);
+void add_typedef_to_simple_def(n, fname, line)
+struct node *n;
+const char *fname;
+int line;
+   {
+   add_storcls_to_simple_def(new_typedef_node(fname, line), n);
+   }
+
+/* normalize struct/union/enum */
+void
+normalize_struct(n, declp, varsp)
+struct node *n, **declp, **varsp;
+   {
+   struct node *typ;	/* type declaration */
+   struct node *decl;	/* struct/union type definition */
+   struct node *var;	/* variable definition */
+
+   if ((typ = nav_t_is_ttt(n, BinryNd, ';', 0, BinryNd, Struct, Union, Enum)) == NULL) {
+      fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	 __FILE__, __LINE__, g_fname_for___FILE__,
+	 g_line_for___LINE__);
+      }
+
+   decl = typ->u[1].child;
+   var = n->u[1].child;
+   n->u[1].child = NULL;	/* detach 'var' */
+
+   if (decl) {
+      if (typ->u[0].child == NULL) {
+	 /* unnamed struct/union, has definition but not a tag, generate a tag */
+	 char *tag_id;
+	 struct token *tag_tok;
+	 const char *name, *prefix;
+
+	 tag_name_and_prefix(typ->tok->tok_id, &name, &prefix);
+	 tag_id = gensym(prefix);
+	 tag_tok = new_token(Identifier, tag_id, __FILE__, __LINE__);
+	 typ->u[0].child = node0(PrimryNd, tag_tok);
+	 NODE_UPDATE_TRACE(typ);
+	 }
+      *declp = n;
+      typ = copy_tree(typ);		/* dup, already at 'n' */
+      free_tree(typ->u[1].child);	/* free struct declaration, already at 'n' */
+      typ->u[1].child = NULL;	/* detach, just freed above */
+      NODE_UPDATE_TRACE(typ);
+      }
+   else {
+      n->u[0].child = NULL;		/* detach 'typ' */
+      free_tree(n);
+      n = NULL;
+      }
+
+   if (var) {
+      struct node *tmp;
+
+      if ((tmp = nav_n(var, ConCatNd, 1)) &&
+	    (tmp->nd_id == PrimryNd || tmp->nd_id == BinryNd)
+	 ) {
+	 /* single definition */
+	 var = new_binary_node_semicolon(typ, var,
+	    __FILE__, __LINE__);
+	 *varsp = new_toplvlnd(var, TOPLVLND_NIL);
+	 }
+      else if ((tmp = nav_t_n(var, BinryNd, '=', 0, ConCatNd, 1)) &&
+	    (tmp->nd_id == PrimryNd || tmp->nd_id == BinryNd)
+	 ) {
+	 /* assignment to a single definition */
+	 var = new_binary_node_semicolon(typ, var,
+	    __FILE__, __LINE__);
+	 *varsp = new_toplvlnd(var, TOPLVLND_NIL);
+	 }
+      else if (is_t(var, CommaNd, ',')) {
+	 /* multiple definitions */
+	 *varsp = unspine(typ, var);		/* 'var' is freed by 'unspine' */
+	 free_tree(typ);
+	 typ = NULL;
+	 }
+      else {
+	 fprintf(stderr, "/""*%d,%s*""/\n", __LINE__, node_name(var));
+	 fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
+	    __FILE__, __LINE__, g_fname_for___FILE__,
+	    g_line_for___LINE__);
+	 exit(1);
+	 }
+      }
    }
 
 /* may return a root node
  */
 struct node *
-normalize_decl_defn_global(n, auxndp)
+normalize_toplevel(n, auxndp)
 struct node *n, **auxndp;
-{
+   {
    struct node *n0;
+
    if ((n0 = nav_t_is_ttt(n, BinryNd, ';', 0, BinryNd, Struct, Union, Enum))) {
       /* a struct/union/enum */
-      const char *name, *prefix;
-      struct node *tag = n0->u[0].child;	/* struct tag */
-      struct node *def = n0->u[1].child;	/* struct/union type definition */
-      struct node *var = n->u[1].child;		/* variable definition */
-
-      tag_name_and_prefix(n0->tok->tok_id, &name, &prefix);
-
-      if (tag == NULL && def) {
-	 /* unnamed struct/union, has definition but not a tag, generate a tag */
-	 char *tag_id;
-	 struct token *tag_tok;
-
-	 tag_id = gensym(prefix);
-	 tag_tok = new_token(Identifier, tag_id, __FILE__, __LINE__);
-	 n0->u[0].child = node0(PrimryNd, tag_tok);
-	 node_update_trace(n0);
-	 }
-
-      if (def && var) {
-	 /* struct type definition and global variable(s) definition simultaneously, split */
-	 struct token *type_tok, *semi_tok;
-	 struct node *tag_nd;
-
-	 type_tok = new_token(n0->tok->tok_id, (char*)name, __FILE__, __LINE__);
-	 semi_tok = new_token(';', ";", __FILE__, __LINE__);
-	 tag_nd = node0(PrimryNd, copy_t_ex(n0->u[0].child->tok, __FILE__, __LINE__));
-	 *auxndp = node2(BinryNd, semi_tok,
-	    node2(BinryNd, type_tok, tag_nd, NULL), var);
-	 n->u[1].child = NULL;	/* detach 'var' from 'n' */
-	 node_update_trace(n);
-	 }
+      struct node *decl = NULL, *vars = NULL;
+      normalize_struct(n, &decl, &vars);
+      n = decl;
+      *auxndp = vars;
       }
    else if ((n0 = nav_t_n_is_ttt(n, BinryNd, ';', 0, LstNd, 1, BinryNd, Struct, Union, Enum))) {
       struct node *lst_nd = n->u[0].child;
+
       if (is_t(lst_nd->u[0].child, PrimryNd, Typedef)) {
-	 /* a typedef struct/union/enum */
-	 const char *name, *prefix;
-	 struct node *tag = n0->u[0].child;	/* struct tag */
-	 struct node *def = n0->u[1].child;	/* struct/union type definition */
-	 struct node *var = n->u[1].child;		/* variable definition */
+	 /* normalize without 'typedef' then re-attach 'typedef' to
+	  * the definitions */
+	 struct node *decl = NULL, *vars = NULL;
 
-	 tag_name_and_prefix(n0->tok->tok_id, &name, &prefix);
+	 normalize_struct(
+	    new_binary_node_semicolon(
+	       lst_nd->u[1].child,
+	       n->u[1].child,
+	       __FILE__, __LINE__),
+	    &decl, &vars);
+	 lst_nd->u[1].child = NULL;	/* detach struct/union/enum */
+	 n->u[1].child = NULL;		/* detach vars */
+	 lst_nd = NULL;
+	 free_tree(n);
+	 if (vars) {
+	    struct node *var, *iter = vars;
 
-	 if (tag == NULL && def) {
-	    /* unnamed struct/union, has definition but not a tag, generate a tag */
-	    char *tag_id;
-	    struct token *tag_tok;
-
-	    tag_id = gensym(prefix);
-	    tag_tok = new_token(Identifier, tag_id, __FILE__, __LINE__);
-	    n0->u[0].child = node0(PrimryNd, tag_tok);
-	    node_update_trace(n0);
+	    while ((var = nav_n(iter, TopLvlNd, 0))) {
+	       add_typedef_to_simple_def(var, __FILE__, __LINE__);
+	       iter = iter->u[1].child;
+	       }
 	    }
-
-	 if (def && var) {
-	    /* struct type definition and global variable(s) definition simultaneously, split */
-	    struct token *type_tok, *semi_tok;
-	    struct node *tag_nd;
-
-	    lst_nd->u[1].child = NULL;	/* detach n0 */
-	    n->u[0].child = n0;		/* erase 'typedef' */
-	    type_tok = new_token(n0->tok->tok_id, (char*)name, __FILE__, __LINE__);
-	    semi_tok = new_token(';', ";", __FILE__, __LINE__);
-	    tag_nd = node0(PrimryNd, copy_t_ex(n0->u[0].child->tok, __FILE__, __LINE__));
-	    lst_nd->u[1].child = node2(BinryNd, type_tok, tag_nd, NULL);
-	    *auxndp = node2(BinryNd, semi_tok, lst_nd, var);
-	    n->u[1].child = NULL;	/* detach 'var' from 'n' */
-	    node_update_trace(n);
-	    }
+	 n = decl;
+	 *auxndp = vars;
 	 }
+      else if (is_t(lst_nd->u[0].child, PrimryNd, Static)) {
+	 /* normalize without 'static' then re-attach 'static' to
+	  * the definitions */
+	 struct node *decl = NULL, *vars = NULL;
+
+	 normalize_struct(
+	    new_binary_node_semicolon(
+	       lst_nd->u[1].child,
+	       n->u[1].child,
+	       __FILE__, __LINE__),
+	    &decl, &vars);
+	 lst_nd->u[1].child = NULL;	/* detach struct/union/enum */
+	 n->u[1].child = NULL;		/* detach vars */
+	 lst_nd = NULL;
+	 free_tree(n);
+	 if (vars) {
+	    struct node *var, *iter = vars;
+
+	    while ((var = nav_n(iter, TopLvlNd, 0))) {
+	       add_static_to_simple_def(var, __FILE__, __LINE__);
+	       iter = iter->u[1].child;
+	       }
+	    }
+	 n = decl;
+	 *auxndp = vars;
+	 }
+#if 0
+      else {
+	 fprintf(stderr, "/""*%d,%s*""/\n", __LINE__, node_name(n));
+	 }
+#endif
       }
    else if ((n0 = nav_t_is_t(n, BinryNd, ';', 1, CommaNd, ','))) {
+      /* multiple global definitions */
       n0 = unspine(n->u[0].child /* typ */, n0);
       free_tree(n->u[0].child);		/* free type */
       n->u[0].child = NULL;		/* detach, just freed above */
@@ -4640,7 +4789,7 @@ struct node *n, **auxndp;
       }
 #endif
    return n;
-}
+   }
 
 void
 top_level_chunk_name(data, n)
@@ -4705,7 +4854,7 @@ struct node *n;
 			exit(1);
 
 			n->u[1].child = NULL;
-			node_update_trace(n);
+			NODE_UPDATE_TRACE(n);
 			free(id_nd);
 			data->items[idx].chunk_name = g_str_GENSYM;
 			data->tally++;
@@ -4752,7 +4901,7 @@ struct node *n;
 		     /* only a foward declaration, incomplete type */
 		     /* TODO: this needs a dedicated type aggregator and chunk name */
 		     data->items[idx].typagg = ';'; /* use ';' to signal forward declarations */
-		     snprintf(buf, sizeof(buf), "forward decls: %s %s", type_name, nd2->tok->image);
+		     snprintf(buf, sizeof(buf), "forward decls - %s %s", type_name, nd2->tok->image);
 		     data->items[idx].chunk_name = str_install_local_sbuf(buf);
 		     data->tally++;
 		     return;
@@ -4897,6 +5046,7 @@ struct node *n;
 	 exit(1);
 	 }
       }
+   fprintf(stderr, "/""*%d,%s*""/\n", __LINE__, node_name(n));
    fprintf(stderr, "Exhaustion %s:%d, last line read: %s:%d.\n",
       __FILE__, __LINE__, g_fname_for___FILE__,
       g_line_for___LINE__);
@@ -4990,7 +5140,7 @@ struct node *n;
    {
    if (is_t(n, PrimryNd, TypeDefName)) {
       n->tok->tok_id = Identifier;
-      node_update_trace(n);
+      NODE_UPDATE_TRACE(n);
       }
    }
 
