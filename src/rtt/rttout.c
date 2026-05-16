@@ -4063,7 +4063,9 @@ struct node *n;
        * Output prototype. Operations taking a variable number of arguments
        *   have an extra parameter: the number of arguments.
        */
-      PRT_CSTR("<<protos>>=\n", 0 /* indent */);
+      chk_nl(0);
+      fprintf(g_out_file, "<<protos>>=\n<<proto %c%s>>\n<<proto %c%s>>=\n",
+	 letter, name, letter, name);
       fprintf(g_out_file, "%s int %c%s(", rtt_type, letter, name);
 #if 0
       if (g_params && (g_params->id_type & VarPrm))
@@ -4093,7 +4095,9 @@ struct node *n;
       }
    else {
       /* Output keyword prototype. */
-      PRT_CSTR("<<protos>>=\n", 0 /* indent */);
+      chk_nl(0);
+      fprintf(g_out_file, "<<protos>>=\n<<proto %c%s>>\n<<proto %c%s>>=\n",
+	 letter, name, letter, name);
       fprintf(g_out_file, "%s int %c%s(uword r_nargs, dptr r_args);\n", rtt_type, letter, name);
       }
 
@@ -4101,7 +4105,8 @@ struct node *n;
     * Output function header. Operations taking a variable number of arguments
     *   have an extra parameter: the number of arguments.
     */
-   fprintf(g_out_file, "<<impl>>=\n");
+   fprintf(g_out_file, "<<impl>>=\n<<impl %c%s>>\n<<impl %c%s>>=\n",
+      letter, name, letter, name);
    fprintf(g_out_file, "%s int %c%s(", rtt_type, letter, name);
 #if 0
    if (g_params != NULL && (g_params->id_type & VarPrm))
